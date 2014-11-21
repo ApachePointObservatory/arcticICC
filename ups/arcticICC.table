@@ -1,0 +1,9 @@
+setupRequired("numpy")
+setupRequired("RO")
+setupRequired("twistedActor")
+setupRequired("opscore")
+
+envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
+envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
+envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)
+envAppend(PATH, ${PRODUCT_DIR}/bin)

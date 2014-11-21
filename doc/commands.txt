@@ -1,0 +1,61 @@
+
+ARCTIC commands
+
+Note: at power on the ICC reads two config files:
+- camera config: specifies default bin, window and camera controller DSP file
+- filter config: specifies which filter is in which slot
+
+*** SET ***
+
+set bin=n window=[llx,llr,width,height|full] filter=nameOrNum temp=degC
+
+Set parameters:
+- bin is a single integer that applies to both x and y
+- window is in binned pixels
+- filter value may be a filter name or a slot number (1-n); the reported value includes both values (slot and name)
+- temp is the temperature setpoint in C
+
+The advantage to specifying everything at once is that TUI can send it all at once and the ICC can choose the most efficient way to set it. The disadvantage is that the ICC becomes a bit more complicated.
+
+*** EXPOSE ***
+
+expose object time=S [basename=string] [comment=string]
+expose flat time=S [basename=string] [comment=string]
+expose dark time=S [basename=string] [comment=string]
+expose bias [basename=string] [comment=string]
+expose pause
+expose resume
+expose stop
+expose abort
+
+This is a copy of the DIS expose command. Stop immediately finishes and reads out the current exposure abort finishes and discards the current exposure. ?Can readout be interrupted?
+
+*** CAMERA ***
+
+camera [status|init]
+
+Command the camera controller
+- status: return exposure status, environmental status (e.g. temperature and pressure) and current parameters (e.g. bin, window and temperature setpoint)
+- init: initialize the camera: abort any existing exposure, close the shutter, reload the camera config file, reset bin and window, and reload the DSP file
+
+*** FILTER ***
+
+filter [status|init|home|talk <text>]
+
+Command the filterwheel controller
+- status: return filter status
+- init: initialize the filter controller
+- home: initialize and home the filter controller
+- talk <text>: send the specified text to the filter controller; the text need not be surrounded by quotes
+
+*** INIT ***
+
+init
+
+Shortcut for "camera init" followed by "filter init"
+
+*** STATUS ***
+
+status
+
+Shortcut for "camera status" and "filter status"

@@ -1,0 +1,70 @@
+ARCTIC ICC requirements
+
+***** Requirements *****
+
+* Support APO's standard expose command.
+
+* Allow user to choose the following:
+    - readout speed (slow, medium or fast)
+    - binning (a single value used for x and y)
+    - window
+    
+    Notes:
+    - These are quick to change, so I propose to make them part of the expose command (like Agile and the guiders), rather than a separate config step (like most other instruments). Eliminating a "Config" panel makes the instrument easier to use.
+    - Startup defaults will be set by a config file, but once a value is set, it is "sticky" for the next expose command.
+    - Use APO standard 0 point convention for windowing for instruments (which unfortunately is different than for guiders; we should change the guiders someday).
+
+* Provide the data as a single raw image
+
+The data will be a single image with 4 quadrants, each of which includes prescan, data and postscan for the relevant amplifier. Calibration (bias subtraction, etc.) and trimming (removal of prescan and postscan regions) will be done elsewhere.
+
+I suggest that the raw data have the same sky orientation in all quadrants, so that it looks as much as possible like the final trimmed image. That will require an extra flip of the data for most corners, but that is trivial. The flipping has to be done at some point, in any case.
+
+* Allow configuration of prescan and overscan.
+
+    I propose this only be supported in the startup config file, to avoid accidentally messing up other users. But we can add commands to change it, if desired.
+
+* Always read all 4 corners into a single image.
+
+This is the only mode supported by the CCD controller. We initially wanted to be able to read out one quadrant as a guide image, but that would require a different CCD controller.
+
+* Provide a low level command to open and close the shutter, for engineering.
+
+There will be no TUI interface.
+
+* Allow the user to specify a filter
+
+***** Questions *****
+
+* How to handle the shutter?
+
+There are two issues:
+- How to command the shutter to open and close?
+- How to read out the actual measured exposure time.
+
+The Leach controller can send a TTL signal that could be used to command the shutter open and closed. However, it is unlikely we can get the proper timing information back into the Leach controller.
+
+It maybe simpler to have a separate actor that controls the shutter via ASCII commands and replies, e.g. via telnet. A hybrid is also possible (TTL from Leach to open shutter, ASCII via telnet to get timing information) but that makes for a rather complex architecture; I would prefer not to go that route unless there is some very clear advantage (such as simpler use of the Leach API to command exposures).
+
+* What does the bAbort boolean reference flag do?
+
+Several API calls (SetupController, Expose, LoadControllerFile, Continuous) have a flag like bAbort that is described as:
+    External reference to allow the user to abort the method
+what does that mean? How is this flag used? Does it simply enable aborting, or is there more to it?
+
+* Where are the dsp files and other files needed by the controller?
+
+Which files will need to be explicitly loaded by the ICC software?
+How many will have to be re-loaded, and under what circumstances?
+
+* What units does SetSubArray, the command that sets windowing, use? Unbinned pixels? Pixels
+
+Note that it has a clumsy definition for the subregion (center and size, instead of LL corner and size).
+
+***** Notes *****
+
+* The controller handles flushing automatically
+
+* The Expose command combines timing, shutter control and readout.
+
+If the Leach controller does not control the shutter then we'll use something else.
