@@ -3,18 +3,21 @@ I’ve been reading the API documentation and the low-level command documentatio
 I propose we create a single C++ class that represents the camera and uses only the low-level calls (except *possibly* for startup and shutdown). The constructor should connect, initialize, set overscan and allocate the image buffer. The destructor undoes all that. This is the standard RAII pattern, and it is perfect for this sort of thing. We'll offer the obvious methods:
 - Start exposure (specify exposure time and whether to open the shutter)
 - Abort exposure
-- Stop exposure (if we can figure out how to do it)
-- Pause exposure
-- Resume exposure
-- Set bin factor
-- Set subregion
-- Set read rate
+- Stop exposure and read out (how?)
+- Pause exposure (how?)
+- Resume exposure (how?)
+- Get exposure state
+- Get remaining exposure time
+- Get and set bin factor
+- Get and set subregion
+- Get and set read rate
 - Call Command to do low-level things from C++
 
 Questions for Leach:
-- Can one stop an exposure early and read it out?
+- Can I stop the exposure timer and read out the exposure?
+- Can I pause an exposure (stop the timer and close the shutter, if it was open) and resume it later?
 
-Here are the direct commands needed (other than those for startup and shutdown):
+Here are some useful direct commands:
 SET: set exposure timer: issue this prior to sending SEX (used by Expose)
 SEX: start an exposure (used by Expose)
 PEX: pause exposure (closing shutter if need be)
@@ -26,5 +29,7 @@ SSP: set subarray position (used by SetSubArray)
 WRM: set bin factor, and other things. To set bin factor:
     Command(TIM_ID, WRM, (Y_MEM | 0x5), binCols)
     Command(TIM_ID, WRM, (Y_MEM | 0x6), binRows)
+OSH: open shutter
+CSH: close shutter
 
 By the way: the reason so many API commands take full image size as an argument is that the API always checks to see if the image buffer needs to be grown. That seems insane to me. As long as we specify the overscan at construction time we know that maximum image buffer size then and we never touch it.
