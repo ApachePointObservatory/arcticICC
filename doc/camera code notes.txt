@@ -13,16 +13,16 @@ I propose we create a single C++ class that represents the camera and uses only 
 - Get and set read rate
 - Call Command to do low-level things from C++
 
-Questions for Leach:
-- Can I stop the exposure timer and read out the exposure?
-- Can I pause an exposure (stop the timer and close the shutter, if it was open) and resume it later?
+WARNING!!!!! do NOT send commands to the Leach board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
 
 Here are some useful direct commands:
+AEX: abort exposure without reading it out (used by Expose)
+ABR: abort readout
+RET: read elapsed eposure time (what is returned if not exposing?)
 SET: set exposure timer: issue this prior to sending SEX (used by Expose)
 SEX: start an exposure (used by Expose)
 PEX: pause exposure (closing shutter if need be)
 REX: resume exposure (opening shutter if need be)
-AEX: abort exposure without reading it out (used by Expose)
 SSS: set subarray size (used by SetSubArray, which calls SSS first, then SSP)
     note that SSS, 0, 0, 0 resets to full frame (without calling SSP)!
 SSP: set subarray position (used by SetSubArray)
@@ -31,5 +31,6 @@ WRM: set bin factor, and other things. To set bin factor:
     Command(TIM_ID, WRM, (Y_MEM | 0x6), binRows)
 OSH: open shutter
 CSH: close shutter
+SPS: NOT DOCUMENTED: sets the readout rate (set pixel speed?); used by Owl in SelectableReadoutSpeedCC.bsh
 
 By the way: the reason so many API commands take full image size as an argument is that the API always checks to see if the image buffer needs to be grown. That seems insane to me. As long as we specify the overscan at construction time we know that maximum image buffer size then and we never touch it.
