@@ -4,9 +4,9 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "CArcDeinterlace.h"
-#include "CArcFitsFile.h"
-#include "ArcDefs.h"
+#include "CArcDevice/ArcDefs.h"
+#include "CArcDeinterlace/CArcDeinterlace.h"
+#include "CArcFitsFile/CArcFitsFile.h"
 
 #include "arcticICC/camera.h"
 

@@ -5,8 +5,8 @@
 #include <array>
 #include <ctime>
 
-#include "CArcPCIe.h"
-#include "CArcDevice.h"
+#include "CArcDevice/CArcPCIe.h"
+#include "CArcDevice/CArcDevice.h"
 
 #include "arcticICC/basics.h"
 
