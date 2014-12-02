@@ -224,9 +224,9 @@ namespace arctic {
         if (expTime < 0) {
             expTime = _cmdExpSec;
         }
-        cFits.WriteKeyword("EXPTIME", &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, "exposure time (sec)");
+        cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
         std::string expTypeStr = ExposureTypeMap.find(_expType)->second;
-        cFits.WriteKeyword("EXPTYPE", &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, "exposure type");
+        cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
         _setIdle();
     }
 

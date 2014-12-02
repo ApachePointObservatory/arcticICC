@@ -65,11 +65,21 @@ Exposure state, as returned by Camera::getExposureState
 */
 class ExposureState {
 public:
+    /**
+    Construct an ExposureState
+
+    @param[in] state  state
+    @param[in] fullTime  full duration for this state (sec)
+    @param[in] remTime  remaining duration for this state (sec)
+    */
     explicit ExposureState(StateEnum state=StateEnum::Idle, float fullTime=0, float remTime=0)
     : state(state), fullTime(fullTime), remTime(remTime) {}
     StateEnum state;    ///< state
-    double fullTime;    ///< full time for this state (sec)
-    double remTime;     ///< remaining time for this state (sec)
+    double fullTime;    ///< full duration for this state (sec)
+    double remTime;     ///< remaining duration for this state (sec)
+    /**
+    Return true if camera is busy (exposing, paused or reading)
+    */
     bool isBusy() const { return (state == StateEnum::Exposing) || (state == StateEnum::Paused) || (state == StateEnum::Reading); }
 };
 

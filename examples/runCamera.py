@@ -7,29 +7,29 @@ import Tkinter
 import RO.Wdg
 from RO.TkUtil import Timer
 
-UseArcticICC = False
+UseArcticICC = True
 
 if UseArcticICC:
-    import arcticICC
+    import arcticICC.camera as arctic
 
     ExpTypeDict = collections.OrderedDict((
-        ("Bias", arcticICC.ExposureType.Bias),
-        ("Dark", arcticICC.ExposureType.Dark),
-        ("Flat", arcticICC.ExposureType.Flat),
-        ("Object", arcticICC.ExposureType.Object),
+        ("Bias", arctic.ExposureType.Bias),
+        ("Dark", arctic.ExposureType.Dark),
+        ("Flat", arctic.ExposureType.Flat),
+        ("Object", arctic.ExposureType.Object),
     ))
 
     ReadoutRateDict = collections.OrderedDict((
-        ("Slow", arcticICC.ReadoutRate.Slow),
-        ("Medium", arcticICC.ReadoutRate.Medium),
-        ("Fast", arcticICC.ReadoutRate.Fast),
+        ("Slow", arctic.ReadoutRate.Slow),
+        ("Medium", arctic.ReadoutRate.Medium),
+        ("Fast", arctic.ReadoutRate.Fast),
     ))
     StatusStrDict = {
-        arcticICC.StateEnum.Idle:      "Idle",
-        arcticICC.StateEnum.Exposing:  "Exposing",
-        arcticICC.StateEnum.Paused:    "Paused",
-        arcticICC.StateEnum.Reading:   "Reading",
-        arcticICC.StateEnum.ImageRead: "ImageRead",
+        arctic.StateEnum.Idle:      "Idle",
+        arctic.StateEnum.Exposing:  "Exposing",
+        arctic.StateEnum.Paused:    "Paused",
+        arctic.StateEnum.Reading:   "Reading",
+        arctic.StateEnum.ImageRead: "ImageRead",
     }
 else:
     ExpTypeDict = collections.OrderedDict((
@@ -51,7 +51,7 @@ class CameraWdg(Tkinter.Frame):
         self.expNum = 1
         self.statusTimer = Timer()
         if UseArcticICC:
-            self.camera = arcticICC.Camera(1024, 1024, 10)
+            self.camera = arctic.Camera(1024, 1024, 10)
             self.getStatus()
         else:
             self.camera = None
