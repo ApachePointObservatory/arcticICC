@@ -1,4 +1,4 @@
-setupRequired("numpy")
+#setupRequired("numpy") # assume numpy is installed in python
 setupRequired("RO")
 setupRequired("twistedActor")
 setupRequired("opscore")
