@@ -1,10 +1,13 @@
 config.log
 doxygen.conf
 html/
+examples/takeOneExposure
 *Lib.py
+*.pyc
 *.cfgc
 *_wrap.cc
 .scon*
+*.o
 *.os
 *.so
 *.tag
