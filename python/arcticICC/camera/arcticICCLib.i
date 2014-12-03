@@ -3,11 +3,12 @@
 %enddef
 
 %feature("autodoc", "1");
-%module(package="arcticICC", docstring=ModuleDocStr) tccLib
+%module(package="arcticICC", docstring=ModuleDocStr) arcticICCLib
 
 %{
 #include <sstream>
 #include <stdexcept>
+#include "arcticICC/basics.h"
 #include "arcticICC/camera.h"
 %}
 

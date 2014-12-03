@@ -5,6 +5,9 @@
 #include <array>
 #include <ctime>
 
+#include "CArcDevice/CArcPCIe.h"
+#include "CArcDevice/CArcDevice.h"
+
 #include "arcticICC/basics.h"
 
 namespace arctic {
@@ -19,7 +22,7 @@ Is Initialization" pattern and simplify some call signatures.
 - the readout rate is forced at startup and is cached; if there was a way to read it from the controller
   that might be nicer, or a way of knowing what value it has at startup
 */
-class Camera: {
+class Camera {
 public:
     /**
     Contruct a camera: open the camera and allocate all resources
@@ -40,7 +43,7 @@ public:
     /**
     Return true if not idle (i.e. if exposing, paused exposure, or reading out)
     */
-    bool isBusy() const { return BusyEnumSet.count(getExposureState().state) > 0; }
+    bool isBusy() { return getExposureState().isBusy(); }
 
     /**
     Start an exposure
@@ -84,7 +87,7 @@ public:
     /**
     Get current exposure state
     */
-    ExposureState getExposureState() const;
+    ExposureState getExposureState();
 
     /**
     Get bin factor
@@ -130,7 +133,7 @@ public:
 
     @throw std::runtime_error if the requested image extends off the imaging area
     */
-    void setWindow(int colStart, rowStart, int width, int height);
+    void setWindow(int colStart, int rowStart, int width, int height);
 
     /**
     Get the readout rate
@@ -166,9 +169,9 @@ public:
     */
     void closeShutter();
 
-    int const dataWidth;    // width of full data region of CCD (unbinned pixels)
-    int const dataHeight;   // height of full data region of CCD (unbinned pixels)
-    int const xOverscan;    // x overscan (unbinned pixels)
+    int const dataWidth;    ///< width of full data region of CCD (unbinned pixels)
+    int const dataHeight;   ///< height of full data region of CCD (unbinned pixels)
+    int const xOverscan;    ///< x overscan (unbinned pixels)
 
     /**
     Return image width, in binned pixels (includes overscan)
@@ -181,28 +184,29 @@ public:
     int getImageHeight() const { return _winHeight / _rowBinFac; }
 
 private:
-    void _setIdle();    // set values indicating idle state (_cmdExpSec, _fullReadTime and _isPaused)
-    void _readTime(int nPix) const; /// estimate readout time (sec) based on number of pixels to read
-    void runCommand(std::string const &descr, int arg0=0, int arg1=0, int arg2=0, int arg3=0);
+    void assertIdle();  /// assert that the camera is not busy
+    void _setIdle();    /// set values indicating idle state (_cmdExpSec, _fullReadTime and _isPaused)
+    double _readTime(int nPix) const; /// estimate readout time (sec) based on number of pixels to read
+    void runCommand(std::string const &descr, int arg0=0, int arg1=0, int arg2=0, int arg3=0, int arg4=0);
     // it would be safer to read the following parameters directly from the controller,
     // but I don't know how to do that
     ReadoutRate _readoutRate;
-    int _colBinFac;     // column bin factor
-    int _rowBinFac;     // row bin factor
-    int _winColStart;   // starting column for data subwindow (unbinned pixels, starting from 0)
-    int _winRowStart;   // starting row for data subwindow (unbinned pixels, starting from 0)
-    int _winWidth;      // window width (unbinned pixels)
-    int _winHeight;     // window height (unbinned pixels)
-    std::string _expName;       // exposure name (used for the FITS file)
-    ExposureType _expType;      // exposure type
-    double _cmdExpSec;          // commanded exposure time, in seconds; <0 if no exposure
-    double _segmentExpSec;      // exposure time for this segment; updated when an exposure is paused
-    time_t _segmentStartTime;   // start time of this exposure segment; updated when an exposure is paused or resumed;
-                                // 0 if exposure is paused or not exposing
-    double _pauseTime;          // accumulated exposure pause time (not including current pause, if paused) (sec)
-    double _pauseStartTime;     // start time of current pause
+    int _colBinFac;     /// column bin factor
+    int _rowBinFac;     /// row bin factor
+    int _winColStart;   /// starting column for data subwindow (unbinned pixels, starting from 0)
+    int _winRowStart;   /// starting row for data subwindow (unbinned pixels, starting from 0)
+    int _winWidth;      /// window width (unbinned pixels)
+    int _winHeight;     /// window height (unbinned pixels)
+    std::string _expName;       /// exposure name (used for the FITS file)
+    ExposureType _expType;      /// exposure type
+    double _cmdExpSec;          /// commanded exposure time, in seconds; <0 if no exposure
+    double _segmentExpSec;      /// exposure time for this segment; updated when an exposure is paused
+    time_t _segmentStartTime;   /// start time of this exposure segment; updated when an exposure is paused or resumed;
+                                /// 0 if exposure is paused or not exposing
+    double _pauseTime;          /// accumulated exposure pause time (not including current pause, if paused) (sec)
+    double _pauseStartTime;     /// start time of current pause
 
-    CArcPCIe  _device;  // the Leach API's representation of a camera controller
+    arc::device::CArcPCIe   _device;  /// the Leach API's representation of a camera controller
 };
 
 } // namespace

@@ -1,14 +1,12 @@
+#include <cstdint>
 #include <string>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 
-// fix these as needed
-#include "CArcDevice.h"
-#include "CArcPCIe.h"
-#include "CArcDeinterlace.h"
-#include "CArcFitsFile.h"
-#include "CExpIFace.h"
+#include "CArcDevice/ArcDefs.h"
+#include "CArcDeinterlace/CArcDeinterlace.h"
+#include "CArcFitsFile/CArcFitsFile.h"
 
 #include "arcticICC/camera.h"
 
@@ -17,15 +15,15 @@ std::string const TimingBoardFileName = "tim.lod";
 // The following was taken from Owl's SelectableReadoutSpeedCC.bsh
 // it uses an undocumented command "SPS"
 int const SPS = 0x535053;
-std::map<int, int> ReadoutRateCmdValueMap = {
-    {ReadoutRate::Slow,   0x534C57},
-    {ReadoutRate::Medium, 0x4D4544},
-    {ReadoutRate::Fast,   0x465354},
-}
+std::map<arctic::ReadoutRate, int> ReadoutRateCmdValueMap = {
+    {arctic::ReadoutRate::Slow,   0x534C57},
+    {arctic::ReadoutRate::Medium, 0x4D4544},
+    {arctic::ReadoutRate::Fast,   0x465354},
+};
 
 namespace arctic {
 
-    Camera::Camera(int dataWidth, int dataHeight, int xOverscan, int yOverscan) :
+    Camera::Camera(int dataWidth, int dataHeight, int xOverscan) :
         dataWidth(dataWidth), dataHeight(dataHeight), xOverscan(xOverscan),
         _colBinFac(1), _rowBinFac(1),
         _winColStart(0), _winRowStart(0), _winWidth(dataWidth), _winHeight(dataHeight),
@@ -35,13 +33,13 @@ namespace arctic {
     {
         if ((dataWidth < 1) || (dataHeight < 1)) {
             std::ostringstream os;
-            os << "width=" << width << " and height=" << height " must be positive";
-            throw std::runtime_error(os.str())
+            os << "dataWidth=" << dataWidth << " and dataHeight=" << dataHeight << " must be positive";
+            throw std::runtime_error(os.str());
         }
         if (xOverscan < 0) {
             std::ostringstream os;
             os << "xOverscan=" << xOverscan << " must be non-negative";
-            throw std::runtime_error(os.str())
+            throw std::runtime_error(os.str());
         }
 
         int fullHeight = dataHeight; // controller does not support y overscan
@@ -60,21 +58,21 @@ namespace arctic {
         setReadoutRate(ReadoutRate::Slow); // force a value so we know what it is
     }
 
-    ~Camera::Camera() {
+    Camera::~Camera() {
         _device.Close();
     }
 
-    void startExposure(float expTime, ExposureType expType, std::string const &name) {
+    void Camera::startExposure(float expTime, ExposureType expType, std::string const &name) {
         assertIdle();
         if (expTime < 0) {
             std::ostringstream os;
             os << "exposure time=" << expTime << " must be non-negative";
-            throw std::runtime_error(os.str())
+            throw std::runtime_error(os.str());
         }
         if ((expType == ExposureType::Bias) && (expTime > 0)) {
             std::ostringstream os;
             os << "exposure time=" << expTime << " must be zero if expType=Bias";
-            throw std::runtime_error(os.str())
+            throw std::runtime_error(os.str());
         }
 
         // clear common buffer, so we know when new data arrives
@@ -85,14 +83,14 @@ namespace arctic {
 
         int expTimeMS = int(expTime*1000.0);
         std::ostringstream os;
-        os << "Set exposure time to " << expTimeMS << " ms" << expTimeRetVal;
+        os << "Set exposure time to " << expTimeMS << " ms";
         runCommand(os.str(), TIM_ID, SET, expTimeMS);
 
         runCommand("start exposure", TIM_ID, SEX);
         _expName = name;
         _cmdExpSec = expTime;
         _segmentExpSec = _cmdExpSec;
-        _segmentStartTime = time();
+        _segmentStartTime = time(NULL);
     }
 
     void Camera::pauseExposure() {
@@ -100,8 +98,8 @@ namespace arctic {
             throw std::runtime_error("no exposure to pause");
         }
         runCommand("pause exposure", TIM_ID, PEX);
-        double segmentElapsedTime = difftime(time(), _segmentStartTime);
-        _segmentExpSec = max(0, _segmentExpSec - segmentElapsedTime);
+        double segmentElapsedTime = difftime(time(NULL), _segmentStartTime);
+        _segmentExpSec = std::max(0.0, _segmentExpSec - segmentElapsedTime);
         _segmentStartTime = 0; // indicate that the exposure is paused
     }
 
@@ -110,43 +108,43 @@ namespace arctic {
             throw std::runtime_error("no paused exposure to resume");
         }
         runCommand("resume exposure`", TIM_ID, REX);
-        _segmentStartTime = time();
+        _segmentStartTime = time(NULL);
     }
 
     void Camera::abortExposure() {
         if (!isBusy()) {
             throw std::runtime_error("no exposure to abort");
         }
-        _device.StopExposure()
+        _device.StopExposure();
         _setIdle();
     }
 
     void Camera::stopExposure() {
         auto expState = getExposureState();
-        if (ExposingEnumSet.count(expState) == 0) {
+        if (!expState.isBusy()) {
             throw std::runtime_error("no exposure to stop");
         }
-        if (expState == StateEnum::Reading || expState.remTime < 0.1) {
+        if (expState.state == StateEnum::Reading || expState.remTime < 0.1) {
             // if reading out or nearly ready to read out then it's too late to stop; let the exposure end normally
             return;
         }
         runCommand("stop exposure", TIM_ID, SET, 0);
     }
 
-    ExposureState Camera::getExposureState() const {
+    ExposureState Camera::getExposureState() {
         if (_cmdExpSec < 0) {
             return ExposureState(StateEnum::Idle);
-        else if (_segmentStartTime == 0) {
+        } else if (_segmentStartTime == 0) {
             return ExposureState(StateEnum::Paused);
-        else if (_device.IsReadout()) {
+        } else if (_device.IsReadout()) {
             int totPix = getImageWidth() * getImageHeight();
             int numPixRead = _device.GetPixelCount();
             int numPixRemaining = std::max(totPix - numPixRead, 0);
-            double fullReadTime = _readTime(fullNumPix);
+            double fullReadTime = _readTime(totPix);
             double remReadTime = _readTime(numPixRemaining);
             return ExposureState(StateEnum::Reading, fullReadTime, remReadTime);
-        } else if (_device.CommonBufferVA()[0] == 0) {
-            double segmentRemTime = difftime(time(), _segmentStartTime);
+        } else if (static_cast<uint16_t *>(_device.CommonBufferVA())[0] == 0) {
+            double segmentRemTime = difftime(time(NULL), _segmentStartTime);
             return ExposureState(StateEnum::Exposing, _cmdExpSec, segmentRemTime);
         } else {
             return ExposureState(StateEnum::ImageRead);
@@ -158,7 +156,7 @@ namespace arctic {
         if (colBinFac < 1 or colBinFac > dataWidth) {
             std::ostringstream os;
             os << "colBinFac=" << colBinFac << " < 1 or > " << dataWidth;
-            throw std::runtime_error
+            throw std::runtime_error(os.str());
         }
         if (rowBinFac < 1 or rowBinFac > dataHeight) {
             std::ostringstream os;
@@ -173,27 +171,27 @@ namespace arctic {
         _rowBinFac = rowBinFac;
     }
 
-    void Camera::setWindow(int colStart, rowStart, int width, int height) {
+    void Camera::setWindow(int colStart, int rowStart, int width, int height) {
         assertIdle();
         if (colStart < 0 || colStart >= dataWidth) {
             std::ostringstream os;
             os << "colStart=" << colStart << " < 0 or >= " << dataWidth;
-            throw std::runtime_error
+            throw std::runtime_error(os.str());
         }
         if (rowStart < 0 || rowStart >= dataHeight) {
             std::ostringstream os;
             os << "rowStart=" << rowStart << " < 0 or >= " << dataHeight;
-            throw std::runtime_error
+            throw std::runtime_error(os.str());
         }
         if (width < 1 or width > dataWidth) {
             std::ostringstream os;
             os << "width=" << width << " < 1 or > " << dataWidth;
-            throw std::runtime_error
+            throw std::runtime_error(os.str());
         }
         if (height < 1 or height > dataHeight) {
             std::ostringstream os;
             os << "width=" << width << " < 1 or > " << dataHeight;
-            throw std::runtime_error
+            throw std::runtime_error(os.str());
         }
 
         // clear current window, to avoid asking for a window that is off the CCD
@@ -207,7 +205,7 @@ namespace arctic {
     }
 
     ReadoutRate Camera::getReadoutRate() const {
-        return _readoutRate
+        return _readoutRate;
     }
 
     void Camera::setReadoutRate(ReadoutRate readoutRate) {
@@ -221,14 +219,14 @@ namespace arctic {
         if (getExposureState().state != StateEnum::ImageRead) {
             throw std::runtime_error("no image available to be read");
         }
-        CArcFitsFile cFits(_expName.c_str(), getCameraHeight(), getCameraWidth());
+        arc::fits::CArcFitsFile cFits(_expName.c_str(), getImageHeight(), getImageWidth());
         cFits.Write(_device.CommonBufferVA());
         if (expTime < 0) {
             expTime = _cmdExpSec;
         }
-        cFits.WriteKeyword("EXPTIME", &expTime, CArcFitsFile.FITS_DOUBLE_KEY, "exposure time (sec)");
+        cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
         std::string expTypeStr = ExposureTypeMap.find(_expType)->second;
-        cFits.WriteKeyword("EXPTYPE", expTypeStr.c_str(), CArcFitsFile.FITS_STRING_KEY, "exposure type");
+        cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
         _setIdle();
     }
 
@@ -244,10 +242,14 @@ namespace arctic {
 
 // private methods
 
-    void Camera::assertIdle() const {
+    void Camera::assertIdle() {
         if (this->isBusy()) {
-            raise std::runtime_error("busy");
+            throw std::runtime_error("busy");
         }
+    }
+
+    double Camera::_readTime(int nPix) const {
+        return nPix * ReadoutRateSecMap.find(_readoutRate)->second;
     }
 
     void Camera::_setIdle() {
@@ -257,8 +259,8 @@ namespace arctic {
         _device.FillCommonBuffer(0);
     }
 
-    void Camera::runCommand(std::string const &descr, int arg0=0, int arg1=0, int arg2=0, int arg3=0) {
-        int retVal = _device.Command(arg0, arg1, arg2, arg3);
+    void Camera::runCommand(std::string const &descr, int arg0, int arg1, int arg2, int arg3, int arg4) {
+        int retVal = _device.Command(arg0, arg1, arg2, arg3, arg4);
         if (retVal != DON) {
             std::ostringstream os;
             os << descr << " failed with retVal=" << retVal;

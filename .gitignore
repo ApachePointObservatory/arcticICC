@@ -1,0 +1,11 @@
+config.log
+doxygen.conf
+html/
+*Lib.py
+*.cfgc
+*_wrap.cc
+.scon*
+*.os
+*.so
+*.tag
+.fuse*
