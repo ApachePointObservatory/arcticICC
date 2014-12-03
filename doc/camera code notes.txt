@@ -1,5 +1,8 @@
 I’ve been reading the API documentation and the low-level command documentation. My opinion is that the API is clumsy and doesn’t really do what we need. Fortunately it is just a thin wrapper around the low-level commands, so it is easy to do our own thing.
 
+CCD is 4096x4096. We want 50 pixels overscan in each quadrant.
+How does the overscan/quadrant thing work? I believe my code is assuming overscan is per CCD.
+
 I propose we create a single C++ class that represents the camera and uses only the low-level calls (except *possibly* for startup and shutdown). The constructor should connect, initialize, set overscan and allocate the image buffer. The destructor undoes all that. This is the standard RAII pattern, and it is perfect for this sort of thing. We'll offer the obvious methods:
 - Start exposure (specify exposure time and whether to open the shutter)
 - Abort exposure
