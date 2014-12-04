@@ -22,10 +22,12 @@ namespace arctic {
     /**
     ARCTIC imager CCD
 
-    This is a thin wrapper around the Leach API which attempts to add the "Resource Acquisition
-    Is Initialization" pattern and simplify some call signatures.
+    This is a thin wrapper around the Leach API; it adds the "Resource Acquisition Is Initialization"
+    pattern and simplifies some call signatures.
 
     @todo
+    - fix time measurement while exposing; presently I use time() which is only good to one second;
+        use chrono instead (but then how to get the date of the exposure?)
     - windowing is forbidden unless only reading from one amplifier, so:
         - when setWindow is called with a non-full window, automatically switch to reading only one amplifier;
             this affects the image size (only one overscan) and the location of the bias regions, so update that data

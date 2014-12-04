@@ -181,6 +181,7 @@ namespace arctic {
     }
 
     void Camera::setWindow(int colStart, int rowStart, int width, int height) {
+        throw std::runtime_error("cannot window unless reading from one amplifier, and that is not implemented yet");
         assertIdle();
         if (colStart < 0 || colStart >= CCDWidth) {
             std::ostringstream os;
@@ -206,20 +207,18 @@ namespace arctic {
         // clear current window, to avoid asking for a window that is off the CCD
         runCommand("clear old window", TIM_ID, SSS, 0, 0, 0);
 
-        // set subarray size
+        // set subarray size; warning: this only works when reading from one amplifier
         // arguments are:
-        // - arg2 is the bias region width (in pixels)
-        //          what does this mean for a CCC with multiple amplifiers???!!!
-        // - arg3 is the subarray width (in pixels)
+        // - arg1 is the bias region width (in pixels)
+        // - arg2 is the subarray width (in pixels)
         // - arg3 is the subarray height (in pixels)
         runCommand("set window size", TIM_ID, SSS, XOverscan, width, height);
 
-        // set subarray starting-point
+        // set subarray starting-point; warning: this only works when reading from one amplifier
         // SSP arguments are as follows (indexed from 0,0, unbinned pixels)
-        // - arg2 is the subarray Y position. This is the number of rows (in pixels) to the lower left corner of the desired subarray region.
-        // - arg3 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
+        // - arg1 is the subarray Y position. This is the number of rows (in pixels) to the lower left corner of the desired subarray region.
+        // - arg2 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
         // - arg3 is the bias region offset. This is the number of columns (in pixels) to the left edge of the desired bias region.
-        //          what does this mean for a CCC with multiple amplifiers???!!!
         runCommand("set window position", TIM_ID, SSP, rowStart, colStart, CCDWidth);
     }
 
