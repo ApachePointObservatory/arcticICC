@@ -41,6 +41,10 @@ namespace arctic {
             throw std::runtime_error("Leach controller 0 is already open");
         }
         _device.Open(0);
+        std::cout << "_device.IsControllerConnected()" << std::endl;
+        if not (_device.IsControllerConnected()) {
+            throw std::runtime_error("Controller is disconnected or powered off");
+        }
         std::cout << "_device.MapCommonBuffer(" << numBytes << ")\n";
         _device.MapCommonBuffer(numBytes);
         std::cout << "_device.SetupController(true, true, true, " << fullHeight << ", " << fullWidth << ", " << TimingBoardFileName.c_str() << ")\n";
@@ -196,10 +200,20 @@ namespace arctic {
         runCommand("clear old window", TIM_ID, SSS, 0, 0, 0);
 
         // set subarray size
+        // arguments are:
+        // - arg1 is the bias region width (in pixels)
+        //          what does this mean for a CCC with multiple amplifiers???!!!
+        // - arg2 is the subarray width (in pixels)
+        // - arg3 is the subarray height (in pixels)
         runCommand("set window size", TIM_ID, SSS, XOverscan, width, height);
 
         // set subarray starting-point
-        runCommand("set window position", TIM_ID, SSP, colStart, rowStart, CCDWidth);
+        // SSP arguments are as follows (indexed from 0,0, unbinned pixels)
+        // - arg1 is the subarray Y position. This is the number of rows (in pixels) to the lower left corner of the desired subarray region.
+        // - arg2 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
+        // - arg3 is the bias region offset. This is the number of columns (in pixels) to the left edge of the desired bias region.
+        //          what does this mean for a CCC with multiple amplifiers???!!!
+        runCommand("set window position", TIM_ID, SSP, rowStart, colStart, CCDWidth);
     }
 
     ReadoutRate Camera::getReadoutRate() const {
