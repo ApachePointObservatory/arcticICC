@@ -32,18 +32,19 @@ namespace arctic {
         int fullHeight = CCDHeight; // controller does not support y overscan
         int fullWidth = CCDWidth + (XNumAmps * XOverscan);
         int numBytes = fullWidth * fullHeight * sizeof(uint16_t);
-        _device.FindDevices();
+        std::cout << "arc::device::CArcPCIe::FindDevices()\n";
+        arc::device::CArcPCIe::FindDevices();
         std::cout << "_device.DeviceCount()=" << _device.DeviceCount() << std::endl;
         if (_device.DeviceCount() < 1) {
             throw std::runtime_error("no Leach controller found");
         }
-        if (_device.IsOpen()) {
-            throw std::runtime_error("Leach controller 0 is already open");
+        std::cout << "_device.Open(0, " << numBytes << ")\n";
+        _device.Open(0, numBytes);
+        std::cout << "_device.IsControllerConnected()" << std::endl;
+        if (!_device.IsControllerConnected()) {
+            throw std::runtime_error("Controller is disconnected or powered off");
         }
-        _device.Open(0);
-        std::cout << "_device.MapCommonBuffer(" << numBytes << ")\n";
-        _device.MapCommonBuffer(numBytes);
-        std::cout << "_device.SetupController(true, true, true, " << fullHeight << ", " << fullWidth << ", " << TimingBoardFileName.c_str() << ")\n";
+        std::cout << "_device.SetupController(true, true, true, " << fullHeight << ", " << fullWidth << ", \"" << TimingBoardFileName.c_str() << "\")\n";
         _device.SetupController(
             true,       // reset?
             true,       // send TDLS to the PCIe board and any board whose .lod file is not NULL?
@@ -52,11 +53,18 @@ namespace arctic {
             fullWidth,  // image width
             TimingBoardFileName.c_str() // timing board file to load
         );
-        std::cout << "setReadoutRate(ReadoutRate::Slow);\n";
-        setReadoutRate(ReadoutRate::Slow); // force a value so we know what it is
+
+        runCommand("set readout mode to quad", TIM_ID, SOS, AMP_ALL);        
+
+        // std::cout << "setReadoutRate(ReadoutRate::Slow);\n";
+        // setReadoutRate(ReadoutRate::Slow); // force a value so we know what it is
     }
 
     Camera::~Camera() {
+        if (_device.IsReadout()) {
+            // abort readout, else the board will keep reading out, which ties it up
+            _device.StopExposure();
+        }
         _device.Close();
     }
 
@@ -74,9 +82,11 @@ namespace arctic {
         }
 
         // clear common buffer, so we know when new data arrives
+        std::cout << "_device.FillCommonBuffer(0)\n";
         _device.FillCommonBuffer(0);
 
         bool openShutter = expType > ExposureType::Dark;
+        std::cout << "_device.SetOpenShutter(" << openShutter << ")\n";
         _device.SetOpenShutter(openShutter);
 
         int expTimeMS = int(expTime*1000.0);
@@ -113,6 +123,7 @@ namespace arctic {
         if (!isBusy()) {
             throw std::runtime_error("no exposure to abort");
         }
+        std::cout << "_device.StopExposure()\n";
         _device.StopExposure();
         _setIdle();
     }
@@ -196,10 +207,20 @@ namespace arctic {
         runCommand("clear old window", TIM_ID, SSS, 0, 0, 0);
 
         // set subarray size
+        // arguments are:
+        // - arg2 is the bias region width (in pixels)
+        //          what does this mean for a CCC with multiple amplifiers???!!!
+        // - arg3 is the subarray width (in pixels)
+        // - arg3 is the subarray height (in pixels)
         runCommand("set window size", TIM_ID, SSS, XOverscan, width, height);
 
         // set subarray starting-point
-        runCommand("set window position", TIM_ID, SSP, colStart, rowStart, CCDWidth);
+        // SSP arguments are as follows (indexed from 0,0, unbinned pixels)
+        // - arg2 is the subarray Y position. This is the number of rows (in pixels) to the lower left corner of the desired subarray region.
+        // - arg3 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
+        // - arg3 is the bias region offset. This is the number of columns (in pixels) to the left edge of the desired bias region.
+        //          what does this mean for a CCC with multiple amplifiers???!!!
+        runCommand("set window position", TIM_ID, SSP, rowStart, colStart, CCDWidth);
     }
 
     ReadoutRate Camera::getReadoutRate() const {
@@ -217,8 +238,9 @@ namespace arctic {
         if (getExposureState().state != StateEnum::ImageRead) {
             throw std::runtime_error("no image available to be read");
         }
-        arc::deinterlace::CArcDeinterlace cDlacer;
-        cDlacer.RunAlg( _device.CommonBufferVA(), getImageWidth(), getImageHeight(), DeinterlaceAlgorithm);
+        arc::deinterlace::CArcDeinterlace deinterlacer;
+        std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " <<  getImageHeight() << ", " << getImageWidth() << ", " << DeinterlaceAlgorithm << ")" << std::endl;
+        deinterlacer.RunAlg(_device.CommonBufferVA(), getImageHeight(), getImageWidth(), DeinterlaceAlgorithm);
 
         arc::fits::CArcFitsFile cFits(_expName.c_str(), getImageHeight(), getImageWidth());
         cFits.Write(_device.CommonBufferVA());
@@ -257,23 +279,24 @@ namespace arctic {
         _cmdExpSec = -1;
         _segmentExpSec = -1;
         _segmentStartTime = 0;
+        std::cout << "_device.FillCommonBuffer(0)\n";
         _device.FillCommonBuffer(0);
     }
 
-    void Camera::runCommand(std::string const &descr, int boardID, int cmd, int arg0, int arg1, int arg2) {
+    void Camera::runCommand(std::string const &descr, int boardID, int cmd, int arg1, int arg2, int arg3) {
         if ((boardID != TIM_ID) && (boardID != UTIL_ID) && (boardID != PCI_ID)) {
             std::ostringstream os;
             os << std::hex << "unknown boardID=0x" << boardID;
             throw std::runtime_error(os.str());
         }
-        // std::cout << std::hex << "_device.Command("
-        //     <<  "0x" << boardID
-        //     << ", 0x" << cmd
-        //     << ", 0x" << arg0
-        //     << ", 0x" << arg1
-        //     << ", 0x" << arg2
-        //     << ")" << std::endl;
-        int retVal = _device.Command(boardID, cmd, arg0, arg1, arg2);
+        std::cout << std::hex << "_device.Command("
+            <<  "0x" << boardID
+            << ", 0x" << cmd
+            << ", 0x" << arg1
+            << ", 0x" << arg2
+            << ", 0x" << arg3
+            << "): " << descr << std::dec << std::endl;
+        int retVal = _device.Command(boardID, cmd, arg1, arg2, arg3);
         if (retVal != DON) {
             std::ostringstream os;
             os << descr << " failed with retVal=" << retVal;

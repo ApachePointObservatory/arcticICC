@@ -26,6 +26,14 @@ namespace arctic {
     Is Initialization" pattern and simplify some call signatures.
 
     @todo
+    - windowing is forbidden unless only reading from one amplifier, so:
+        - when setWindow is called with a non-full window, automatically switch to reading only one amplifier;
+            this affects the image size (only one overscan) and the location of the bias regions, so update that data
+            based on the current readout mode. How clever do we have to be? Need we pick a particular amplifier
+            based on where the subregion is (does it increase speed)?
+            - Should we move this logic into the python code and have setting readout mode separate from windowing (likely yes,
+            but it leads to a need for more error checking).
+        - when full windowing is requested switch back to quad amplifiers
     - the readout rate is forced at startup and is cached; if there was a way to read it from the controller
       that might be nicer, or a way of knowing what value it has at startup
     */
@@ -190,11 +198,11 @@ namespace arctic {
         Run one command, as described in the Leach document Controller Command Description
         @param[in] boardID  controller board code: one of TIM_ID, PCI_ID or UTIL_ID
         @param[in] cmd  command code
-        @param[in] arg0  argument 0 (optional)
         @param[in] arg1  argument 1 (optional)
         @param[in] arg2  argument 2 (optional)
+        @param[in] arg3  argument 3 (optional)
         */
-        void runCommand(std::string const &descr, int boardID, int cmd, int arg0=0, int arg1=0, int arg3=0);
+        void runCommand(std::string const &descr, int boardID, int cmd, int arg1=0, int arg2=0, int arg3=0);
         // it would be safer to read the following parameters directly from the controller,
         // but I don't know how to do that
         ReadoutRate _readoutRate;
