@@ -35,12 +35,11 @@ const static std::map<ReadoutRate, std::string> ReadoutRateMap {
     {ReadoutRate::Fast,   "Fast"}
 };
 
-/// map of ReadoutRate enum: approximate sec/pixel
-/// warning: the current values are a wild guess; measure and adjust as needed!
-const static std::map<ReadoutRate, float> ReadoutRateSecMap {
-    {ReadoutRate::Slow,   1e-5},
-    {ReadoutRate::Medium, 1e-6},
-    {ReadoutRate::Fast,   1e-7}
+/// map of ReadoutRate enum: approximate pixel raad frequency (Hz)
+const static std::map<ReadoutRate, float> ReadoutRateFreqMap {
+    {ReadoutRate::Slow,   150e3},
+    {ReadoutRate::Medium, 450e3},
+    {ReadoutRate::Fast,   900e3}
 };
 
 /// list closed-shutter exposures first, with Dark being the last of those

@@ -5,12 +5,11 @@
 #include <stdexcept>
 
 #include "CArcDevice/ArcDefs.h"
-#include "CArcDeinterlace/CArcDeinterlace.h"
 #include "CArcFitsFile/CArcFitsFile.h"
 
 #include "arcticICC/camera.h"
 
-std::string const TimingBoardFileName = "tim.lod";
+std::string const TimingBoardFileName = "/home/arctic/leach/tim.lod";
 
 // The following was taken from Owl's SelectableReadoutSpeedCC.bsh
 // it uses an undocumented command "SPS"
@@ -23,30 +22,29 @@ std::map<arctic::ReadoutRate, int> ReadoutRateCmdValueMap = {
 
 namespace arctic {
 
-    Camera::Camera(int dataWidth, int dataHeight, int xOverscan) :
-        dataWidth(dataWidth), dataHeight(dataHeight), xOverscan(xOverscan),
+    Camera::Camera() :
         _colBinFac(1), _rowBinFac(1),
-        _winColStart(0), _winRowStart(0), _winWidth(dataWidth), _winHeight(dataHeight),
+        _winColStart(0), _winRowStart(0), _winWidth(CCDWidth), _winHeight(CCDHeight),
         _readoutRate(ReadoutRate::Slow),
         _cmdExpSec(-1), _segmentExpSec(-1), _segmentStartTime(0),
         _device()
     {
-        if ((dataWidth < 1) || (dataHeight < 1)) {
-            std::ostringstream os;
-            os << "dataWidth=" << dataWidth << " and dataHeight=" << dataHeight << " must be positive";
-            throw std::runtime_error(os.str());
+        int fullHeight = CCDHeight; // controller does not support y overscan
+        int fullWidth = CCDWidth + (XNumAmps * XOverscan);
+        int numBytes = fullWidth * fullHeight * sizeof(uint16_t);
+        std::cout << "arc::device::CArcPCIe::FindDevices()\n";
+        arc::device::CArcPCIe::FindDevices();
+        std::cout << "_device.DeviceCount()=" << _device.DeviceCount() << std::endl;
+        if (_device.DeviceCount() < 1) {
+            throw std::runtime_error("no Leach controller found");
         }
-        if (xOverscan < 0) {
-            std::ostringstream os;
-            os << "xOverscan=" << xOverscan << " must be non-negative";
-            throw std::runtime_error(os.str());
+        std::cout << "_device.Open(0, " << numBytes << ")\n";
+        _device.Open(0, numBytes);
+        std::cout << "_device.IsControllerConnected()" << std::endl;
+        if (!_device.IsControllerConnected()) {
+            throw std::runtime_error("Controller is disconnected or powered off");
         }
-
-        int fullHeight = dataHeight; // controller does not support y overscan
-        int fullWidth = dataWidth + xOverscan;
-        int numBytes = fullWidth * fullHeight * 2; // 16 bits/pixel
-        _device.Open(0, fullHeight, fullWidth);
-        _device.MapCommonBuffer(numBytes);
+        std::cout << "_device.SetupController(true, true, true, " << fullHeight << ", " << fullWidth << ", \"" << TimingBoardFileName.c_str() << "\")\n";
         _device.SetupController(
             true,       // reset?
             true,       // send TDLS to the PCIe board and any board whose .lod file is not NULL?
@@ -55,10 +53,18 @@ namespace arctic {
             fullWidth,  // image width
             TimingBoardFileName.c_str() // timing board file to load
         );
-        setReadoutRate(ReadoutRate::Slow); // force a value so we know what it is
+
+        runCommand("set readout mode to quad", TIM_ID, SOS, AMP_ALL);        
+
+        // std::cout << "setReadoutRate(ReadoutRate::Slow);\n";
+        // setReadoutRate(ReadoutRate::Slow); // force a value so we know what it is
     }
 
     Camera::~Camera() {
+        if (_device.IsReadout()) {
+            // abort readout, else the board will keep reading out, which ties it up
+            _device.StopExposure();
+        }
         _device.Close();
     }
 
@@ -76,9 +82,11 @@ namespace arctic {
         }
 
         // clear common buffer, so we know when new data arrives
+        std::cout << "_device.FillCommonBuffer(0)\n";
         _device.FillCommonBuffer(0);
 
         bool openShutter = expType > ExposureType::Dark;
+        std::cout << "_device.SetOpenShutter(" << openShutter << ")\n";
         _device.SetOpenShutter(openShutter);
 
         int expTimeMS = int(expTime*1000.0);
@@ -115,6 +123,7 @@ namespace arctic {
         if (!isBusy()) {
             throw std::runtime_error("no exposure to abort");
         }
+        std::cout << "_device.StopExposure()\n";
         _device.StopExposure();
         _setIdle();
     }
@@ -144,7 +153,7 @@ namespace arctic {
             double remReadTime = _readTime(numPixRemaining);
             return ExposureState(StateEnum::Reading, fullReadTime, remReadTime);
         } else if (static_cast<uint16_t *>(_device.CommonBufferVA())[0] == 0) {
-            double segmentRemTime = difftime(time(NULL), _segmentStartTime);
+            double segmentRemTime = _segmentExpSec - difftime(time(NULL), _segmentStartTime);
             return ExposureState(StateEnum::Exposing, _cmdExpSec, segmentRemTime);
         } else {
             return ExposureState(StateEnum::ImageRead);
@@ -153,14 +162,14 @@ namespace arctic {
 
     void Camera::setBinFactor(int colBinFac, int rowBinFac) {
         assertIdle();
-        if (colBinFac < 1 or colBinFac > dataWidth) {
+        if (colBinFac < 1 or colBinFac > CCDWidth) {
             std::ostringstream os;
-            os << "colBinFac=" << colBinFac << " < 1 or > " << dataWidth;
+            os << "colBinFac=" << colBinFac << " < 1 or > " << CCDWidth;
             throw std::runtime_error(os.str());
         }
-        if (rowBinFac < 1 or rowBinFac > dataHeight) {
+        if (rowBinFac < 1 or rowBinFac > CCDHeight) {
             std::ostringstream os;
-            os << "rowBinFac=" << rowBinFac << " < 1 or > " << dataHeight;
+            os << "rowBinFac=" << rowBinFac << " < 1 or > " << CCDHeight;
             throw std::runtime_error(os.str());
         }
 
@@ -172,36 +181,45 @@ namespace arctic {
     }
 
     void Camera::setWindow(int colStart, int rowStart, int width, int height) {
+        throw std::runtime_error("cannot window unless reading from one amplifier, and that is not implemented yet");
         assertIdle();
-        if (colStart < 0 || colStart >= dataWidth) {
+        if (colStart < 0 || colStart >= CCDWidth) {
             std::ostringstream os;
-            os << "colStart=" << colStart << " < 0 or >= " << dataWidth;
+            os << "colStart=" << colStart << " < 0 or >= " << CCDWidth;
             throw std::runtime_error(os.str());
         }
-        if (rowStart < 0 || rowStart >= dataHeight) {
+        if (rowStart < 0 || rowStart >= CCDHeight) {
             std::ostringstream os;
-            os << "rowStart=" << rowStart << " < 0 or >= " << dataHeight;
+            os << "rowStart=" << rowStart << " < 0 or >= " << CCDHeight;
             throw std::runtime_error(os.str());
         }
-        if (width < 1 or width > dataWidth) {
+        if (width < 1 or width > CCDWidth) {
             std::ostringstream os;
-            os << "width=" << width << " < 1 or > " << dataWidth;
+            os << "width=" << width << " < 1 or > " << CCDWidth;
             throw std::runtime_error(os.str());
         }
-        if (height < 1 or height > dataHeight) {
+        if (height < 1 or height > CCDHeight) {
             std::ostringstream os;
-            os << "width=" << width << " < 1 or > " << dataHeight;
+            os << "width=" << width << " < 1 or > " << CCDHeight;
             throw std::runtime_error(os.str());
         }
 
         // clear current window, to avoid asking for a window that is off the CCD
         runCommand("clear old window", TIM_ID, SSS, 0, 0, 0);
 
-        // set subarray size
-        runCommand("set window size", TIM_ID, SSS, xOverscan, width, height);
+        // set subarray size; warning: this only works when reading from one amplifier
+        // arguments are:
+        // - arg1 is the bias region width (in pixels)
+        // - arg2 is the subarray width (in pixels)
+        // - arg3 is the subarray height (in pixels)
+        runCommand("set window size", TIM_ID, SSS, XOverscan, width, height);
 
-        // set subarray starting-point
-        runCommand("set window position", TIM_ID, SSP, colStart, rowStart, dataWidth);
+        // set subarray starting-point; warning: this only works when reading from one amplifier
+        // SSP arguments are as follows (indexed from 0,0, unbinned pixels)
+        // - arg1 is the subarray Y position. This is the number of rows (in pixels) to the lower left corner of the desired subarray region.
+        // - arg2 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
+        // - arg3 is the bias region offset. This is the number of columns (in pixels) to the left edge of the desired bias region.
+        runCommand("set window position", TIM_ID, SSP, rowStart, colStart, CCDWidth);
     }
 
     ReadoutRate Camera::getReadoutRate() const {
@@ -211,7 +229,7 @@ namespace arctic {
     void Camera::setReadoutRate(ReadoutRate readoutRate) {
         assertIdle();
         int cmdValue = ReadoutRateCmdValueMap.find(readoutRate)->second;
-        runCommand("set readout rate", SPS, cmdValue);
+        runCommand("set readout rate", TIM_ID, SPS, cmdValue, DON);
         _readoutRate = readoutRate;
     }
 
@@ -219,6 +237,10 @@ namespace arctic {
         if (getExposureState().state != StateEnum::ImageRead) {
             throw std::runtime_error("no image available to be read");
         }
+        arc::deinterlace::CArcDeinterlace deinterlacer;
+        std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " <<  getImageHeight() << ", " << getImageWidth() << ", " << DeinterlaceAlgorithm << ")" << std::endl;
+        deinterlacer.RunAlg(_device.CommonBufferVA(), getImageHeight(), getImageWidth(), DeinterlaceAlgorithm);
+
         arc::fits::CArcFitsFile cFits(_expName.c_str(), getImageHeight(), getImageWidth());
         cFits.Write(_device.CommonBufferVA());
         if (expTime < 0) {
@@ -249,22 +271,36 @@ namespace arctic {
     }
 
     double Camera::_readTime(int nPix) const {
-        return nPix * ReadoutRateSecMap.find(_readoutRate)->second;
+        return nPix / ReadoutRateFreqMap.find(_readoutRate)->second;
     }
 
     void Camera::_setIdle() {
         _cmdExpSec = -1;
         _segmentExpSec = -1;
         _segmentStartTime = 0;
+        std::cout << "_device.FillCommonBuffer(0)\n";
         _device.FillCommonBuffer(0);
     }
 
-    void Camera::runCommand(std::string const &descr, int arg0, int arg1, int arg2, int arg3, int arg4) {
-        int retVal = _device.Command(arg0, arg1, arg2, arg3, arg4);
+    void Camera::runCommand(std::string const &descr, int boardID, int cmd, int arg1, int arg2, int arg3) {
+        if ((boardID != TIM_ID) && (boardID != UTIL_ID) && (boardID != PCI_ID)) {
+            std::ostringstream os;
+            os << std::hex << "unknown boardID=0x" << boardID;
+            throw std::runtime_error(os.str());
+        }
+        std::cout << std::hex << "_device.Command("
+            <<  "0x" << boardID
+            << ", 0x" << cmd
+            << ", 0x" << arg1
+            << ", 0x" << arg2
+            << ", 0x" << arg3
+            << "): " << descr << std::dec << std::endl;
+        int retVal = _device.Command(boardID, cmd, arg1, arg2, arg3);
         if (retVal != DON) {
             std::ostringstream os;
             os << descr << " failed with retVal=" << retVal;
             throw std::runtime_error(os.str());
         }
     }
+
 } // namespace
