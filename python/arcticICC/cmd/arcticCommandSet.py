@@ -2,70 +2,56 @@
 """
 from __future__ import division, absolute_import
 
-from .parse import CommandDefinition, CommandSet
-from .parse import ArgumentBase as Arg
+from .parse import Command, CommandSet, Argument, SubCommand
 
 __all__ = ["arcticCommandSet"]
 
 #set command
-setCmd = CommandDefinition(
-    argumentList = [
-        Arg(keyword="set",
-            unorderedArgumentList = [
-                Arg(keyword="window", valueCast=str),
-                Arg(keyword="filter", valueCast=str),
-                Arg(keyword="temp", valueCast=float),
-            ]
-        ),
+setCmd = Command(
+    commandName = "set",
+    unorderedArgumentList = [
+        Argument(keyword="window", valueCast=str),
+        Argument(keyword="filter", valueCast=str),
+        Argument(keyword="temp", valueCast=float),
     ]
 )
 
-
 # expose command
-commonExposeArgs = [
-    Arg(keyword="time", valueCast=float),
-    Arg(keyword="basename", valueCast=str, mandatory=False),
-    Arg(keyword="comment", valueCast=str, mandatory=False),
+sharedExposeArgs = [
+    Argument(keyword="time", valueCast=float),
+    Argument(keyword="basename", valueCast=str, mandatory=False),
+    Argument(keyword="comment", valueCast=str, mandatory=False),
 ]
-exposeCmd = CommandDefinition(
-        argumentList = [
-            Arg(
-                keyword = "expose", # main command
-                childArgumentList = [
-                    Arg(keyword = "object", unorderedArgumentList = commonExposeArgs),
-                    Arg(keyword = "flat", unorderedArgumentList = commonExposeArgs),
-                    Arg(keyword = "dark", unorderedArgumentList = commonExposeArgs),
-                    Arg(keyword = "pause"),
-                    Arg(keyword = "resume"),
-                    Arg(keyword = "stop"),
-                    Arg(keyword = "abort"),
-                ]
-            )
-        ]
-    )
+
+exposeCmd = Command(
+    commandName = "expose",
+    subCommandList = [
+        SubCommand(subCommandName = "object", unorderedArgumentList = sharedExposeArgs),
+        SubCommand(subCommandName = "flat", unorderedArgumentList = sharedExposeArgs),
+        SubCommand(subCommandName = "dark", unorderedArgumentList = sharedExposeArgs),
+        SubCommand(subCommandName = "pause"),
+        SubCommand(subCommandName = "resume"),
+        SubCommand(subCommandName = "stop"),
+        SubCommand(subCommandName = "abort"),
+    ]
+)
 
 # camera command
-cameraCmd = CommandDefinition(
-    argumentList = [
-        Arg(keyword = "camera"),
-        Arg(oneOf = ["status", "init"])
-        ]
-    )
+cameraCmd = Command(
+    commandName = "camera",
+    orderedArgumentList = [Argument(oneOf = ["status", "init"])]
+)
 
-initCmd = CommandDefinition(
-    argumentList = [Arg(keyword="init")]
-    )
+initCmd = Command(commandName = "init")
 
-statusCmd = CommandDefinition(
-    argumentList = [Arg(keyword="status")]
-    )
+statusCmd = Command(commandName = "status")
 
 arcticCommandSet = CommandSet(
-    cmdDefinitionList=[
+    commandList=[
         setCmd,
         exposeCmd,
         cameraCmd,
         initCmd,
         statusCmd
     ]
-    )
+)
