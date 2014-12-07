@@ -15,29 +15,17 @@ namespace arctic {
 
     static int const CCDWidth = 4096;   // width of CCD (unbinned pixels)
     static int const CCDHeight = 4096;  // width of CCD (unbinned pixels)
-    static int const XOverscan = 50;    // x overscan per amplifier (unbinned pixels)
-    static int const XNumAmps = 2;      // number of amplifiers along the x axis
-    static int const DeinterlaceAlgorithm = arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD;
+    static int const XExtraPix = 100;   // total x prescan + overscan pixels for all amplifiers combined (unbinned pixels)
+        // note that the controller does not support y prescan or overscan
+    static int const OneAmpPrescan = 6;
+    static int const OneAmpOverscan = 94;
+    static int const QuadAmpOverscan = 50;
 
     /**
     ARCTIC imager CCD
 
     This is a thin wrapper around the Leach API; it adds the "Resource Acquisition Is Initialization"
     pattern and simplifies some call signatures.
-
-    @todo
-    - fix time measurement while exposing; presently I use time() which is only good to one second;
-        use chrono instead (but then how to get the date of the exposure?)
-    - windowing is forbidden unless only reading from one amplifier, so:
-        - when setWindow is called with a non-full window, automatically switch to reading only one amplifier;
-            this affects the image size (only one overscan) and the location of the bias regions, so update that data
-            based on the current readout mode. How clever do we have to be? Need we pick a particular amplifier
-            based on where the subregion is (does it increase speed)?
-            - Should we move this logic into the python code and have setting readout mode separate from windowing (likely yes,
-            but it leads to a need for more error checking).
-        - when full windowing is requested switch back to quad amplifiers
-    - the readout rate is forced at startup and is cached; if there was a way to read it from the controller
-      that might be nicer, or a way of knowing what value it has at startup
     */
     class Camera {
     public:
@@ -67,7 +55,7 @@ namespace arctic {
         @throw std::runtime_error if an exposure is in progress
         @throw std::runtime_error if expType is ExposureType::Bias and expTime > 0
         */
-        void startExposure(float expTime, ExposureType expType, std::string const &expName);
+        void startExposure(double expTime, ExposureType expType, std::string const &expName);
 
         /**
         Pause an exposure, closing the shutter if it was open
@@ -134,6 +122,11 @@ namespace arctic {
         };
 
         /**
+        Set window to use full CCD
+        */
+        void setFullWindow();
+
+        /**
         Set image window
 
         @param[in] colStart: start column (unbinned pixels; 0 is the first column)
@@ -141,20 +134,38 @@ namespace arctic {
         @param[in] width: number of columns in the data (unbinned pixels)
         @param[in] height: number of rows in the data (unbinned pixels)
 
-        @note you may specify 0,0,0,0 to specify the full frame
         @note the binned image size is width/colBinFac, height/rowBinFac, using truncated integer division
 
         @throw std::runtime_error if the requested image extends off the imaging area
+        @throw std::runtime_error if readoutAmps is not a single amplifier
         */
         void setWindow(int colStart, int rowStart, int width, int height);
 
         /**
+        Get the amplifiers being read out
+        */
+        ReadoutAmps getReadoutAmps() const { return _readoutAmps; }
+
+        /**
+        Set the ampifiers being read out
+
+        @param[in] readoutAmps ampifiers used to read out the CCD
+
+        @throw std::runtime_error if not idle
+        */
+        void setReadoutAmps(ReadoutAmps readoutAmps);
+
+        /**
         Get the readout rate
         */
-        ReadoutRate getReadoutRate() const;
+        ReadoutRate getReadoutRate() const { return _readoutRate; }
 
         /**
         Set the readout rate
+
+        @param[in] readoutRate readout rate
+
+        @throw std::runtime_error if not idle
         */
         void setReadoutRate(ReadoutRate readoutRate);
 
@@ -185,7 +196,7 @@ namespace arctic {
         /**
         Return image width, in binned pixels (includes overscan)
         */
-        int getImageWidth() const { return (_winWidth + (2 * XOverscan)) / _colBinFac; }
+        int getImageWidth() const { return (_winWidth + XExtraPix) / _colBinFac; }
 
         /**
         Return image height, in binned pixels (will include overscan, if y overscan is ever supported)
@@ -205,8 +216,9 @@ namespace arctic {
         @param[in] arg3  argument 3 (optional)
         */
         void runCommand(std::string const &descr, int boardID, int cmd, int arg1=0, int arg2=0, int arg3=0);
-        // it would be safer to read the following parameters directly from the controller,
-        // but I don't know how to do that
+        // it might be better to read the following parameters directly from the controller,
+        // but they cannot safely be read while the controller is reading out an image
+        ReadoutAmps _readoutAmps;
         ReadoutRate _readoutRate;
         int _colBinFac;     /// column bin factor
         int _rowBinFac;     /// row bin factor
@@ -216,12 +228,12 @@ namespace arctic {
         int _winHeight;     /// window height (unbinned pixels)
         std::string _expName;       /// exposure name (used for the FITS file)
         ExposureType _expType;      /// exposure type
-        double _cmdExpSec;          /// commanded exposure time, in seconds; <0 if no exposure
-        double _segmentExpSec;      /// exposure time for this segment; updated when an exposure is paused
-        time_t _segmentStartTime;   /// start time of this exposure segment; updated when an exposure is paused or resumed;
-                                    /// 0 if exposure is paused or not exposing
-        double _pauseTime;          /// accumulated exposure pause time (not including current pause, if paused) (sec)
-        double _pauseStartTime;     /// start time of current pause
+        double _cmdExpSec;          /// commanded exposure time, in seconds; <0 if idle
+        double _segmentExpSec;      /// exposure time for this segment; this starts at the requested exposur time
+            /// and is decreased each time the exposure is paused
+        std::chrono::steady_clock::time_point _segmentStartTime;   /// start time of this exposure segment;
+            /// updated when an exposure is paused or resumed; invalid if isExposing false
+        bool _segmentStartValid     /// true if exposing, reading out or read out, but not paused or idle
 
         arc::device::CArcPCIe   _device;  /// the Leach API's representation of a camera controller
     };

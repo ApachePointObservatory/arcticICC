@@ -1,22 +1,15 @@
-I’ve been reading the API documentation and the low-level command documentation. My opinion is that the API is clumsy and doesn’t really do what we need. Fortunately it is just a thin wrapper around the low-level commands, so it is easy to do our own thing.
+CCD is 4096x4096
+The controller reads out 100 extra unbinned pixels of prescan + overscan in x (and none in y):
+- when reading in quad mode it reads 50 x pixels of overscan
+- when reading in single-amplifier mode it reads 6 pixels (?) of prescan and 100-pre of overscan
+It is only possible to subwindow if reading out the whole CCD from a single amplifier
+Do NOT send commands to the Leach board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
 
-CCD is 4096x4096. We want 50 pixels overscan in each quadrant.
-How does the overscan/quadrant thing work? I believe my code is assuming overscan is per CCD.
-
-I propose we create a single C++ class that represents the camera and uses only the low-level calls (except *possibly* for startup and shutdown). The constructor should connect, initialize, set overscan and allocate the image buffer. The destructor undoes all that. This is the standard RAII pattern, and it is perfect for this sort of thing. We'll offer the obvious methods:
-- Start exposure (specify exposure time and whether to open the shutter)
-- Abort exposure
-- Stop exposure and read out (how?)
-- Pause exposure (how?)
-- Resume exposure (how?)
-- Get exposure state
-- Get remaining exposure time
-- Get and set bin factor
-- Get and set subregion
-- Get and set read rate
-- Call Command to do low-level things from C++
-
-WARNING!!!!! do NOT send commands to the Leach board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
+TO DO:
+- Fix the startup problem (the first few exposures are bad)
+- Test setReadoutAmps and other set routines
+- Fix SWIG wrapper so the camera is wrapped
+- Write FITS header info for bias region(s)
 
 Here are some useful direct commands:
 AEX: abort exposure without reading it out (used by Expose)
@@ -36,4 +29,4 @@ OSH: open shutter
 CSH: close shutter
 SPS: NOT DOCUMENTED: sets the readout rate (set pixel speed?); used by Owl in SelectableReadoutSpeedCC.bsh
 
-By the way: the reason so many API commands take full image size as an argument is that the API always checks to see if the image buffer needs to be grown. That seems insane to me. As long as we specify the overscan at construction time we know that maximum image buffer size then and we never touch it.
+The reason so many API commands take full image size as an argument is that the API always checks to see if the image buffer needs to be grown. I do not plan to emulate that; as long as we specify the overscan at construction time we know that maximum image buffer size then and we never touch it.

@@ -9,28 +9,60 @@
 
 #include "arcticICC/camera.h"
 
-std::string const TimingBoardFileName = "/home/arctic/leach/tim.lod";
+namespace {
 
-// The following was taken from Owl's SelectableReadoutSpeedCC.bsh
-// it uses an undocumented command "SPS"
-int const SPS = 0x535053;
-std::map<arctic::ReadoutRate, int> ReadoutRateCmdValueMap = {
-    {arctic::ReadoutRate::Slow,   0x534C57},
-    {arctic::ReadoutRate::Medium, 0x4D4544},
-    {arctic::ReadoutRate::Fast,   0x465354},
-};
+    std::string const TimingBoardFileName = "/home/arctic/leach/tim.lod";
+
+    // see ArcDefs.h and CommandDescription.pdf (you'll need both)
+    // note that the two do not agree for any other options and we don't need them anyway
+    std::map<arctic::ReadoutAmps, int> ReadoutAmpsCmdValueMap {
+        {LL,    AMP_0},
+        {LR,    AMP_1},
+        {UR,    AMP_2},
+        {UL,    AMP_3},
+        {All,   AMP_ALL},
+    }
+
+    std::map<arctic::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
+        {LL,    arc::deinterlace::CArcDeinterlace::NONE},
+        {LR,    arc::deinterlace::CArcDeinterlace::NONE},
+        {UR,    arc::deinterlace::CArcDeinterlace::NONE},
+        {UL,    arc::deinterlace::CArcDeinterlace::NONE},
+        {All,   arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD},
+    }
+
+    // The following was taken from Owl's SelectableReadoutSpeedCC.bsh
+    // it uses an undocumented command "SPS"
+    int const SPS = 0x535053;
+    std::map<arctic::ReadoutRate, int> ReadoutRateCmdValueMap = {
+        {arctic::ReadoutRate::Slow,   0x534C57},
+        {arctic::ReadoutRate::Medium, 0x4D4544},
+        {arctic::ReadoutRate::Fast,   0x465354},
+    };
+
+    /**
+    Return the time interval, in fractional seconds, between two chrono steady_clock times
+
+    based on http://www.cplusplus.com/reference/chrono/steady_clock/
+    but it's not clear the cast is required; it may suffice to specify duration<double>
+    */
+    double elapsedSec(std::chrono::steady_clock const &tBeg, std::chrono::steady_clock const &tEnd) {
+        return duration_cast<duration<double>>(tBeg - tEnd)).count();
+    }
+}
 
 namespace arctic {
 
     Camera::Camera() :
         _colBinFac(1), _rowBinFac(1),
         _winColStart(0), _winRowStart(0), _winWidth(CCDWidth), _winHeight(CCDHeight),
+        _readoutAmps(ReadoutAmps::AllAmps),
         _readoutRate(ReadoutRate::Slow),
-        _cmdExpSec(-1), _segmentExpSec(-1), _segmentStartTime(0),
+        _cmdExpSec(-1), _segmentExpSec(-1), _segmentStartTime(), _segmentStartValid(false),
         _device()
     {
         int fullHeight = CCDHeight; // controller does not support y overscan
-        int fullWidth = CCDWidth + (XNumAmps * XOverscan);
+        int fullWidth = CCDWidth + XExtraPix;
         int numBytes = fullWidth * fullHeight * sizeof(uint16_t);
         std::cout << "arc::device::CArcPCIe::FindDevices()\n";
         arc::device::CArcPCIe::FindDevices();
@@ -56,8 +88,9 @@ namespace arctic {
 
         runCommand("set readout mode to quad", TIM_ID, SOS, AMP_ALL);        
 
-        // std::cout << "setReadoutRate(ReadoutRate::Slow);\n";
-        // setReadoutRate(ReadoutRate::Slow); // force a value so we know what it is
+        // force readout rate because I'm not sure what it is at startup
+        // assume 1x1 binning, full windowing and all amplifiers
+        setReadoutRate(ReadoutRate::Slow);
     }
 
     Camera::~Camera() {
@@ -68,7 +101,7 @@ namespace arctic {
         _device.Close();
     }
 
-    void Camera::startExposure(float expTime, ExposureType expType, std::string const &name) {
+    void Camera::startExposure(double expTime, ExposureType expType, std::string const &name) {
         assertIdle();
         if (expTime < 0) {
             std::ostringstream os;
@@ -98,7 +131,8 @@ namespace arctic {
         _expName = name;
         _cmdExpSec = expTime;
         _segmentExpSec = _cmdExpSec;
-        _segmentStartTime = time(NULL);
+        _segmentStartTime = std::chrono::steady_clock::now();
+        _segmentStartValid = true;
     }
 
     void Camera::pauseExposure() {
@@ -106,9 +140,9 @@ namespace arctic {
             throw std::runtime_error("no exposure to pause");
         }
         runCommand("pause exposure", TIM_ID, PEX);
-        double segmentElapsedTime = difftime(time(NULL), _segmentStartTime);
-        _segmentExpSec = std::max(0.0, _segmentExpSec - segmentElapsedTime);
-        _segmentStartTime = 0; // indicate that the exposure is paused
+        // decrease _segmentExpSec by the duration of the exposure segment just ended
+        _segmentExpSec -= elapsedSec(_segmentExpSec, std::chrono::steady_clock::now());
+        _segmentStartValid = false;    // indicates that _segmentStartTime is invalid
     }
 
     void Camera::resumeExposure() {
@@ -116,7 +150,8 @@ namespace arctic {
             throw std::runtime_error("no paused exposure to resume");
         }
         runCommand("resume exposure`", TIM_ID, REX);
-        _segmentStartTime = time(NULL);
+        _segmentStartTime = std::chrono::steady_clock::now();
+        _segmentStartValid = true;
     }
 
     void Camera::abortExposure() {
@@ -143,7 +178,7 @@ namespace arctic {
     ExposureState Camera::getExposureState() {
         if (_cmdExpSec < 0) {
             return ExposureState(StateEnum::Idle);
-        } else if (_segmentStartTime == 0) {
+        } else if (!_segmentStartValid) {
             return ExposureState(StateEnum::Paused);
         } else if (_device.IsReadout()) {
             int totPix = getImageWidth() * getImageHeight();
@@ -153,7 +188,7 @@ namespace arctic {
             double remReadTime = _readTime(numPixRemaining);
             return ExposureState(StateEnum::Reading, fullReadTime, remReadTime);
         } else if (static_cast<uint16_t *>(_device.CommonBufferVA())[0] == 0) {
-            double segmentRemTime = _segmentExpSec - difftime(time(NULL), _segmentStartTime);
+            double segmentRemTime = _segmentExpSec - elapsedSec(_segmentStartTime, std::chrono::steady_clock::now());
             return ExposureState(StateEnum::Exposing, _cmdExpSec, segmentRemTime);
         } else {
             return ExposureState(StateEnum::ImageRead);
@@ -161,6 +196,7 @@ namespace arctic {
     }
 
     void Camera::setBinFactor(int colBinFac, int rowBinFac) {
+        std::cout << "setBinFactor(" << colBinFac << ", " << rowBinFac << ")\n";
         assertIdle();
         if (colBinFac < 1 or colBinFac > CCDWidth) {
             std::ostringstream os;
@@ -180,8 +216,23 @@ namespace arctic {
         _rowBinFac = rowBinFac;
     }
 
+    void Camera::setFullWindow() {
+        std::cout << "setFullWindow()\n";
+        runCommand("set full window", TIM_ID, SSS, 0, 0, 0);
+        _winColStart = 0;
+        _winRowStart = 0;
+        _winWidth = CCDWidth;
+        _winHeight = CCDHeight;
+    }
+
     void Camera::setWindow(int colStart, int rowStart, int width, int height) {
-        throw std::runtime_error("cannot window unless reading from one amplifier, and that is not implemented yet");
+        std::cout << "setWindow(" << colStart << ", " << rowStart << ", " << width << ", " << height << ")\n";
+        if (   (_readoutAmps != ReadoutAmps::LL) && (_readoutAmps != ReadoutAmps::LR)
+            && (_readoutAmps != ReadoutAmps::UL) && (_readoutAmps != ReadoutAmps::UR)) {
+            os << "cannot window unless reading from a single amplifier; readoutAmps="
+                << ReadoutAmpsNameMap.find(_readoutAmps)->second;
+            throw std::runtime_error(os.str());
+        }
         assertIdle();
         if (colStart < 0 || colStart >= CCDWidth) {
             std::ostringstream os;
@@ -212,7 +263,7 @@ namespace arctic {
         // - arg1 is the bias region width (in pixels)
         // - arg2 is the subarray width (in pixels)
         // - arg3 is the subarray height (in pixels)
-        runCommand("set window size", TIM_ID, SSS, XOverscan, width, height);
+        runCommand("set window size", TIM_ID, SSS, OneAmpOverscan, width, height);
 
         // set subarray starting-point; warning: this only works when reading from one amplifier
         // SSP arguments are as follows (indexed from 0,0, unbinned pixels)
@@ -222,11 +273,16 @@ namespace arctic {
         runCommand("set window position", TIM_ID, SSP, rowStart, colStart, CCDWidth);
     }
 
-    ReadoutRate Camera::getReadoutRate() const {
-        return _readoutRate;
+    void Camera::setReadoutAmps(ReadoutAmps readoutAmps) {
+        std::cout << "setReadoutAmps(ReadoutAmps::" << ReadoutAmpsNameMap.find(readoutAmps)->second << ")\n";
+        assertIdle();
+        int cmdValue = ReadoutAmpsCmdValueMap.find(readoutAmps)->second;
+        runCommand("set readoutAmps", TIM_ID, SOS, cmdValue, DON);
+        _readoutAmps = readoutAmps;
     }
 
     void Camera::setReadoutRate(ReadoutRate readoutRate) {
+        std::cout << "setReadoutRate(ReadoutRate::" << ReadoutRateNameMap.find(readoutRate)->second << ")\n";
         assertIdle();
         int cmdValue = ReadoutRateCmdValueMap.find(readoutRate)->second;
         runCommand("set readout rate", TIM_ID, SPS, cmdValue, DON);
@@ -234,12 +290,16 @@ namespace arctic {
     }
 
     void Camera::saveImage(double expTime) {
+        std::cout << "saveImage(" << expTime << ")\n";
         if (getExposureState().state != StateEnum::ImageRead) {
             throw std::runtime_error("no image available to be read");
         }
+
+        int deinterlaceAlgorithm = ReadoutAmpsDeinterlaceAlgorithmMap.find(_readoutAmps)->second;
         arc::deinterlace::CArcDeinterlace deinterlacer;
-        std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " <<  getImageHeight() << ", " << getImageWidth() << ", " << DeinterlaceAlgorithm << ")" << std::endl;
-        deinterlacer.RunAlg(_device.CommonBufferVA(), getImageHeight(), getImageWidth(), DeinterlaceAlgorithm);
+        std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " 
+            <<  getImageHeight() << ", " << getImageWidth() << ", " << deinterlaceAlgorithm << ")" << std::endl;
+        deinterlacer.RunAlg(_device.CommonBufferVA(), getImageHeight(), getImageWidth(), deinterlaceAlgorithm);
 
         arc::fits::CArcFitsFile cFits(_expName.c_str(), getImageHeight(), getImageWidth());
         cFits.Write(_device.CommonBufferVA());
@@ -247,7 +307,7 @@ namespace arctic {
             expTime = _cmdExpSec;
         }
         cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
-        std::string expTypeStr = ExposureTypeMap.find(_expType)->second;
+        std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
         cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
         _setIdle();
     }
@@ -277,7 +337,7 @@ namespace arctic {
     void Camera::_setIdle() {
         _cmdExpSec = -1;
         _segmentExpSec = -1;
-        _segmentStartTime = 0;
+        _segmentStartValid = false;
         std::cout << "_device.FillCommonBuffer(0)\n";
         _device.FillCommonBuffer(0);
     }

@@ -2,16 +2,20 @@
 ARCTIC commands
 
 Note: at power on the ICC reads two config files:
-- camera config: specifies default bin, window and camera controller DSP file
-- filter config: specifies which filter is in which slot
+- camera controller DSP file
+- filter config: specifies which filter is in which slot (do we need a command to reload this file, separate from "init")?
 
 *** SET ***
 
-set bin=n window=[llx,llr,width,height|full] filter=nameOrNum temp=degC
+set bin=n window=[llx,llr,width,height|full] amps=amps readoutRate=readoutRate filter=nameOrNum temp=degC
 
 Set parameters:
-- bin is a single integer that applies to both x and y
-- window is in binned pixels
+- bin is probably a single integer that applies to both x and y; however, the camera supports separate x,y binning so we can easily support that if desired
+- window is in unbinned pixels. Warning: you can only sub-window if reading one amplifier (see "amps")
+- amps is one of: ll, lr, ur, lr, all, auto
+    in auto mode all amplifiers are used unless window a window is specified, in which case
+    the amplifier corner closest to the edge of the window is used (does this really matter? If not always use ll)
+- readoutRate is one of: slow, medium, fast
 - filter value may be a filter name or a slot number (1-n); the reported value includes both values (slot and name)
 - temp is the temperature setpoint in C
 

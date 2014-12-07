@@ -12,12 +12,9 @@
 #include "arcticICC/camera.h"
 %}
 
-%inline %{
-namespace arctic {}
-using namespace arctic;
-%}
-
 %init %{
 %}
+
+%include "lsst/p_lsstSwig.i"
 
 %import "arcticICC/camera.h"
