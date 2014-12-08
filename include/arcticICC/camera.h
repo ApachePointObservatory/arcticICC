@@ -86,6 +86,17 @@ namespace arctic {
         void stopExposure();
 
         /**
+        Return true if the current readout amps is compatible with sub-windowing
+        */
+        bool canWindow() { return canWindow(_readoutAmps); }
+
+        /**
+        Return true if the specified readout amps is compatible with sub-windowing
+        */
+        bool canWindow(ReadoutAmps readoutAmps) { return (readoutAmps == ReadoutAmps::LL) || (readoutAmps == ReadoutAmps::LR)
+            || (readoutAmps == ReadoutAmps::UL) || (readoutAmps != ReadoutAmps::UR); }
+
+        /**
         Get current exposure state
         */
         ExposureState getExposureState();
@@ -120,6 +131,12 @@ namespace arctic {
         std::array<int, 4> getWindow() const {
             return std::array<int, 4> {_winRowStart, _winColStart, _winWidth, _winHeight};
         };
+
+        /**
+        Return true if configured for full windowing
+        */
+        bool isFullWindow() const { return (_winRowStart == 0) && (_winColStart == 0)
+            && (_winWidth == CCDWidth) && (_winHeight == CCDHeight); }
 
         /**
         Set window to use full CCD

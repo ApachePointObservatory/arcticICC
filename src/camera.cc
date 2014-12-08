@@ -227,8 +227,7 @@ namespace arctic {
 
     void Camera::setWindow(int colStart, int rowStart, int width, int height) {
         std::cout << "setWindow(" << colStart << ", " << rowStart << ", " << width << ", " << height << ")\n";
-        if (   (_readoutAmps != ReadoutAmps::LL) && (_readoutAmps != ReadoutAmps::LR)
-            && (_readoutAmps != ReadoutAmps::UL) && (_readoutAmps != ReadoutAmps::UR)) {
+        if (!canWindow()) {
             os << "cannot window unless reading from a single amplifier; readoutAmps="
                 << ReadoutAmpsNameMap.find(_readoutAmps)->second;
             throw std::runtime_error(os.str());
@@ -275,6 +274,10 @@ namespace arctic {
 
     void Camera::setReadoutAmps(ReadoutAmps readoutAmps) {
         std::cout << "setReadoutAmps(ReadoutAmps::" << ReadoutAmpsNameMap.find(readoutAmps)->second << ")\n";
+        if (!isFullWindow() && !canWindow(readoutAmps)) {
+            os << "presently sub-windowing, which is not compatible with readoutAmps=" << ReadoutAmpsNameMap.find(_readoutAmps)->second;
+            throw std::runtime_error(os.str());
+        }
         assertIdle();
         int cmdValue = ReadoutAmpsCmdValueMap.find(readoutAmps)->second;
         runCommand("set readoutAmps", TIM_ID, SOS, cmdValue, DON);
