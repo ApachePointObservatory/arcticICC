@@ -2,6 +2,7 @@ config.log
 doxygen.conf
 html/
 examples/takeOneExposure
+tests/.tests
 *Lib.py
 *.pyc
 *.cfgc

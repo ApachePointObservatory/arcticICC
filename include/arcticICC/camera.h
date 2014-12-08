@@ -210,14 +210,24 @@ namespace arctic {
         void closeShutter();
 
         /**
+        Return image width, in unbinned pixels (includes overscan)
+        */
+        int getUnbinnedWidth() const { return _winWidth + XExtraPix; }
+
+        /**
+        Return image height, in unbinned pixels (will include overscan, if y overscan is ever supported)
+        */
+        int getUnbinnedHeight() const { return _winHeight; }
+
+        /**
         Return image width, in binned pixels (includes overscan)
         */
-        int getImageWidth() const { return (_winWidth + XExtraPix) / _colBinFac; }
+        int getBinnedWidth() const { return getUnbinnedWidth() / _colBinFac; }
 
         /**
         Return image height, in binned pixels (will include overscan, if y overscan is ever supported)
         */
-        int getImageHeight() const { return _winHeight / _rowBinFac; }
+        int getBinnedHeight() const { return getUnbinnedHeight() / _rowBinFac; }
 
     private:
         void assertIdle();  /// assert that the camera is not busy

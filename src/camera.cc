@@ -58,7 +58,7 @@ namespace {
     but it's not clear the cast is required; it may suffice to specify duration<double>
     */
     double elapsedSec(std::chrono::steady_clock::time_point const &tBeg, std::chrono::steady_clock::time_point const &tEnd) {
-        return std::chrono::duration_cast<std::chrono::duration<double>>(tBeg - tEnd).count();
+        return std::chrono::duration_cast<std::chrono::duration<double>>(tEnd - tBeg).count();
     }
 }
 
@@ -97,11 +97,10 @@ namespace arctic {
             TimingBoardFileName.c_str() // timing board file to load
         );
 
-        runCommand("set readout mode to quad", TIM_ID, SOS, AMP_ALL);        
-
-        // force readout rate because I'm not sure what it is at startup
-        // assume 1x1 binning, full windowing and all amplifiers
-        setReadoutRate(ReadoutRate::Slow);
+        // set default configuration
+        setReadoutAmps(ReadoutAmps::All);
+        setReadoutRate(ReadoutRate::Medium);
+        setBinFactor(2, 2);
     }
 
     Camera::~Camera() {
@@ -192,7 +191,7 @@ namespace arctic {
         } else if (!_segmentStartValid) {
             return ExposureState(StateEnum::Paused);
         } else if (_device.IsReadout()) {
-            int totPix = getImageWidth() * getImageHeight();
+            int totPix = getBinnedWidth() * getBinnedHeight();
             int numPixRead = _device.GetPixelCount();
             int numPixRemaining = std::max(totPix - numPixRead, 0);
             double fullReadTime = _readTime(totPix);
@@ -220,16 +219,14 @@ namespace arctic {
             throw std::runtime_error(os.str());
         }
 
-        runCommand("set column bin factor", TIM_ID, WRM, (Y_MEM | 0x5), colBinFac);
-        _colBinFac = colBinFac;
-
-        runCommand("set row bin factor", TIM_ID, WRM, (Y_MEM | 0x6), rowBinFac);
+        _device.SetBinning(getUnbinnedHeight(), getUnbinnedWidth(), rowBinFac, colBinFac);
         _rowBinFac = rowBinFac;
+        _colBinFac = colBinFac;
     }
 
     void Camera::setFullWindow() {
         std::cout << "setFullWindow()\n";
-        runCommand("set full window", TIM_ID, SSS, 0, 0, 0);
+        _device.UnSetSubArray(getBinnedHeight(), getUnbinnedWidth());
         _winColStart = 0;
         _winRowStart = 0;
         _winWidth = CCDWidth;
@@ -266,8 +263,7 @@ namespace arctic {
             throw std::runtime_error(os.str());
         }
 
-        // clear current window, to avoid asking for a window that is off the CCD
-        runCommand("clear old window", TIM_ID, SSS, 0, 0, 0);
+        _device.SetImageSize(getBinnedHeight(), getBinnedWidth());
 
         // set subarray size; warning: this only works when reading from one amplifier
         // arguments are:
@@ -314,18 +310,26 @@ namespace arctic {
         int deinterlaceAlgorithm = ReadoutAmpsDeinterlaceAlgorithmMap.find(_readoutAmps)->second;
         arc::deinterlace::CArcDeinterlace deinterlacer;
         std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " 
-            <<  getImageHeight() << ", " << getImageWidth() << ", " << deinterlaceAlgorithm << ")" << std::endl;
-        deinterlacer.RunAlg(_device.CommonBufferVA(), getImageHeight(), getImageWidth(), deinterlaceAlgorithm);
+            <<  getBinnedHeight() << ", " << getBinnedWidth() << ", " << deinterlaceAlgorithm << ")" << std::endl;
+        deinterlacer.RunAlg(_device.CommonBufferVA(), getBinnedHeight(), getBinnedWidth(), deinterlaceAlgorithm);
 
-        arc::fits::CArcFitsFile cFits(_expName.c_str(), getImageHeight(), getImageWidth());
+        arc::fits::CArcFitsFile cFits(_expName.c_str(), getBinnedHeight(), getBinnedWidth());
         cFits.Write(_device.CommonBufferVA());
         if (expTime < 0) {
             expTime = _cmdExpSec;
         }
-        cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
         std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
         cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
+
+        cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
+
+        std::string readoutAmpsStr = ReadoutAmpsNameMap.find(_readoutAmps)->second;
+        cFits.WriteKeyword(const_cast<char *>("READAMPS"), &readoutAmpsStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout amplifier(s)"));
+
+        std::string readoutRateStr = ReadoutRateNameMap.find(_readoutRate)->second;
+        cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
         _setIdle();
+
     }
 
     void Camera::openShutter() {

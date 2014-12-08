@@ -7,7 +7,6 @@
 
 int main() {
     arctic::Camera camera{};
-    camera.setReadoutRate(arctic::ReadoutRate::Medium);
     std::cout << "camera.startExposure(2, arctic::ExposureType::Object, 'object.fits')\n";
     camera.startExposure(2, arctic::ExposureType::Object, "object.fits");
 

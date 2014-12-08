@@ -3,13 +3,14 @@ The controller reads out 100 extra unbinned pixels of prescan + overscan in x (a
 - when reading in quad mode it reads 50 x pixels of overscan
 - when reading in single-amplifier mode it reads 6 pixels (?) of prescan and 100-pre of overscan
 It is only possible to subwindow if reading out the whole CCD from a single amplifier
-Do NOT send commands to the Leach board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
+Do NOT send commands to the Leach timer board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
 
 TO DO:
 - Fix the startup problem (the first few exposures are bad)
-- Test setReadoutAmps and other set routines
+- Test setReadoutAmps, setWindow, setFullWindow and other set routines
 - Fix SWIG wrapper so the camera is wrapped
-- Write FITS header info for bias region(s)
+- Write FITS header info for data and bias region(s); this depends on whether we are reading 1 or 4 amps
+- Take shutter delay into account when predicting duration of exposure time state
 
 Here are some useful direct commands:
 AEX: abort exposure without reading it out (used by Expose)
