@@ -28,14 +28,14 @@ enum class ReadoutAmps {
     UR,
     UL,
     All,
-}
+};
 
 /// map of ReadoutAmps enum: string representation
 const static std::map<ReadoutAmps, std::string> ReadoutAmpsNameMap {
     {ReadoutAmps::LL,   "LL"},
     {ReadoutAmps::LR,   "LR"},
-    {ReadoutAmps::UR,   "UR"}
-    {ReadoutAmps::UL,   "UL"}
+    {ReadoutAmps::UR,   "UR"},
+    {ReadoutAmps::UL,   "UL"},
     {ReadoutAmps::All,  "All"}
 };
 

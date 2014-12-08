@@ -1,13 +1,12 @@
 #pragma once
 
+#include <array>
+#include <chrono>
 #include <string>
 #include <vector>
-#include <array>
-#include <ctime>
 
 #include "CArcDevice/CArcPCIe.h"
 #include "CArcDevice/CArcDevice.h"
-#include "CArcDeinterlace/CArcDeinterlace.h"
 
 #include "arcticICC/basics.h"
 
@@ -250,9 +249,9 @@ namespace arctic {
             /// and is decreased each time the exposure is paused
         std::chrono::steady_clock::time_point _segmentStartTime;   /// start time of this exposure segment;
             /// updated when an exposure is paused or resumed; invalid if isExposing false
-        bool _segmentStartValid     /// true if exposing, reading out or read out, but not paused or idle
+        bool _segmentStartValid;    /// true if exposing, reading out or read out, but not paused or idle
 
-        arc::device::CArcPCIe   _device;  /// the Leach API's representation of a camera controller
+        arc::device::CArcPCIe _device;  /// the Leach API's representation of a camera controller
     };
 
 } // namespace

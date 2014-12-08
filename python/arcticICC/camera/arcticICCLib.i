@@ -15,6 +15,6 @@
 %init %{
 %}
 
-%include "lsst/p_lsstSwig.i"
+// %include "lsst/p_lsstSwig.i"
 
 %import "arcticICC/camera.h"

@@ -1,11 +1,13 @@
 #include <cstdint>
 #include <string>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 
 #include "CArcDevice/ArcDefs.h"
 #include "CArcFitsFile/CArcFitsFile.h"
+#include "CArcDeinterlace/CArcDeinterlace.h"
 
 #include "arcticICC/camera.h"
 
@@ -16,20 +18,29 @@ namespace {
     // see ArcDefs.h and CommandDescription.pdf (you'll need both)
     // note that the two do not agree for any other options and we don't need them anyway
     std::map<arctic::ReadoutAmps, int> ReadoutAmpsCmdValueMap {
-        {LL,    AMP_0},
-        {LR,    AMP_1},
-        {UR,    AMP_2},
-        {UL,    AMP_3},
-        {All,   AMP_ALL},
-    }
+        {arctic::ReadoutAmps::LL,   AMP_0},
+        {arctic::ReadoutAmps::LR,   AMP_1},
+        {arctic::ReadoutAmps::UR,   AMP_2},
+        {arctic::ReadoutAmps::UL,   AMP_3},
+        {arctic::ReadoutAmps::All,  AMP_ALL},
+    };
+
+// this results in undefined link symbols, so use direct constants for now. But why???
+    // std::map<arctic::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
+    //     {arctic::ReadoutAmps::LL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arctic::ReadoutAmps::LR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arctic::ReadoutAmps::UR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arctic::ReadoutAmps::UL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arctic::ReadoutAmps::All,   arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD},
+    // };
 
     std::map<arctic::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
-        {LL,    arc::deinterlace::CArcDeinterlace::NONE},
-        {LR,    arc::deinterlace::CArcDeinterlace::NONE},
-        {UR,    arc::deinterlace::CArcDeinterlace::NONE},
-        {UL,    arc::deinterlace::CArcDeinterlace::NONE},
-        {All,   arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD},
-    }
+        {arctic::ReadoutAmps::LL,    0},
+        {arctic::ReadoutAmps::LR,    0},
+        {arctic::ReadoutAmps::UR,    0},
+        {arctic::ReadoutAmps::UL,    0},
+        {arctic::ReadoutAmps::All,   3},
+    };
 
     // The following was taken from Owl's SelectableReadoutSpeedCC.bsh
     // it uses an undocumented command "SPS"
@@ -46,8 +57,8 @@ namespace {
     based on http://www.cplusplus.com/reference/chrono/steady_clock/
     but it's not clear the cast is required; it may suffice to specify duration<double>
     */
-    double elapsedSec(std::chrono::steady_clock const &tBeg, std::chrono::steady_clock const &tEnd) {
-        return duration_cast<duration<double>>(tBeg - tEnd)).count();
+    double elapsedSec(std::chrono::steady_clock::time_point const &tBeg, std::chrono::steady_clock::time_point const &tEnd) {
+        return std::chrono::duration_cast<std::chrono::duration<double>>(tBeg - tEnd).count();
     }
 }
 
@@ -56,7 +67,7 @@ namespace arctic {
     Camera::Camera() :
         _colBinFac(1), _rowBinFac(1),
         _winColStart(0), _winRowStart(0), _winWidth(CCDWidth), _winHeight(CCDHeight),
-        _readoutAmps(ReadoutAmps::AllAmps),
+        _readoutAmps(ReadoutAmps::All),
         _readoutRate(ReadoutRate::Slow),
         _cmdExpSec(-1), _segmentExpSec(-1), _segmentStartTime(), _segmentStartValid(false),
         _device()
@@ -141,7 +152,7 @@ namespace arctic {
         }
         runCommand("pause exposure", TIM_ID, PEX);
         // decrease _segmentExpSec by the duration of the exposure segment just ended
-        _segmentExpSec -= elapsedSec(_segmentExpSec, std::chrono::steady_clock::now());
+        _segmentExpSec -= elapsedSec(_segmentStartTime, std::chrono::steady_clock::now());
         _segmentStartValid = false;    // indicates that _segmentStartTime is invalid
     }
 
@@ -228,6 +239,7 @@ namespace arctic {
     void Camera::setWindow(int colStart, int rowStart, int width, int height) {
         std::cout << "setWindow(" << colStart << ", " << rowStart << ", " << width << ", " << height << ")\n";
         if (!canWindow()) {
+            std::ostringstream os;
             os << "cannot window unless reading from a single amplifier; readoutAmps="
                 << ReadoutAmpsNameMap.find(_readoutAmps)->second;
             throw std::runtime_error(os.str());
@@ -275,6 +287,7 @@ namespace arctic {
     void Camera::setReadoutAmps(ReadoutAmps readoutAmps) {
         std::cout << "setReadoutAmps(ReadoutAmps::" << ReadoutAmpsNameMap.find(readoutAmps)->second << ")\n";
         if (!isFullWindow() && !canWindow(readoutAmps)) {
+            std::ostringstream os;
             os << "presently sub-windowing, which is not compatible with readoutAmps=" << ReadoutAmpsNameMap.find(_readoutAmps)->second;
             throw std::runtime_error(os.str());
         }
