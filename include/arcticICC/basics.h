@@ -14,6 +14,7 @@ enum class StateEnum {
     ImageRead   // an image has been read and not saved
 };
 
+#ifndef SWIG
 const static std::map<StateEnum, std::string> StateNameMap = {
     {StateEnum::Idle,      "Idle"},
     {StateEnum::Exposing,  "Exposing"},
@@ -21,6 +22,7 @@ const static std::map<StateEnum, std::string> StateNameMap = {
     {StateEnum::Reading,   "Reading"},
     {StateEnum::ImageRead, "ImageRead"}
 };
+#endif
 
 enum class ReadoutAmps {
     LL,
@@ -30,6 +32,7 @@ enum class ReadoutAmps {
     All,
 };
 
+#ifndef SWIG
 /// map of ReadoutAmps enum: string representation
 const static std::map<ReadoutAmps, std::string> ReadoutAmpsNameMap {
     {ReadoutAmps::LL,   "LL"},
@@ -38,6 +41,7 @@ const static std::map<ReadoutAmps, std::string> ReadoutAmpsNameMap {
     {ReadoutAmps::UL,   "UL"},
     {ReadoutAmps::All,  "All"}
 };
+#endif
 
 enum class ReadoutRate {
     Slow,
@@ -45,6 +49,7 @@ enum class ReadoutRate {
     Fast
 };
 
+#ifndef SWIG
 /// map of ReadoutRate enum: string representation
 const static std::map<ReadoutRate, std::string> ReadoutRateNameMap {
     {ReadoutRate::Slow,   "Slow"},
@@ -58,6 +63,7 @@ const static std::map<ReadoutRate, double> ReadoutRateFreqMap {
     {ReadoutRate::Medium, 450e3},
     {ReadoutRate::Fast,   900e3}
 };
+#endif
 
 /// list closed-shutter exposures first, with Dark being the last of those
 enum class ExposureType {
@@ -67,6 +73,7 @@ enum class ExposureType {
     Object,
 };
 
+#ifndef SWIG
 /// map of ExposureType enum: string representation
 const static std::map<ExposureType, std::string> ExposureTypeNameMap {
     {ExposureType::Bias,   "Bias"},
@@ -74,7 +81,7 @@ const static std::map<ExposureType, std::string> ExposureTypeNameMap {
     {ExposureType::Flat,   "Flat"},
     {ExposureType::Object, "Object"}
 };
-
+#endif
 
 /**
 Exposure state, as returned by Camera::getExposureState

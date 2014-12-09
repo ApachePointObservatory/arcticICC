@@ -24,8 +24,7 @@ namespace std {
       typedef std::reverse_iterator<iterator>	      reverse_iterator;
       typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
 
-      void assign(const value_type& __u);
-
+      bool empty() const;
       size_type size() const;
 
       reference at(size_type __n);
