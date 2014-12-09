@@ -62,8 +62,8 @@ using namespace arcticICC;
     }
 }
 
-%import "arcticICC/basics.h"
-%import "arcticICC/camera.h"
+%include "arcticICC/basics.h"
+%include "arcticICC/camera.h"
 
 // put this after any structs that contain std::tr1::array
 %include "array.i"

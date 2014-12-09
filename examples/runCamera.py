@@ -15,23 +15,23 @@ if UseArcticICC:
     print "dir(arcticICC.camera)=", dir(arctic)
 
     ExpTypeDict = collections.OrderedDict((
-        ("Bias", arctic.ExposureType.Bias),
-        ("Dark", arctic.ExposureType.Dark),
-        ("Flat", arctic.ExposureType.Flat),
-        ("Object", arctic.ExposureType.Object),
+        ("Bias", arctic.Bias),
+        ("Dark", arctic.Dark),
+        ("Flat", arctic.Flat),
+        ("Object", arctic.Object),
     ))
 
     ReadoutRateDict = collections.OrderedDict((
-        ("Slow", arctic.ReadoutRate.Slow),
-        ("Medium", arctic.ReadoutRate.Medium),
-        ("Fast", arctic.ReadoutRate.Fast),
+        ("Slow", arctic.Slow),
+        ("Medium", arctic.Medium),
+        ("Fast", arctic.Fast),
     ))
     StatusStrDict = {
-        arctic.StateEnum.Idle:      "Idle",
-        arctic.StateEnum.Exposing:  "Exposing",
-        arctic.StateEnum.Paused:    "Paused",
-        arctic.StateEnum.Reading:   "Reading",
-        arctic.StateEnum.ImageRead: "ImageRead",
+        arctic.Idle:      "Idle",
+        arctic.Exposing:  "Exposing",
+        arctic.Paused:    "Paused",
+        arctic.Reading:   "Reading",
+        arctic.ImageRead: "ImageRead",
     }
 else:
     ExpTypeDict = collections.OrderedDict((
@@ -53,7 +53,7 @@ class CameraWdg(Tkinter.Frame):
         self.expNum = 1
         self.statusTimer = Timer()
         if UseArcticICC:
-            self.camera = arctic.Camera(1024, 1024, 10)
+            self.camera = arctic.Camera()
             self.getStatus()
         else:
             self.camera = None
