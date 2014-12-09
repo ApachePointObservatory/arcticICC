@@ -3,14 +3,13 @@
 #include <array>
 #include <chrono>
 #include <string>
-#include <vector>
 
 #include "CArcDevice/CArcPCIe.h"
 #include "CArcDevice/CArcDevice.h"
 
 #include "arcticICC/basics.h"
 
-namespace arctic {
+namespace arcticICC {
 
     static int const CCDWidth = 4096;   // width of CCD (unbinned pixels)
     static int const CCDHeight = 4096;  // width of CCD (unbinned pixels)

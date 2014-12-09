@@ -17,38 +17,38 @@ namespace {
 
     // see ArcDefs.h and CommandDescription.pdf (you'll need both)
     // note that the two do not agree for any other options and we don't need them anyway
-    std::map<arctic::ReadoutAmps, int> ReadoutAmpsCmdValueMap {
-        {arctic::ReadoutAmps::LL,   AMP_0},
-        {arctic::ReadoutAmps::LR,   AMP_1},
-        {arctic::ReadoutAmps::UR,   AMP_2},
-        {arctic::ReadoutAmps::UL,   AMP_3},
-        {arctic::ReadoutAmps::All,  AMP_ALL},
+    std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsCmdValueMap {
+        {arcticICC::ReadoutAmps::LL,   AMP_0},
+        {arcticICC::ReadoutAmps::LR,   AMP_1},
+        {arcticICC::ReadoutAmps::UR,   AMP_2},
+        {arcticICC::ReadoutAmps::UL,   AMP_3},
+        {arcticICC::ReadoutAmps::All,  AMP_ALL},
     };
 
 // this results in undefined link symbols, so use direct constants for now. But why???
-    // std::map<arctic::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
-    //     {arctic::ReadoutAmps::LL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
-    //     {arctic::ReadoutAmps::LR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
-    //     {arctic::ReadoutAmps::UR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
-    //     {arctic::ReadoutAmps::UL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
-    //     {arctic::ReadoutAmps::All,   arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD},
+    // std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
+    //     {arcticICC::ReadoutAmps::LL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arcticICC::ReadoutAmps::LR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arcticICC::ReadoutAmps::UR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arcticICC::ReadoutAmps::UL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
+    //     {arcticICC::ReadoutAmps::All,   arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD},
     // };
 
-    std::map<arctic::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
-        {arctic::ReadoutAmps::LL,    0},
-        {arctic::ReadoutAmps::LR,    0},
-        {arctic::ReadoutAmps::UR,    0},
-        {arctic::ReadoutAmps::UL,    0},
-        {arctic::ReadoutAmps::All,   3},
+    std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
+        {arcticICC::ReadoutAmps::LL,    0},
+        {arcticICC::ReadoutAmps::LR,    0},
+        {arcticICC::ReadoutAmps::UR,    0},
+        {arcticICC::ReadoutAmps::UL,    0},
+        {arcticICC::ReadoutAmps::All,   3},
     };
 
     // The following was taken from Owl's SelectableReadoutSpeedCC.bsh
     // it uses an undocumented command "SPS"
     int const SPS = 0x535053;
-    std::map<arctic::ReadoutRate, int> ReadoutRateCmdValueMap = {
-        {arctic::ReadoutRate::Slow,   0x534C57},
-        {arctic::ReadoutRate::Medium, 0x4D4544},
-        {arctic::ReadoutRate::Fast,   0x465354},
+    std::map<arcticICC::ReadoutRate, int> ReadoutRateCmdValueMap = {
+        {arcticICC::ReadoutRate::Slow,   0x534C57},
+        {arcticICC::ReadoutRate::Medium, 0x4D4544},
+        {arcticICC::ReadoutRate::Fast,   0x465354},
     };
 
     /**
@@ -62,7 +62,7 @@ namespace {
     }
 }
 
-namespace arctic {
+namespace arcticICC {
 
     Camera::Camera() :
         _colBinFac(1), _rowBinFac(1),

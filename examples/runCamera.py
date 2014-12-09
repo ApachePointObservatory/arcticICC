@@ -12,6 +12,8 @@ UseArcticICC = True
 if UseArcticICC:
     import arcticICC.camera as arctic
 
+    print "dir(arcticICC.camera)=", dir(arctic)
+
     ExpTypeDict = collections.OrderedDict((
         ("Bias", arctic.ExposureType.Bias),
         ("Dark", arctic.ExposureType.Dark),
