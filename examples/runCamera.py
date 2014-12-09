@@ -2,61 +2,49 @@
 from __future__ import absolute_import, division
 
 import collections
+import os
 import Tkinter
 
 import RO.Wdg
 from RO.TkUtil import Timer
 
-UseArcticICC = True
+import arcticICC.camera as arctic
 
-if UseArcticICC:
-    import arcticICC.camera as arctic
+ExpTypeDict = collections.OrderedDict((
+    ("Bias", arctic.Bias),
+    ("Dark", arctic.Dark),
+    ("Flat", arctic.Flat),
+    ("Object", arctic.Object),
+))
 
-    print "dir(arcticICC.camera)=", dir(arctic)
+ReadoutRateDict = collections.OrderedDict((
+    ("Slow", arctic.Slow),
+    ("Medium", arctic.Medium),
+    ("Fast", arctic.Fast),
+))
+StatusStrDict = {
+    arctic.Idle:      "Idle",
+    arctic.Exposing:  "Exposing",
+    arctic.Paused:    "Paused",
+    arctic.Reading:   "Reading",
+    arctic.ImageRead: "ImageRead",
+}
 
-    ExpTypeDict = collections.OrderedDict((
-        ("Bias", arctic.Bias),
-        ("Dark", arctic.Dark),
-        ("Flat", arctic.Flat),
-        ("Object", arctic.Object),
-    ))
+ReadoutAmpsDict = collections.OrderedDict((
+    ("LL", arctic.LL),
+    ("LR", arctic.LR),
+    ("UR", arctic.UR),
+    ("UL", arctic.UL),
+    ("All", arctic.All),
+))
 
-    ReadoutRateDict = collections.OrderedDict((
-        ("Slow", arctic.Slow),
-        ("Medium", arctic.Medium),
-        ("Fast", arctic.Fast),
-    ))
-    StatusStrDict = {
-        arctic.Idle:      "Idle",
-        arctic.Exposing:  "Exposing",
-        arctic.Paused:    "Paused",
-        arctic.Reading:   "Reading",
-        arctic.ImageRead: "ImageRead",
-    }
-else:
-    ExpTypeDict = collections.OrderedDict((
-        ("Bias", "Bias"),
-        ("Dark", "Dark"),
-        ("Flat", "Flat"),
-        ("Object", "Object"),
-    ))
-    ReadoutRateDict = collections.OrderedDict((
-        ("Slow", "Slow"),
-        ("Medium", "Medium"),
-        ("Fast", "Fast"),
-    ))
-    StatusStrDict = None
 
 class CameraWdg(Tkinter.Frame):
     def __init__(self, master):
         Tkinter.Frame.__init__(self, master)
         self.expNum = 1
         self.statusTimer = Timer()
-        if UseArcticICC:
-            self.camera = arctic.Camera()
-            self.getStatus()
-        else:
-            self.camera = None
+        self.camera = arctic.Camera()
 
         row = 0
 
@@ -88,13 +76,13 @@ class CameraWdg(Tkinter.Frame):
         binFrame = Tkinter.Frame(self)
         self.binXWdg = RO.Wdg.IntEntry(
             master = binFrame,
-            defValue = 1,
+            defValue = 2,
             helpText = "x bin factor",
         )
         self.binXWdg.pack(side="left")
         self.binYWdg = RO.Wdg.IntEntry(
             master = binFrame,
-            defValue = 1,
+            defValue = 2,
             helpText = "y bin factor",
         )
         self.binYWdg.pack(side="left")
@@ -112,7 +100,7 @@ class CameraWdg(Tkinter.Frame):
         self.readoutRateWdg = RO.Wdg.OptionMenu(
             master = readoutRateFrame,
             items = ReadoutRateDict.keys(),
-            defValue = "Slow",
+            defValue = "Medium",
             helpText = "set readout rate",
         )
         self.readoutRateWdg.pack(side="left")
@@ -126,42 +114,68 @@ class CameraWdg(Tkinter.Frame):
         readoutRateFrame.grid(row=row, column=0, sticky="w")
         row += 1
 
+        readoutAmpsFrame = Tkinter.Frame(self)
+        self.readoutAmpsWdg = RO.Wdg.OptionMenu(
+            master = readoutAmpsFrame,
+            items = ReadoutAmpsDict.keys(),
+            defValue = "All",
+            helpText = "set readout amps",
+        )
+        self.readoutAmpsWdg.pack(side="left")
+        self.readoutAmpsBtn = RO.Wdg.Button(
+            master = readoutAmpsFrame,
+            command = self.doSetReadoutAmps,
+            text = "Set Readout Amps",
+            helpText = "set readout amps",
+        )
+        self.readoutAmpsBtn.pack(side="left")
+        readoutAmpsFrame.grid(row=row, column=0, sticky="w")
+        row += 1
+
         self.statusWdg = RO.Wdg.StrLabel(master=self)
-        self.statusWdg.grid(row=row, column=0, sticky="we")
+        self.statusWdg.grid(row=row, column=0, sticky="w")
         row += 1
 
         self.statusBar = RO.Wdg.StatusBar(master=self)
         self.statusBar.grid(row=row, column=0, sticky="we")
         row += 1
 
+        self.getStatus()
+
     def getStatus(self):
-        expStatus = self.camera.getExposureStatus()
-        statusStr = "%s %s %s" % (StatusStrDict.get(expStatus.state), expStatus.fullTime, expStatus.remTime)
-        self.statusWdg.set(statusStr)
-        self.statusTimer.start(0.1, self.getStatus)
+        try:
+            expState = self.camera.getExposureState()
+            statusStr = "%s %0.1f %0.1f" % (StatusStrDict.get(expState.state), expState.fullTime, expState.remTime)
+            self.statusWdg.set(statusStr)
+            if expState.state == arctic.ImageRead:
+                self.camera.saveImage()
+        finally:
+            self.statusTimer.start(0.1, self.getStatus)
 
     def doExpose(self):
-        expTime = self.expTimeWdg.get()
+        expTime = self.expTimeWdg.getNum()
         expType = self.expTypeWdg.getString()
         expTypeEnum = ExpTypeDict.get(expType)
-        expName = "%s_%d.fits" % (expType, self.expNum)
-        print "startExposure(%s, %s, %s)" % (expTime, expTypeEnum, expName)
-        if UseArcticICC:
-            self.camera.startExposure(expTime, expTypeEnum, expName)
+        expName = os.path.abspath("%s_%d.fits" % (expType, self.expNum))
+        print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
+        self.camera.startExposure(expTime, expTypeEnum, expName)
         self.expNum += 1
 
     def doSetBin(self):
-        xBin = self.binXWdg.get()
-        yBin = self.binYWdg.get()
-        print "set bin factor = %s, %s" % (xBin, yBin)
-        if UseArcticICC:
-            self.camera.setBinFactor(xBin, yBin)
+        xBin = self.binXWdg.getNum()
+        yBin = self.binYWdg.getNum()
+        print "setBinFactor(%r, %r)" % (xBin, yBin)
+        self.camera.setBinFactor(xBin, yBin)
 
     def doSetReadoutRate(self):
         readoutRateStr = self.readoutRateWdg.getString()
-        print "set readout rate = %s" % (readoutRateStr,)
-        if UseArcticICC:
-            self.camera.setReadoutRate(ReadoutRateDict[readoutRateStr])
+        print "setReadoutRate(%r)" % (readoutRateStr,)
+        self.camera.setReadoutRate(ReadoutRateDict[readoutRateStr])
+
+    def doSetReadoutAmps(self):
+        readoutAmpsStr = self.readoutAmpsWdg.getString()
+        print "setReadoutAmps(%r)" % (readoutAmpsStr,)
+        self.camera.setReadoutAmps(ReadoutAmpsDict[readoutAmpsStr])
 
 
 if __name__ == "__main__":

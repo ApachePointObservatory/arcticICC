@@ -307,29 +307,35 @@ namespace arcticICC {
             throw std::runtime_error("no image available to be read");
         }
 
-        int deinterlaceAlgorithm = ReadoutAmpsDeinterlaceAlgorithmMap.find(_readoutAmps)->second;
-        arc::deinterlace::CArcDeinterlace deinterlacer;
-        std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " 
-            <<  getBinnedHeight() << ", " << getBinnedWidth() << ", " << deinterlaceAlgorithm << ")" << std::endl;
-        deinterlacer.RunAlg(_device.CommonBufferVA(), getBinnedHeight(), getBinnedWidth(), deinterlaceAlgorithm);
+        try {
+            int deinterlaceAlgorithm = ReadoutAmpsDeinterlaceAlgorithmMap.find(_readoutAmps)->second;
+            arc::deinterlace::CArcDeinterlace deinterlacer;
+            std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " 
+                <<  getBinnedHeight() << ", " << getBinnedWidth() << ", " << deinterlaceAlgorithm << ")" << std::endl;
+            deinterlacer.RunAlg(_device.CommonBufferVA(), getBinnedHeight(), getBinnedWidth(), deinterlaceAlgorithm);
 
-        arc::fits::CArcFitsFile cFits(_expName.c_str(), getBinnedHeight(), getBinnedWidth());
-        cFits.Write(_device.CommonBufferVA());
-        if (expTime < 0) {
-            expTime = _cmdExpSec;
+            arc::fits::CArcFitsFile cFits(_expName.c_str(), getBinnedHeight(), getBinnedWidth());
+            cFits.Write(_device.CommonBufferVA());
+            if (expTime < 0) {
+                expTime = _cmdExpSec;
+            }
+            std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
+            cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
+
+            cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
+
+            std::string readoutAmpsStr = ReadoutAmpsNameMap.find(_readoutAmps)->second;
+            cFits.WriteKeyword(const_cast<char *>("READAMPS"), &readoutAmpsStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout amplifier(s)"));
+
+            std::string readoutRateStr = ReadoutRateNameMap.find(_readoutRate)->second;
+            cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
+
+            std::cout << "saved image as \"" << _expName << "\"\n";
+        } catch(...) {
+            _setIdle();
+            throw;
         }
-        std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
-        cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
-
-        cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
-
-        std::string readoutAmpsStr = ReadoutAmpsNameMap.find(_readoutAmps)->second;
-        cFits.WriteKeyword(const_cast<char *>("READAMPS"), &readoutAmpsStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout amplifier(s)"));
-
-        std::string readoutRateStr = ReadoutRateNameMap.find(_readoutRate)->second;
-        cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
         _setIdle();
-
     }
 
     void Camera::openShutter() {

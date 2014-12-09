@@ -1,16 +1,25 @@
-CCD is 4096x4096
-The controller reads out 100 extra unbinned pixels of prescan + overscan in x (and none in y):
-- when reading in quad mode it reads 50 x pixels of overscan
-- when reading in single-amplifier mode it reads 6 pixels (?) of prescan and 100-pre of overscan
-It is only possible to subwindow if reading out the whole CCD from a single amplifier
-Do NOT send commands to the Leach timer board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
+CCD is 4096x4096 but 100 pixels of pre-and-post scan are read, in unbinned mode
+
+Caveats
+- It is only possible to subwindow if reading out the whole CCD from a single amplifier
+- When using all amps the data must have an even number of columns and rows
+- Do NOT send commands to the Leach timer board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
 
 TO DO:
-- Fix the startup problem (the first few exposures are bad)
-- Test setReadoutAmps, setWindow, setFullWindow and other set routines
-- Fix SWIG wrapper so the camera is wrapped
+- Disallow non-even row or column length when reading all amplifiers (as occurs for bin=3x3 and 4x4, for instance)
 - Write FITS header info for data and bias region(s); this depends on whether we are reading 1 or 4 amps
-- Take shutter delay into account when predicting duration of exposure time state
+- Perhaps take shutter delay into account when predicting duration of exposure time state
+
+Prescan and overscan per amplifier, based on observation:
+amps    bin     prescan     overscan    total
+ all    1       6           44          50
+ all    2       4           21          25
+ all    3       forbidden: Number of COLS and ROWS must be EVEN for DEINTERLACE_CCD_QUAD
+ all    4       forbidden: Number of COLS and ROWS must be EVEN for DEINTERLACE_CCD_QUAD
+ 1      1       6           94          100
+ 1      2       4           46           50
+ 1      3       3+1         29+1         32+2  the prescan and postsacn don't divide evenly, leading to 1 mixed pixel in each
+ 1      4       3           22           25
 
 Here are some useful direct commands:
 AEX: abort exposure without reading it out (used by Expose)
