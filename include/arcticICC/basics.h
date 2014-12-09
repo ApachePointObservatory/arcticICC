@@ -4,7 +4,7 @@
 #include <map>
 #include <unordered_set>
 
-namespace arctic {
+namespace arcticICC {
 
 enum class StateEnum {
     Idle,
