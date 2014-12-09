@@ -1,11 +1,11 @@
 %{
-#include <boost/tr1/array.hpp> // so array works with old and new compilers
+#include <array>
 %}
 
 %import "std_except.i"
-%include "array.h"
+%include "arcticICC/array.h"
 
-%extend std::tr1::array {
+%extend std::array {
     inline size_t __len__() const { return $self->size(); }
 
     inline const value_type& _get(size_t i) const throw(std::out_of_range) {
@@ -49,5 +49,5 @@
     }
 }
 
-%template (ArrayI2) std::tr1::array<int, 2>;
-%template (ArrayI4) std::tr1::array<int, 4>;
+%template (ArrayI2) std::array<int, 2>;
+%template (ArrayI4) std::array<int, 4>;

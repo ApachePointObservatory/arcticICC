@@ -1,5 +1,5 @@
 #pragma once
-// minimal version of tr1::array, for SWIG
+// minimal version of std::array, for SWIG
 
 #include <new>
 #include <iterator>
@@ -8,9 +8,8 @@
 #include <bits/functexcept.h>
 #include <ext/type_traits.h>
 
-//namespace std::tr1
+// namespace std::
 namespace std {
-namespace tr1 {
 
   template<typename _Tp, std::size_t _Nm>
     struct array
@@ -32,4 +31,4 @@ namespace tr1 {
       reference at(size_type __n);
     };
 
-}}
+}
