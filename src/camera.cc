@@ -65,16 +65,25 @@ namespace {
 namespace arcticICC {
 
     Camera::Camera() :
-        _colBinFac(1), _rowBinFac(1),
-        _winColStart(0), _winRowStart(0), _winWidth(CCDWidth), _winHeight(CCDHeight),
         _readoutAmps(ReadoutAmps::All),
         _readoutRate(ReadoutRate::Slow),
-        _cmdExpSec(-1), _segmentExpSec(-1), _segmentStartTime(), _segmentStartValid(false),
+        _colBinFac(2),
+        _rowBinFac(2),
+        _winColStart(0),
+        _winRowStart(0),
+        _winWidth(CCDWidth),
+        _winHeight(CCDHeight),
+        _expName(),
+        _expType(ExposureType::Object),
+        _cmdExpSec(-1),
+        _segmentExpSec(-1),
+        _segmentStartTime(),
+        _segmentStartValid(false),
         _device()
     {
-        int fullHeight = CCDHeight; // controller does not support y overscan
-        int fullWidth = CCDWidth + XExtraPix;
-        int numBytes = fullWidth * fullHeight * sizeof(uint16_t);
+        int const fullWidth = CCDWidth + XExtraPix;
+        int const fullHeight = CCDHeight + YExtraPix;
+        int const numBytes = fullWidth * fullHeight * sizeof(uint16_t);
         std::cout << "arc::device::CArcPCIe::FindDevices()\n";
         arc::device::CArcPCIe::FindDevices();
         std::cout << "_device.DeviceCount()=" << _device.DeviceCount() << std::endl;
@@ -139,6 +148,7 @@ namespace arcticICC {
 
         runCommand("start exposure", TIM_ID, SEX);
         _expName = name;
+        _expType = expType;
         _cmdExpSec = expTime;
         _segmentExpSec = _cmdExpSec;
         _segmentStartTime = std::chrono::steady_clock::now();
@@ -208,15 +218,27 @@ namespace arcticICC {
     void Camera::setBinFactor(int colBinFac, int rowBinFac) {
         std::cout << "setBinFactor(" << colBinFac << ", " << rowBinFac << ")\n";
         assertIdle();
-        if (colBinFac < 1 or colBinFac > CCDWidth) {
+        if (colBinFac < 1 or colBinFac > MaxBinFactor) {
             std::ostringstream os;
-            os << "colBinFac=" << colBinFac << " < 1 or > " << CCDWidth;
+            os << "colBinFac=" << colBinFac << " < 1 or > " << MaxBinFactor;
             throw std::runtime_error(os.str());
         }
-        if (rowBinFac < 1 or rowBinFac > CCDHeight) {
+        if (rowBinFac < 1 or rowBinFac > MaxBinFactor) {
             std::ostringstream os;
-            os << "rowBinFac=" << rowBinFac << " < 1 or > " << CCDHeight;
+            os << "rowBinFac=" << rowBinFac << " < 1 or > " << MaxBinFactor;
             throw std::runtime_error(os.str());
+        }
+        // if the following test fails: we have set set XExtraPix, YExtraPix or MaxBinFactor incorrectly,
+        // or else decided to allow larger bin factors that simply don't work when reading out all amps
+        if (_readoutAmps == ReadoutAmps::All) {
+            // the number of binned rows and columns must be even
+            if ((getUnbinnedWidth()  % (2 * colBinFac) != 0) ||
+                (getUnbinnedHeight() % (2 * rowBinFac) != 0)) {
+                std::ostringstream os;
+                os << "reading all amplifiers, so the number of binned rows=" << (getUnbinnedWidth() / colBinFac)
+                    << "and columns=" << (getUnbinnedHeight() / rowBinFac) << " must both be even";
+                throw std::runtime_error(os.str());
+            }
         }
 
         _device.SetBinning(getUnbinnedHeight(), getUnbinnedWidth(), rowBinFac, colBinFac);
@@ -314,11 +336,9 @@ namespace arcticICC {
                 <<  getBinnedHeight() << ", " << getBinnedWidth() << ", " << deinterlaceAlgorithm << ")" << std::endl;
             deinterlacer.RunAlg(_device.CommonBufferVA(), getBinnedHeight(), getBinnedWidth(), deinterlaceAlgorithm);
 
+
             arc::fits::CArcFitsFile cFits(_expName.c_str(), getBinnedHeight(), getBinnedWidth());
-            cFits.Write(_device.CommonBufferVA());
-            if (expTime < 0) {
-                expTime = _cmdExpSec;
-            }
+
             std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
             cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
 
@@ -329,6 +349,11 @@ namespace arcticICC {
 
             std::string readoutRateStr = ReadoutRateNameMap.find(_readoutRate)->second;
             cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
+
+            cFits.Write(_device.CommonBufferVA());
+            if (expTime < 0) {
+                expTime = _cmdExpSec;
+            }
 
             std::cout << "saved image as \"" << _expName << "\"\n";
         } catch(...) {

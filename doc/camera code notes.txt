@@ -1,25 +1,50 @@
-CCD is 4096x4096 but 100 pixels of pre-and-post scan are read, in unbinned mode
+CCD is 4096x4096
 
-Caveats
-- It is only possible to subwindow if reading out the whole CCD from a single amplifier
-- When using all amps the data must have an even number of columns and rows
+Caveats:
+- It is only possible to subwindow if reading out the whole CCD from a single amplifier.
+- When using all amps the data must have an even number of columns and rows; this affects valid bin factors vs. image size
 - Do NOT send commands to the Leach timer board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
 
+Rather than use the provided API directly, we will use a thin wrapper with these properties:
+- Easier and safer to use:
+    - Catch errors early. For instance the API allows setting bin factors that the deinterlacer cannot handle, and this only fails after the image is read out.
+    - Avoid the need to specify image dimensions to functions
+    - Avoid the need to specify configuration parameters to functions (hard-code them or read a config file)
+    - Support RAII (resource acquisition is initialization)
+- Add missing functionality. For instance the API does not include functions to set readout rate or readout amplifiers
+- Provide sub-windowing based on corner and dimensions rather than center and dimensions
+- Provide a python wrapper
+
 TO DO:
-- Disallow non-even row or column length when reading all amplifiers (as occurs for bin=3x3 and 4x4, for instance)
-- Write FITS header info for data and bias region(s); this depends on whether we are reading 1 or 4 amps
+- Write FITS header info for data and bias region(s); this depends on whether we are reading 1 or 4 amps.
+    The table of prescan and overscan below may prove helpful. From that I'm not sure I can predict
+    the behavior for higher binning factor. I suspect we should just prohibit bin factor > 4.
 - Perhaps take shutter delay into account when predicting duration of exposure time state
 
-Prescan and overscan per amplifier, based on observation:
-amps    bin     prescan     overscan    total
- all    1       6           44          50
- all    2       4           21          25
- all    3       forbidden: Number of COLS and ROWS must be EVEN for DEINTERLACE_CCD_QUAD
- all    4       forbidden: Number of COLS and ROWS must be EVEN for DEINTERLACE_CCD_QUAD
- 1      1       6           94          100
- 1      2       4           46           50
- 1      3       3+1         29+1         32+2  the prescan and postsacn don't divide evenly, leading to 1 mixed pixel in each
- 1      4       3           22           25
+Total image size
+- The x prescan is hard-coded at different bin factors (and is not trivial to predict; just measure and make a lookup table); there is no y prescan.
+- The computer sets the total image size (as long as it is larger than prescan + ccd pixels), so the computer commands the number of overscan pixels in x and y.
+- In order to support 1, 2, 3 and 4x binning in both directions we will use an unbinned image size of 4200x4104 pixels and limit the bin factor to a maximum of 4.
+
+x prescan and overscan per amplifier, based on observation (in X, there is no prescan in y).
+Note: at 3x3 binning the prescan, data and postscan don't divide evenly, leading to 1-pixel mixed borders between regions;
+this border is included in the prescan and overscan columns (and should not be included in the biassec).
+
+Prescan and overscan for 4200x4104 pixels:
+amps   bin  x amp   x pre   x over  x pre+over  x data      y amp   y pre   y over  y pre+over  y data
+4/all   1   2100    6       46       52         2048        2052    1*      4        5          2047
+4/all   2   1050    4       22       26         1024        1026    1*      2        3          1023
+4/all   3    700    4       14       18          682         684    1*      2        3           681
+4/all   4    525    3(4*?)  10       13          512         513    1*      1        2           511
+
+1/ll    1   4200    6       98      104         4096        4104    1*      9*      10          4094
+1/ll    2   2100    4       48       52         2048        2052    1*      5*       6          2046
+1/ll    3   1400    4       32       36         1364        1368    1*      3        4          1365
+1/ll    4   1050    3       23       26         1024        1026    1*      3*       4          1022
+
+*One row/col looks like valid data but with a lower gain. For now I'm assuming it is NOT part of the DATASEC
+but if it is then I would like to update the table. I'm puzzled why this row is different; the prescan
+and overscan regions properly divide by the bin factor.
 
 Here are some useful direct commands:
 AEX: abort exposure without reading it out (used by Expose)
@@ -38,5 +63,3 @@ WRM: set bin factor, and other things. To set bin factor:
 OSH: open shutter
 CSH: close shutter
 SPS: NOT DOCUMENTED: sets the readout rate (set pixel speed?); used by Owl in SelectableReadoutSpeedCC.bsh
-
-The reason so many API commands take full image size as an argument is that the API always checks to see if the image buffer needs to be grown. I do not plan to emulate that; as long as we specify the overscan at construction time we know that maximum image buffer size then and we never touch it.

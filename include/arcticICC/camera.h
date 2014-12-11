@@ -13,11 +13,17 @@ namespace arcticICC {
 
     static int const CCDWidth = 4096;   // width of CCD (unbinned pixels)
     static int const CCDHeight = 4096;  // width of CCD (unbinned pixels)
-    static int const XExtraPix = 100;   // total x prescan + overscan pixels for all amplifiers combined (unbinned pixels)
-        // note that the controller does not support y prescan or overscan
-    static int const OneAmpPrescan = 6;
-    static int const OneAmpOverscan = 94;
-    static int const QuadAmpOverscan = 50;
+    static int const XExtraPix = 104;   // total x prescan + overscan pixels for all amplifiers combined (unbinned pixels)
+    static int const YExtraPix = 8;     // total y overscan (y prescan=0) for all amplifiers combined
+    static int const MaxBinFactor = 4;  // maximum allowed bin factor
+    /// map of x bin factor: x prescan pixels (defined as all pixels to discard before good data);
+    /// the distinction only matters for 3x binning, where the 4th pixel is a mix of prescan and data
+    #ifndef SWIG
+    static std::map<int, int> XBinPrescanMap { // bin factor: x prescan (pixels to discard before good data)
+        {1, 6}, {2, 4}, {3, 4}, {4, 3}
+    };
+    static int const OneAmpOverscan = XExtraPix - XBinPrescanMap.find(1)->second; // 98
+    #endif
 
     /**
     ARCTIC imager CCD
@@ -109,14 +115,14 @@ namespace arcticICC {
         /**
         Set bin factor
 
-        @param[in] colBinFac: number of columns per bin
-        @param[in] rowBinFac: number of rows per bin
+        @param[in] colBinFac: number of columns per bin (1, 2, 3 or 4)
+        @param[in] rowBinFac: number of rows per bin (1, 2, 3 or 4)
 
         The resulting number of binned columns = window width (unbinned) / colBinFac
         using truncated integer division. Similarly for rows.
 
         @throw std::runtime_error if:
-        - colBinFac or rowBinFac < 1 or > unbinned image size
+        - colBinFac or rowBinFac < 1 or > 4
         - an exposure is in progress
         */
         void setBinFactor(int colBinFac, int rowBinFac);
@@ -216,7 +222,7 @@ namespace arcticICC {
         /**
         Return image height, in unbinned pixels (will include overscan, if y overscan is ever supported)
         */
-        int getUnbinnedHeight() const { return _winHeight; }
+        int getUnbinnedHeight() const { return _winHeight + YExtraPix; }
 
         /**
         Return image width, in binned pixels (includes overscan)
