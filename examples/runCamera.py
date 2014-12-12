@@ -1,6 +1,12 @@
 #!/usr/bin/env python2
 from __future__ import absolute_import, division
+"""A simple interface to the Camera object
 
+to do: for each call to status, get the current bin factor, etc. and use to set
+the default value for the widgets -- and set autoIsCurrent on all the widgets.
+This will also test that aspect of the SWIG wrapper -- can we get the array values
+that are returned by getBinFactor and getWindow?
+"""
 import collections
 import os
 import Tkinter
@@ -96,6 +102,50 @@ class CameraWdg(Tkinter.Frame):
         binFrame.grid(row=row, column=0)
         row += 1
 
+        windowFrame = Tkinter.Frame(self)
+        self.windowColStartWdg = RO.Wdg.IntEntry(
+            master = windowFrame,
+            defValue = 0,
+            helpText = "window starting column",
+        )
+        self.windowColStartWdg.pack(side="left")
+        self.windowRowStartWdg = RO.Wdg.IntEntry(
+            master = windowFrame,
+            defValue = 0,
+            helpText = "window starting row",
+        )
+        self.windowRowStartWdg.pack(side="left")
+        self.windowWidthWdg = RO.Wdg.IntEntry(
+            master = windowFrame,
+            defValue = 0,
+            helpText = "window width (unbinned pixels)",
+        )
+        self.windowWidthWdg.pack(side="left")
+        self.windowHeightWdg = RO.Wdg.IntEntry(
+            master = windowFrame,
+            defValue = 0,
+            helpText = "window height (unbinned pixels)",
+        )
+        self.windowHeightWdg.pack(side="left")
+        self.windowBtn = RO.Wdg.Button(
+            master = windowFrame,
+            command = self.doSetWindow,
+            text = "Set Window",
+            helpText = "set window",
+        )
+        self.windowBtn.pack(side="left")
+        windowFrame.grid(row=row, column=0)
+        row += 1
+
+        self.fullWindowBtn = RO.Wdg.Button(
+            master = self,
+            command = self.doSetFullWindow,
+            text = "Set Full Window",
+            helpText = "set full window",
+        )
+        self.fullWindowBtn.grid(row=row, column=0)
+        row += 1
+
         readoutRateFrame = Tkinter.Frame(self)
         self.readoutRateWdg = RO.Wdg.OptionMenu(
             master = readoutRateFrame,
@@ -166,6 +216,18 @@ class CameraWdg(Tkinter.Frame):
         yBin = self.binYWdg.getNum()
         print "setBinFactor(%r, %r)" % (xBin, yBin)
         self.camera.setBinFactor(xBin, yBin)
+
+    def doSetWindow(self):
+        colStart = self.windowColStartWdg.getNum()
+        rowStart = self.windowRowStartWdg.getNum()
+        width = self.windowWidthWdg.getNum()
+        height = self.windowHeightWdg.getNum()
+        print "setWindow(%s, %s, %s, %s)" % (colStart, rowStart, width, height)
+        self.camera.setWindow(colStart, rowStart, width, height)
+
+    def doSetFullWindow(self):
+        print "setFullWindow()"
+        self.camera.setFullWindow()
 
     def doSetReadoutRate(self):
         readoutRateStr = self.readoutRateWdg.getString()
