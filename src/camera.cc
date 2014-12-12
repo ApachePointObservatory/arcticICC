@@ -42,14 +42,19 @@ namespace {
         {arcticICC::ReadoutAmps::All,   3},
     };
 
+    // SPS <rate> command: set readout rate
     // The following was taken from Owl's SelectableReadoutSpeedCC.bsh
-    // it uses an undocumented command "SPS"
-    int const SPS = 0x535053;
+    int const SPS = 0x535053;   // ASCII for SPS
     std::map<arcticICC::ReadoutRate, int> ReadoutRateCmdValueMap = {
-        {arcticICC::ReadoutRate::Slow,   0x534C57},
-        {arcticICC::ReadoutRate::Medium, 0x4D4544},
-        {arcticICC::ReadoutRate::Fast,   0x465354},
+        {arcticICC::ReadoutRate::Slow,   0x534C57}, // ASCII for SLW
+        {arcticICC::ReadoutRate::Medium, 0x4D4544}, // ASCII for MED
+        {arcticICC::ReadoutRate::Fast,   0x465354}, // ASCII for FST
     };
+
+    // SXY <cols> <rows> command: set initial number of rows and columns to skip
+    // Use as needed when binning in quad mode to make sure the last row and column of data is purely data,
+    // rather than a mix of data and overscan; otherwise use 0,0
+    int const SXY = 0x535859;   // ASCII for  SXY
 
     /**
     Return the time interval, in fractional seconds, between two chrono steady_clock times
@@ -244,6 +249,8 @@ namespace arcticICC {
         _device.SetBinning(getUnbinnedHeight(), getUnbinnedWidth(), rowBinFac, colBinFac);
         _rowBinFac = rowBinFac;
         _colBinFac = colBinFac;
+
+        _setSkip();
     }
 
     void Camera::setFullWindow() {
@@ -313,6 +320,8 @@ namespace arcticICC {
         int cmdValue = ReadoutAmpsCmdValueMap.find(readoutAmps)->second;
         runCommand("set readoutAmps", TIM_ID, SOS, cmdValue, DON);
         _readoutAmps = readoutAmps;
+
+        _setSkip();
     }
 
     void Camera::setReadoutRate(ReadoutRate readoutRate) {
@@ -411,6 +420,14 @@ namespace arcticICC {
             std::ostringstream os;
             os << descr << " failed with retVal=" << retVal;
             throw std::runtime_error(os.str());
+        }
+    }
+
+    void Camera::_setSkip() {
+        if (_readoutAmps == ReadoutAmps::All) {
+            runCommand("set xy skip", TIM_ID, SXY, 0, _rowBinFac == 3 ? 1 : 0);
+        } else {
+            runCommand("set xy skip", TIM_ID, SXY, _colBinFac == 3 ? 2 : 0, 0);
         }
     }
 

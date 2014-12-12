@@ -249,6 +249,10 @@ namespace arcticICC {
         void runCommand(std::string const &descr, int boardID, int cmd, int arg1=0, int arg2=0, int arg3=0);
         // it might be better to read the following parameters directly from the controller,
         // but they cannot safely be read while the controller is reading out an image
+        /**
+        Set number of rows to skip, based on readout amps and bin factor
+        */
+        void _setSkip();
         ReadoutAmps _readoutAmps;
         ReadoutRate _readoutRate;
         int _colBinFac;     /// column bin factor
