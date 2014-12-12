@@ -16,6 +16,14 @@ Rather than use the provided API directly, we will use a thin wrapper with these
 - Provide a python wrapper
 
 TO DO:
+- Modify the CCD configuration for quad readout mode so that the overscan contains no data mixed in
+  at all supported bin factors (1-4). This allows us to use the rows and columns in the center of the CCD.
+  I think the only problem we see is the Y direction in 3x binning. This is to be expected with the current
+  configuration of no Y presecan and 4096 pixels along Y. The simplest fix may be add Y prescan
+  that matches X prescan (based on the observation that X prescan does not show this problem at 1-4 binning).
+- Change configuration to use a config object and setConfig/getConfig. This matches the actor's command set
+  and makes config less fussy: the config object can test the total config for validity and complain
+  if it's not valid. Then the camera can apply it in whatever order it deems necessary.
 - Write FITS header info for data and bias region(s); this depends on whether we are reading 1 or 4 amps.
     The table of prescan and overscan below may prove helpful. From that I'm not sure I can predict
     the behavior for higher binning factor. I suspect we should just prohibit bin factor > 4.
@@ -23,7 +31,7 @@ TO DO:
 
 Total image size
 - The x prescan is hard-coded at different bin factors (and is not trivial to predict; just measure and make a lookup table); there is no y prescan.
-- The computer sets the total image size (as long as it is larger than prescan + ccd pixels), so the computer commands the number of overscan pixels in x and y.
+- The computer sets the total image size (as long as it is larger than prescan + ccd pixels), so the computer indirectly commands the number of overscan pixels in x and y.
 - In order to support 1, 2, 3 and 4x binning in both directions we will use an unbinned image size of 4200x4104 pixels and limit the bin factor to a maximum of 4.
 
 x prescan and overscan per amplifier, based on observation (in X, there is no prescan in y).
@@ -34,7 +42,7 @@ Prescan and overscan for 4200x4104 pixels:
 amps   bin  x amp   x pre   x over  x pre+over  x data      y amp   y pre   y over  y pre+over  y data
 4/all   1   2100    6       46       52         2048        2052    1*      4        5          2047
 4/all   2   1050    4       22       26         1024        1026    1*      2        3          1023
-4/all   3    700    4       14       18          682         684    1*      2        3           681
+4/all   3    700    4       14       18          682         684    1*      2*       3           681
 4/all   4    525    3(4*?)  10       13          512         513    1*      1        2           511
 
 1/ll    1   4200    6       98      104         4096        4104    1*      9*      10          4094
