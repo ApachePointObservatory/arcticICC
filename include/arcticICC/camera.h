@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <chrono>
 #include <string>
 
@@ -24,6 +23,70 @@ namespace arcticICC {
     };
     static int const OneAmpOverscan = XExtraPix - XBinPrescanMap.find(1)->second; // 98
     #endif
+
+    class CameraConfig {
+    public:
+        /**
+        Construct a CameraConfig with default values
+        */
+        explicit CameraConfig();
+
+        /**
+        Throw std::runtime_error if the configuration is not valid
+        */
+        void assertValid() const;
+
+        /**
+        Return true if readoutAmps is compatible with sub-windowing
+        */
+        bool canWindow() { return (readoutAmps == ReadoutAmps::LL) || (readoutAmps == ReadoutAmps::LR)
+            || (readoutAmps == ReadoutAmps::UL) || (readoutAmps != ReadoutAmps::UR); }
+
+        /**
+        Set configuration for full windowing
+        */
+        void setFullWindow() {
+            winRowStart = 0;
+            winColStart = 0;
+            winWidth == CCDWidth;
+            winHeight == CCDHeight;
+        }
+
+        /**
+        Return image width, in unbinned pixels (includes overscan)
+        */
+        int getUnbinnedWidth() const { return winWidth + XExtraPix; }
+
+        /**
+        Return image height, in unbinned pixels (will include overscan, if y overscan is ever supported)
+        */
+        int getUnbinnedHeight() const { return winHeight + YExtraPix; }
+
+        /**
+        Return image width, in binned pixels (includes overscan)
+        */
+        int getBinnedWidth() const { return getUnbinnedWidth() / colBinFac; }
+
+        /**
+        Return image height, in binned pixels (will include overscan, if y overscan is ever supported)
+        */
+        int getBinnedHeight() const { return getUnbinnedHeight() / rowBinFac; }
+
+        /**
+        Return true if configured for full windowing
+        */
+        bool isFullWindow() const { return (winRowStart == 0) && (winColStart == 0)
+            && (winWidth == CCDWidth) && (winHeight == CCDHeight); }
+
+        ReadoutAmps readoutAmps;    /// readout amplifiers
+        ReadoutRate readoutRate;    /// readout rate
+        int colBinFac;     /// column bin factor; must be in range 1-MaxBinFactor
+        int rowBinFac;     /// row bin factor; must be in range 1-MaxBinFactor
+        int winColStart;   /// starting column for data subwindow (unbinned pixels, starting from 0)
+        int winRowStart;   /// starting row for data subwindow (unbinned pixels, starting from 0)
+        int winWidth;      /// window width (unbinned pixels)
+        int winHeight;     /// window height (unbinned pixels)
+    }
 
     /**
     ARCTIC imager CCD
@@ -90,57 +153,9 @@ namespace arcticICC {
         void stopExposure();
 
         /**
-        Return true if the current readout amps is compatible with sub-windowing
-        */
-        bool canWindow() { return canWindow(_readoutAmps); }
-
-        /**
-        Return true if the specified readout amps is compatible with sub-windowing
-        */
-        bool canWindow(ReadoutAmps readoutAmps) { return (readoutAmps == ReadoutAmps::LL) || (readoutAmps == ReadoutAmps::LR)
-            || (readoutAmps == ReadoutAmps::UL) || (readoutAmps != ReadoutAmps::UR); }
-
-        /**
         Get current exposure state
         */
         ExposureState getExposureState();
-
-        /**
-        Get bin factor
-
-        @return bin factor in x (cols), y (rows)
-        */
-        std::array<int, 2> getBinFactor() const { return std::array<int, 2>{_colBinFac, _rowBinFac}; };
-
-        /**
-        Set bin factor
-
-        @param[in] colBinFac: number of columns per bin (1, 2, 3 or 4)
-        @param[in] rowBinFac: number of rows per bin (1, 2, 3 or 4)
-
-        The resulting number of binned columns = window width (unbinned) / colBinFac
-        using truncated integer division. Similarly for rows.
-
-        @throw std::runtime_error if:
-        - colBinFac or rowBinFac < 1 or > 4
-        - an exposure is in progress
-        */
-        void setBinFactor(int colBinFac, int rowBinFac);
-
-        /**
-        Get the image window
-
-        @return window colStart, rowStart, width, height, all in unbinned pixels
-        */
-        std::array<int, 4> getWindow() const {
-            return std::array<int, 4> {_winRowStart, _winColStart, _winWidth, _winHeight};
-        };
-
-        /**
-        Return true if configured for full windowing
-        */
-        bool isFullWindow() const { return (_winRowStart == 0) && (_winColStart == 0)
-            && (_winWidth == CCDWidth) && (_winHeight == CCDHeight); }
 
         /**
         Set window to use full CCD
@@ -148,47 +163,18 @@ namespace arcticICC {
         void setFullWindow();
 
         /**
-        Set image window
-
-        @param[in] colStart: start column (unbinned pixels; 0 is the first column)
-        @param[in] rowStart: start row (unbinned pixels; 0 is the first row)
-        @param[in] width: number of columns in the data (unbinned pixels)
-        @param[in] height: number of rows in the data (unbinned pixels)
-
-        @note the binned image size is width/colBinFac, height/rowBinFac, using truncated integer division
-
-        @throw std::runtime_error if the requested image extends off the imaging area
-        @throw std::runtime_error if readoutAmps is not a single amplifier
+        Get the camera configuration
         */
-        void setWindow(int colStart, int rowStart, int width, int height);
+        CameraConfig getCameraConfig() const { return _config; }
 
         /**
-        Get the amplifiers being read out
+        Set the camera configuration
+
+        @param[in] configuration  new configuration
+
+        @throw std::runtime_error if new configuration not valid or if camera is not idle
         */
-        ReadoutAmps getReadoutAmps() const { return _readoutAmps; }
-
-        /**
-        Set the ampifiers being read out
-
-        @param[in] readoutAmps ampifiers used to read out the CCD
-
-        @throw std::runtime_error if not idle
-        */
-        void setReadoutAmps(ReadoutAmps readoutAmps);
-
-        /**
-        Get the readout rate
-        */
-        ReadoutRate getReadoutRate() const { return _readoutRate; }
-
-        /**
-        Set the readout rate
-
-        @param[in] readoutRate readout rate
-
-        @throw std::runtime_error if not idle
-        */
-        void setReadoutRate(ReadoutRate readoutRate);
+        void setConfig(CameraConfig const &cameraConfig);
 
         /**
         Save image to a FITS file
@@ -214,26 +200,6 @@ namespace arcticICC {
         */
         void closeShutter();
 
-        /**
-        Return image width, in unbinned pixels (includes overscan)
-        */
-        int getUnbinnedWidth() const { return _winWidth + XExtraPix; }
-
-        /**
-        Return image height, in unbinned pixels (will include overscan, if y overscan is ever supported)
-        */
-        int getUnbinnedHeight() const { return _winHeight + YExtraPix; }
-
-        /**
-        Return image width, in binned pixels (includes overscan)
-        */
-        int getBinnedWidth() const { return getUnbinnedWidth() / _colBinFac; }
-
-        /**
-        Return image height, in binned pixels (will include overscan, if y overscan is ever supported)
-        */
-        int getBinnedHeight() const { return getUnbinnedHeight() / _rowBinFac; }
-
     private:
         void assertIdle();  /// assert that the camera is not busy
         void _setIdle();    /// set values indicating idle state (_cmdExpSec, _fullReadTime and _isPaused)
@@ -252,15 +218,7 @@ namespace arcticICC {
         /**
         Set number of rows to skip, based on readout amps and bin factor
         */
-        void _setSkip();
-        ReadoutAmps _readoutAmps;
-        ReadoutRate _readoutRate;
-        int _colBinFac;     /// column bin factor
-        int _rowBinFac;     /// row bin factor
-        int _winColStart;   /// starting column for data subwindow (unbinned pixels, starting from 0)
-        int _winRowStart;   /// starting row for data subwindow (unbinned pixels, starting from 0)
-        int _winWidth;      /// window width (unbinned pixels)
-        int _winHeight;     /// window height (unbinned pixels)
+        CameraConfig _config;   /// camera configuration
         std::string _expName;       /// exposure name (used for the FITS file)
         ExposureType _expType;      /// exposure type
         double _cmdExpSec;          /// commanded exposure time, in seconds; <0 if idle
@@ -272,5 +230,7 @@ namespace arcticICC {
 
         arc::device::CArcPCIe _device;  /// the Leach API's representation of a camera controller
     };
+
+    std::ostream &operator<<(std::ostream &os, CameraConfig const &config);
 
 } // namespace

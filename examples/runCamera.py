@@ -2,10 +2,8 @@
 from __future__ import absolute_import, division
 """A simple interface to the Camera object
 
-to do: for each call to status, get the current bin factor, etc. and use to set
-the default value for the widgets -- and set autoIsCurrent on all the widgets.
-This will also test that aspect of the SWIG wrapper -- can we get the array values
-that are returned by getBinFactor and getWindow?
+to do: for each call to status, get the current config and use it to update the default values of the widgets;
+change the widgets to showIsCurrent so this is more visible.
 """
 import collections
 import os
@@ -80,60 +78,46 @@ class CameraWdg(Tkinter.Frame):
         row += 1
 
         binFrame = Tkinter.Frame(self)
-        self.binXWdg = RO.Wdg.IntEntry(
+        self.colBinFacWdg = RO.Wdg.IntEntry(
             master = binFrame,
             defValue = 2,
             helpText = "x bin factor",
         )
-        self.binXWdg.pack(side="left")
-        self.binYWdg = RO.Wdg.IntEntry(
+        self.colBinFacWdg.pack(side="left")
+        self.rowBinFacWdg = RO.Wdg.IntEntry(
             master = binFrame,
             defValue = 2,
             helpText = "y bin factor",
         )
-        self.binYWdg.pack(side="left")
-        self.binBtn = RO.Wdg.Button(
-            master = binFrame,
-            command = self.doSetBin,
-            text = "Set Bin Factor",
-            helpText = "set bin factor",
-        )
-        self.binBtn.pack(side="left")
+        self.rowBinFacWdg.pack(side="left")
         binFrame.grid(row=row, column=0)
         row += 1
 
         windowFrame = Tkinter.Frame(self)
-        self.windowColStartWdg = RO.Wdg.IntEntry(
+        self.winColStartWdg = RO.Wdg.IntEntry(
             master = windowFrame,
             defValue = 0,
             helpText = "window starting column",
         )
-        self.windowColStartWdg.pack(side="left")
-        self.windowRowStartWdg = RO.Wdg.IntEntry(
+        self.winColStartWdg.pack(side="left")
+        self.winRowStartWdg = RO.Wdg.IntEntry(
             master = windowFrame,
             defValue = 0,
             helpText = "window starting row",
         )
-        self.windowRowStartWdg.pack(side="left")
-        self.windowWidthWdg = RO.Wdg.IntEntry(
+        self.winRowStartWdg.pack(side="left")
+        self.winWidthWdg = RO.Wdg.IntEntry(
             master = windowFrame,
             defValue = 0,
             helpText = "window width (unbinned pixels)",
         )
-        self.windowWidthWdg.pack(side="left")
-        self.windowHeightWdg = RO.Wdg.IntEntry(
+        self.winWidthWdg.pack(side="left")
+        self.winHeightWdg = RO.Wdg.IntEntry(
             master = windowFrame,
             defValue = 0,
             helpText = "window height (unbinned pixels)",
         )
-        self.windowHeightWdg.pack(side="left")
-        self.windowBtn = RO.Wdg.Button(
-            master = windowFrame,
-            command = self.doSetWindow,
-            text = "Set Window",
-            helpText = "set window",
-        )
-        self.windowBtn.pack(side="left")
+        self.winHeightWdg.pack(side="left")
         windowFrame.grid(row=row, column=0)
         row += 1
 
@@ -146,41 +130,31 @@ class CameraWdg(Tkinter.Frame):
         self.fullWindowBtn.grid(row=row, column=0)
         row += 1
 
-        readoutRateFrame = Tkinter.Frame(self)
         self.readoutRateWdg = RO.Wdg.OptionMenu(
-            master = readoutRateFrame,
+            master = self,
             items = ReadoutRateDict.keys(),
             defValue = "Medium",
             helpText = "set readout rate",
         )
-        self.readoutRateWdg.pack(side="left")
-        self.readoutRateBtn = RO.Wdg.Button(
-            master = readoutRateFrame,
-            command = self.doSetReadoutRate,
-            text = "Set Readout Rate",
-            helpText = "set readout rate",
-        )
-        self.readoutRateBtn.pack(side="left")
-        readoutRateFrame.grid(row=row, column=0, sticky="w")
+        self.readoutRateWdg.grid(row=row, column=0, sticky="w")
         row += 1
 
-        readoutAmpsFrame = Tkinter.Frame(self)
         self.readoutAmpsWdg = RO.Wdg.OptionMenu(
-            master = readoutAmpsFrame,
+            master = self,
             items = ReadoutAmpsDict.keys(),
             defValue = "All",
             helpText = "set readout amps",
         )
-        self.readoutAmpsWdg.pack(side="left")
-        self.readoutAmpsBtn = RO.Wdg.Button(
-            master = readoutAmpsFrame,
-            command = self.doSetReadoutAmps,
-            text = "Set Readout Amps",
-            helpText = "set readout amps",
-        )
-        self.readoutAmpsBtn.pack(side="left")
-        readoutAmpsFrame.grid(row=row, column=0, sticky="w")
+        self.readoutAmpsWdg.grid(row=row, column=0, sticky="w")
         row += 1
+
+        self.setConfigBtn = RO.Wdg.Button(
+            master = self,
+            command = self.doSetConfig,
+            text = "Set Config",
+            helpText = "set config",
+        )
+        self.setConfigBtn.pack(side="left")
 
         self.statusWdg = RO.Wdg.StrLabel(master=self)
         self.statusWdg.grid(row=row, column=0, sticky="w")
@@ -211,33 +185,27 @@ class CameraWdg(Tkinter.Frame):
         self.camera.startExposure(expTime, expTypeEnum, expName)
         self.expNum += 1
 
-    def doSetBin(self):
-        xBin = self.binXWdg.getNum()
-        yBin = self.binYWdg.getNum()
-        print "setBinFactor(%r, %r)" % (xBin, yBin)
-        self.camera.setBinFactor(xBin, yBin)
-
-    def doSetWindow(self):
-        colStart = self.windowColStartWdg.getNum()
-        rowStart = self.windowRowStartWdg.getNum()
-        width = self.windowWidthWdg.getNum()
-        height = self.windowHeightWdg.getNum()
-        print "setWindow(%s, %s, %s, %s)" % (colStart, rowStart, width, height)
-        self.camera.setWindow(colStart, rowStart, width, height)
+    def doSetConfig(self):
+        config = self.camera.getConfig()
+        readoutAmpsStr = self.readoutAmpsWdg.getString()
+        config.readoutAmps = ReadoutAmpsDict[readoutAmpsStr]
+        readoutRateStr = self.readoutRateWdg.getString()
+        config.readoutRate = ReadoutRateDict[readoutRateStr]
+        config.colBinFac = self.colBinFacWdg.getNum()
+        config.rowBinFac = self.rowBinFacWdg.getNum()
+        config.winColStart = self.winColStartWdg.getNum()
+        config.winRowStart = self.winRowStartWdg.getNum()
+        config.winWidth = self.winWidthWdg.getNum()
+        config.winHeight = self.winHeightWdg.getNum()
+        self.camera.setConfig(config)
 
     def doSetFullWindow(self):
-        print "setFullWindow()"
-        self.camera.setFullWindow()
-
-    def doSetReadoutRate(self):
-        readoutRateStr = self.readoutRateWdg.getString()
-        print "setReadoutRate(%r)" % (readoutRateStr,)
-        self.camera.setReadoutRate(ReadoutRateDict[readoutRateStr])
-
-    def doSetReadoutAmps(self):
-        readoutAmpsStr = self.readoutAmpsWdg.getString()
-        print "setReadoutAmps(%r)" % (readoutAmpsStr,)
-        self.camera.setReadoutAmps(ReadoutAmpsDict[readoutAmpsStr])
+        config = self.camera.getConfig()
+        config.setFullWindow()
+        self.winColStartWdg.set(config.winColStart)
+        self.winRowStartWdg.set(config.winRowStart)
+        self.winWidthWdg.set(config.winWidth)
+        self.winHeightWdg.set(config.winHeight)
 
 
 if __name__ == "__main__":
