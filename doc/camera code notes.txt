@@ -1,7 +1,11 @@
 CCD is 4096x4096
 
 Caveats:
-- It is only possible to subwindow if reading out the whole CCD from a single amplifier.
+- Windowing:
+    - It is only possible to subwindow if reading out the whole CCD from a single amplifier.
+    - There is no prescan, which affects image size calculation
+    - The SSP command's 3rd argument is start of overscan subregion - end of data subregion
+    - There is prescan and a funny gap before overscan, so I still don't fully understand SSS and SSP
 - When using all amps the data must have an even number of columns and rows; this affects valid bin factors vs. image size
 - Do NOT send commands to the Leach timer board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
 
@@ -16,9 +20,8 @@ Rather than use the provided API directly, we will use a thin wrapper with these
 - Provide a python wrapper
 
 TO DO:
-- Change configuration to use a config object and setConfig/getConfig. This matches the actor's command set
-  and makes config less fussy: the config object can test the total config for validity and complain
-  if it's not valid. Then the camera can apply it in whatever order it deems necessary.
+- Fix windowing so there is no prescan to discard and all extra pixels are in post-scan;
+    also get rid of the strange bottom row in the Y direction (again, a prescan issue?).
 - Write FITS header info for data and bias region(s); this depends on whether we are reading 1 or 4 amps.
     The table of prescan and overscan below may prove helpful. From that I'm not sure I can predict
     the behavior for higher binning factor. I suspect we should just prohibit bin factor > 4.
