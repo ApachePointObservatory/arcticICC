@@ -3,8 +3,6 @@ from __future__ import division, absolute_import
 
 import unittest
 
-from arcticICC.cmd import
-
 commandList = [
     "set bin=2 window=2,2,400,800 filter=2 temp=100",
     "set bin=4 window=2,2,400,800 filter=2 temp=100",
