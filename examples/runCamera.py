@@ -10,6 +10,7 @@ import os
 import Tkinter
 
 import RO.Wdg
+import RO.DS9
 from RO.TkUtil import Timer
 
 import arcticICC.camera as arctic
@@ -168,6 +169,15 @@ class CameraWdg(Tkinter.Frame):
         self.setConfigBtn.grid(row=row, column=0, sticky="w")
         row += 1
 
+        self.showInDS9Btn = RO.Wdg.Checkbutton(
+            master = self,
+            defValue = True,
+            text = "Show in DS9",
+            helpText = "show image in ds9?",
+        )
+        self.showInDS9Btn.grid(row=row, column=0, sticky="w")
+        row += 1
+
         self.fileNameWdg = RO.Wdg.StrLabel(
             master = self,
             helpText = "file name",
@@ -183,6 +193,8 @@ class CameraWdg(Tkinter.Frame):
         self.statusBar.grid(row=row, column=0, sticky="we")
         row += 1
 
+        self.ds9Win = None
+
         self.getStatus()
 
     def getStatus(self):
@@ -192,6 +204,11 @@ class CameraWdg(Tkinter.Frame):
             self.statusWdg.set(statusStr)
             if expState.state == arctic.ImageRead:
                 self.camera.saveImage()
+                if self.showInDS9Btn.getBool():
+                    if not self.ds9Win:
+                        self.ds9Win = RO.DS9.DS9Win()
+                    fitsFilePath = self.fileNameWdg.get()[0]
+                    self.ds9Win.showFITSFile(fitsFilePath)
         finally:
             self.statusTimer.start(0.1, self.getStatus)
 
