@@ -65,5 +65,10 @@ using namespace arcticICC;
 %include "arcticICC/basics.h"
 %include "arcticICC/camera.h"
 
-// put this after any structs that contain std::tr1::array
-%include "array.i"
+%extend arcticICC::CameraConfig {
+    std::string __repr__() const {
+        std::ostringstream os;
+        os << (*self);
+        return os.str();
+    }
+}

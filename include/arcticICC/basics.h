@@ -29,7 +29,7 @@ enum class ReadoutAmps {
     LR,
     UR,
     UL,
-    All,
+    Quad,
 };
 
 #ifndef SWIG
@@ -39,7 +39,15 @@ const static std::map<ReadoutAmps, std::string> ReadoutAmpsNameMap {
     {ReadoutAmps::LR,   "LR"},
     {ReadoutAmps::UR,   "UR"},
     {ReadoutAmps::UL,   "UL"},
-    {ReadoutAmps::All,  "All"}
+    {ReadoutAmps::Quad, "Quad"}
+};
+
+std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsNumAmpsMap {
+    {arcticICC::ReadoutAmps::LL,    1},
+    {arcticICC::ReadoutAmps::LR,    1},
+    {arcticICC::ReadoutAmps::UR,    1},
+    {arcticICC::ReadoutAmps::UL,    1},
+    {arcticICC::ReadoutAmps::Quad,  4},
 };
 #endif
 

@@ -27,7 +27,7 @@ ReadoutAmpsNameEnumDict = collections.OrderedDict((
     ("LR", arctic.LR),
     ("UR", arctic.UR),
     ("UL", arctic.UL),
-    ("All", arctic.All),
+    ("Quad", arctic.Quad),
 ))
 ReadoutAmpsEnumNameDict = collections.OrderedDict((enum, name) for (name, enum) in ReadoutAmpsNameEnumDict.iteritems())
 
@@ -153,7 +153,7 @@ class CameraWdg(Tkinter.Frame):
         self.readoutAmpsWdg = RO.Wdg.OptionMenu(
             master = self,
             items = ReadoutAmpsNameEnumDict.keys(),
-            defValue = "All",
+            defValue = "Quad",
             autoIsCurrent = True,
             helpText = "set readout amps",
         )
@@ -209,18 +209,18 @@ class CameraWdg(Tkinter.Frame):
                         self.ds9Win = RO.DS9.DS9Win()
                     fitsFilePath = self.fileNameWdg.get()[0]
                     self.ds9Win.showFITSFile(fitsFilePath)
+
+            camConfig = self.camera.getConfig()
+            self.readoutRateWdg.setDefault(ReadoutRateEnumNameDict[camConfig.readoutRate])
+            self.readoutAmpsWdg.setDefault(ReadoutAmpsEnumNameDict[camConfig.readoutAmps])
+            self.colBinFacWdg.setDefault(camConfig.colBinFac)
+            self.rowBinFacWdg.setDefault(camConfig.rowBinFac)
+            self.winColStartWdg.setDefault(camConfig.winColStart)
+            self.winRowStartWdg.setDefault(camConfig.winRowStart)
+            self.winWidthWdg.setDefault(camConfig.winWidth)
+            self.winHeightWdg.setDefault(camConfig.winHeight)
         finally:
             self.statusTimer.start(0.1, self.getStatus)
-
-        camConfig = self.camera.getConfig()
-        self.readoutRateWdg.setDefault(ReadoutRateEnumNameDict[camConfig.readoutRate])
-        self.readoutAmpsWdg.setDefault(ReadoutAmpsEnumNameDict[camConfig.readoutAmps])
-        self.colBinFacWdg.setDefault(camConfig.colBinFac)
-        self.rowBinFacWdg.setDefault(camConfig.rowBinFac)
-        self.winColStartWdg.setDefault(camConfig.winColStart)
-        self.winRowStartWdg.setDefault(camConfig.winRowStart)
-        self.winWidthWdg.setDefault(camConfig.winWidth)
-        self.winHeightWdg.setDefault(camConfig.winHeight)
 
     def doExpose(self):
         expTime = self.expTimeWdg.getNum()
@@ -245,15 +245,17 @@ class CameraWdg(Tkinter.Frame):
         config.winWidth = self.winWidthWdg.getNum()
         config.winHeight = self.winHeightWdg.getNum()
         self.camera.setConfig(config)
-        print "canWindow=", config.canWindow()
-        print "isFullWindow=", config.isFullWindow()
-        print "winWidth=", config.winWidth
-        print "winHeight=", config.winHeight
-        print "binnedWidth=", config.getBinnedWidth()
-        print "binnedHeight=", config.getBinnedHeight()
+        print "config=", config
+        print "isFullWindow=", config.isFullWindow(), "; canWindow=", config.canWindow()
 
     def doSetFullWindow(self):
         config = self.camera.getConfig()
+        # set the fields that affect full window size before calling setFullWindow
+        # note that readout amp *might* have an effect (I hope it will not)
+        readoutAmpsStr = self.readoutAmpsWdg.getString()
+        config.readoutAmps = ReadoutAmpsNameEnumDict[readoutAmpsStr]
+        config.colBinFac = self.colBinFacWdg.getNum()
+        config.rowBinFac = self.rowBinFacWdg.getNum()
         config.setFullWindow()
         self.winColStartWdg.set(config.winColStart)
         self.winRowStartWdg.set(config.winRowStart)

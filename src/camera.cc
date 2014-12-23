@@ -12,6 +12,10 @@
 #include "arcticICC/camera.h"
 
 namespace {
+    int const XBinnedPrescanPerAmp = 2;     // width of x prescan region, in binned pixels (if it can be fixed)
+                                        // this is the remaining prescan after removing what we can
+                                        // using the SXY (skip X,Y) command
+    int const YQuadBorder = 2;          // border between Y amp images when using quad readout
 
     std::string const TimingBoardFileName = "/home/arctic/leach/tim.lod";
 
@@ -22,7 +26,7 @@ namespace {
         {arcticICC::ReadoutAmps::LR,   AMP_1},
         {arcticICC::ReadoutAmps::UR,   AMP_2},
         {arcticICC::ReadoutAmps::UL,   AMP_3},
-        {arcticICC::ReadoutAmps::All,  AMP_ALL},
+        {arcticICC::ReadoutAmps::Quad, AMP_ALL},
     };
 
 // this results in undefined link symbols, so use direct constants for now. But why???
@@ -31,7 +35,7 @@ namespace {
     //     {arcticICC::ReadoutAmps::LR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
     //     {arcticICC::ReadoutAmps::UR,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
     //     {arcticICC::ReadoutAmps::UL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
-    //     {arcticICC::ReadoutAmps::All,   arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD},
+    //     {arcticICC::ReadoutAmps::Quad,  arc::deinterlace::CArcDeinterlace::DEINTERLACE_CCD_QUAD},
     // };
 
     std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
@@ -39,7 +43,21 @@ namespace {
         {arcticICC::ReadoutAmps::LR,    0},
         {arcticICC::ReadoutAmps::UR,    0},
         {arcticICC::ReadoutAmps::UL,    0},
-        {arcticICC::ReadoutAmps::All,   3},
+        {arcticICC::ReadoutAmps::Quad,  3},
+    };
+
+    std::map<int, int> ColBinXSkipMap_One {
+        {1, 4},
+        {2, 4},
+        {3, 3},
+        {4, 4},
+    };
+
+    std::map<int, int> ColBinXSkipMap_Quad {
+        {1, 4},
+        {2, 4},
+        {3, 3},
+        {4, 4},
     };
 
     // SPS <rate> command: set readout rate
@@ -57,6 +75,30 @@ namespace {
     int const SXY = 0x535859;   // ASCII for  SXY
 
     /**
+    Format a Leach controller command as a string of three capital letters
+
+    If the int cannot be formatted that way then return it in hex format
+    */
+    std::string formatCmd(int cmd) {
+        if ((cmd > 0) && (cmd <= 0xFFFFFF)) {
+            std::ostringstream os;
+            for (int i = 2; i >= 0; --i) {
+                char c = (cmd >> (i*8)) & 0xFF;
+                if ((c < 'A') || (c > 'Z')) {
+                    goto useHex;
+                }
+                os << c;
+            }
+            return os.str();
+        }
+
+        useHex:
+        std::ostringstream hexos;
+        hexos << std::hex << "0x" << cmd;
+        return hexos.str();
+    }
+
+    /**
     Return the time interval, in fractional seconds, between two chrono steady_clock times
 
     based on http://www.cplusplus.com/reference/chrono/steady_clock/
@@ -69,7 +111,7 @@ namespace {
 
 namespace arcticICC {
     CameraConfig::CameraConfig() :
-        readoutAmps(ReadoutAmps::All),
+        readoutAmps(ReadoutAmps::Quad),
         readoutRate(ReadoutRate::Medium),
         colBinFac(2),
         rowBinFac(2),
@@ -99,27 +141,6 @@ namespace arcticICC {
                 << ReadoutAmpsNameMap.find(readoutAmps)->second;
             throw std::runtime_error(os.str());
         }
-        if (winColStart < 0 || winColStart >= CCDWidth/colBinFac) {
-            std::ostringstream os;
-            os << "winColStart=" << winColStart << " < 0 or >= " << CCDWidth/colBinFac;
-            throw std::runtime_error(os.str());
-        }
-        if (winRowStart < 0 || winRowStart >= CCDHeight/rowBinFac) {
-            std::ostringstream os;
-            os << "winRowStart=" << winRowStart << " < 0 or >= " << CCDHeight/rowBinFac;
-            throw std::runtime_error(os.str());
-        }
-        if (winWidth < 1 || winWidth > (CCDWidth - winColStart)/colBinFac) {
-            std::ostringstream os;
-            os << "winWidth=" << winWidth << " < 1 or > " << (CCDWidth - winColStart)/colBinFac;
-            throw std::runtime_error(os.str());
-        }
-        if (winHeight < 1 || winHeight > (CCDHeight - winRowStart)/rowBinFac) {
-            std::ostringstream os;
-            os << "winWidth=" << winWidth << " < 1 or > " << (CCDHeight - winRowStart)/rowBinFac;
-            throw std::runtime_error(os.str());
-        }
-
         if (colBinFac < 1 or colBinFac > MaxBinFactor) {
             std::ostringstream os;
             os << "colBinFac=" << colBinFac << " < 1 or > " << MaxBinFactor;
@@ -131,20 +152,60 @@ namespace arcticICC {
             throw std::runtime_error(os.str());
         }
 
-        // if the following test fails: we have set set XExtraPix, YExtraPix or MaxBinFactor incorrectly,
-        // or else decided to allow larger bin factors that simply don't work when reading out all amps
-        if (!canWindow()) {
+        int const binnedCCDWidth = computeBinnedWidth(CCDWidth);
+        int const binnedCCDHeight = computeBinnedHeight(CCDHeight);
+        if ((winColStart < 0) || (winColStart >= binnedCCDWidth)) {
+            std::ostringstream os;
+            os << "winColStart=" << winColStart << " < 0 or >= " << binnedCCDWidth;
+            throw std::runtime_error(os.str());
+        }
+        if ((winRowStart < 0) || (winRowStart >= binnedCCDHeight)) {
+            std::ostringstream os;
+            os << "winRowStart=" << winRowStart << " < 0 or >= " << binnedCCDHeight;
+            throw std::runtime_error(os.str());
+        }
+        if ((winWidth < 1) || (winWidth > binnedCCDWidth - winColStart)) {
+            std::ostringstream os;
+            os << "winWidth=" << winWidth << " < 1 or > " << binnedCCDWidth - winColStart;
+            throw std::runtime_error(os.str());
+        }
+        if ((winHeight < 1) || (winHeight > binnedCCDHeight - winRowStart)) {
+            std::ostringstream os;
+            os << "winHeight=" << winHeight << " < 1 or > " << binnedCCDHeight - winRowStart;
+            throw std::runtime_error(os.str());
+        }
+
+        // if the following test fails we have mis-set some parameter or are mis-computing getBinnedWidth or getBinnedHeight
+        if (getNumAmps() > 1) {
             // the number of binned rows and columns must be even
-            if ((getUnbinnedWidth()  % (2 * colBinFac) != 0) ||
-                (getUnbinnedHeight() % (2 * rowBinFac) != 0)) {
+            if ((getBinnedWidth() % 2 != 0) || (getBinnedHeight() % 2 != 0)) {
                 std::ostringstream os;
-                os << "reading from multiple amplifiers, so the number of binned rows="
-                    << (getUnbinnedWidth() / colBinFac)
-                    << "and columns=" << (getUnbinnedHeight() / rowBinFac) << " must both be even";
+                os << "Bug: reading from multiple amplifiers, so the binned width=" << getBinnedWidth()
+                    << " and height=" << getBinnedHeight() << " must both be even";
                 throw std::runtime_error(os.str());
             }
         }
     }
+
+    int CameraConfig::getBinnedWidth() const {
+        // Warning: if you change this code, also update getMaxWidth
+        int xPrescan = XBinnedPrescanPerAmp * ((getNumAmps() > 1) ? 2 : 1);
+        return winWidth + xPrescan + computeBinnedWidth(XOverscan);
+    }
+
+    int CameraConfig::getMaxWidth() {
+        return CCDWidth + (2 * XBinnedPrescanPerAmp) + XOverscan;
+    }
+
+    int CameraConfig::getBinnedHeight() const {
+        // Warning: if you change this code, also update getMaxHeight
+        return winHeight + ((getNumAmps() > 1) ? YQuadBorder : 0);
+    }
+
+    int CameraConfig::getMaxHeight() {
+        return CCDHeight + YQuadBorder;
+    }
+
 
     Camera::Camera() :
         _config(),
@@ -156,8 +217,8 @@ namespace arcticICC {
         _segmentStartValid(false),
         _device()
     {
-        int const fullWidth = CCDWidth + XExtraPix;
-        int const fullHeight = CCDHeight + YExtraPix;
+        int const fullWidth = CameraConfig::getMaxWidth();
+        int const fullHeight = CameraConfig::getMaxHeight();
         int const numBytes = fullWidth * fullHeight * sizeof(uint16_t);
         std::cout << "arc::device::CArcPCIe::FindDevices()\n";
         arc::device::CArcPCIe::FindDevices();
@@ -306,7 +367,8 @@ namespace arcticICC {
             // - arg1 is the bias region width (in pixels)
             // - arg2 is the subarray width (in pixels)
             // - arg3 is the subarray height (in pixels)
-            runCommand("set window size", TIM_ID, SSS, XExtraPix / config.colBinFac, config.winWidth, config.winHeight);
+            int const xExtraPix = config.getBinnedWidth() - config.winWidth;
+            runCommand("set window size", TIM_ID, SSS, xExtraPix, config.winWidth, config.winHeight);
 
             // set subarray starting-point; warning: this only works when reading from one amplifier
             // SSP arguments are as follows (indexed from 0,0, unbinned pixels)
@@ -314,7 +376,7 @@ namespace arcticICC {
             // - arg2 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
             // - arg3 is the bias region offset. This is the number of columns (in pixels) to the left edge of the desired bias region.
             int const windowEndCol = config.winColStart + config.winWidth;
-            int const afterDataGap = (CCDWidth / config.colBinFac) - windowEndCol;
+            int const afterDataGap = 5 + config.computeBinnedWidth(CCDWidth) - windowEndCol; // 5 skips some odd gunk
             runCommand("set window position", TIM_ID, SSP, config.winRowStart, config.winColStart, afterDataGap);
         }
 
@@ -324,10 +386,14 @@ namespace arcticICC {
         int readoutRateCmdValue = ReadoutRateCmdValueMap.find(config.readoutRate)->second;
         runCommand("set readout rate", TIM_ID, SPS, readoutRateCmdValue, DON);
 
-        if (config.readoutAmps == ReadoutAmps::All) {
-            runCommand("set xy skip", TIM_ID, SXY, 0, config.rowBinFac == 3 ? 1 : 0);
+        if (config.readoutAmps == ReadoutAmps::Quad) {
+            int xSkip = ColBinXSkipMap_Quad.find(config.colBinFac)->second;
+            int ySkip = config.rowBinFac == 3 ? 1 : 0;
+            runCommand("set xy skip for all amps", TIM_ID, SXY, xSkip, ySkip);
         } else {
-            runCommand("set xy skip", TIM_ID, SXY, config.colBinFac == 3 ? 2 : 0, 0);
+            int xSkip = ColBinXSkipMap_One.find(config.colBinFac)->second;
+            xSkip = std::max(0, xSkip - config.winColStart);
+            runCommand("set xy skip for one amp", TIM_ID, SXY, xSkip, 0);
         }
 
         runCommand("set image width", TIM_ID, WRM, (Y_MEM | 1), config.getBinnedWidth());
@@ -420,7 +486,7 @@ namespace arcticICC {
         }
         std::cout << std::hex << "_device.Command("
             <<  "0x" << boardID
-            << ", 0x" << cmd
+            << ", " << formatCmd(cmd)
             << ", 0x" << arg1
             << ", 0x" << arg2
             << ", 0x" << arg3

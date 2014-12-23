@@ -12,17 +12,10 @@ namespace arcticICC {
 
     static int const CCDWidth = 4096;   // width of CCD (unbinned pixels)
     static int const CCDHeight = 4096;  // width of CCD (unbinned pixels)
-    static int const XExtraPix = 104;   // total x prescan + overscan pixels for all amplifiers combined (unbinned pixels)
-    static int const YExtraPix = 8;     // total y overscan (y prescan=0) for all amplifiers combined
+    static int const XOverscan = 102;   // desired width of x overscan region, unbinned pixels
+        // if using quad readout then each amplifier gets half of this
+        // the actual overscan region is further reduced by any prescan (2 binned pixels per amp, in our case)
     static int const MaxBinFactor = 4;  // maximum allowed bin factor
-    /// map of x bin factor: x prescan pixels (defined as all pixels to discard before good data);
-    /// the distinction only matters for 3x binning, where the 4th pixel is a mix of prescan and data
-    #ifndef SWIG
-    static std::map<int, int> XBinPrescanMap { // bin factor: x prescan (pixels to discard before good data)
-        {1, 6}, {2, 4}, {3, 4}, {4, 3}
-    };
-    static int const OneAmpOverscan = XExtraPix - XBinPrescanMap.find(1)->second; // 98
-    #endif
 
     class CameraConfig {
     public:
@@ -39,18 +32,22 @@ namespace arcticICC {
         /**
         Return true if readoutAmps is compatible with sub-windowing
         */
-        bool canWindow() const { return (readoutAmps == ReadoutAmps::LL) || (readoutAmps == ReadoutAmps::LR)
-            || (readoutAmps == ReadoutAmps::UL) || (readoutAmps == ReadoutAmps::UR); }
+        bool canWindow() const { return (getNumAmps() == 1); }
+
+        /**
+        Return the number of amplifiers being read out
+        */
+        int getNumAmps() const { return ReadoutAmpsNumAmpsMap.find(readoutAmps)->second; }
 
         /**
         Set configuration for full windowing
         */
         void setFullWindow() {
-            winRowStart = 0;
             winColStart = 0;
-            winWidth == CCDWidth / colBinFac;
-            winHeight == CCDHeight / rowBinFac;
-        }
+            winRowStart = 0;
+            winWidth = computeBinnedWidth(CCDWidth);
+            winHeight = computeBinnedHeight(CCDHeight);
+        };
 
         /**
         Return image width (including overscan), in unbinned pixels
@@ -58,25 +55,28 @@ namespace arcticICC {
         int getUnbinnedWidth() const { return getBinnedWidth() * colBinFac; }
 
         /**
-        Return image height (including overscan), in unbinned pixels
+        Return image height,, in unbinned pixels
+
+        2 pixels of overscan are included if using quad readout,
+        to provide a visible boundary between the amplifiers.
         */
         int getUnbinnedHeight() const { return getBinnedHeight() * rowBinFac; }
 
         /**
-        Return image width (including overscan), in binned pixels
+        Return image width (including prescan and overscan), in binned pixels
         */
-        int getBinnedWidth() const { return winWidth + (XExtraPix / colBinFac); }
+        int getBinnedWidth() const;
 
         /**
-        Return image height (including overscan), in binned pixels
+        Return image height (including prescan and overscan), in binned pixels
         */
-        int getBinnedHeight() const { return winHeight + (isFullWindow() ? (YExtraPix / rowBinFac) : 0); }
+        int getBinnedHeight() const;
 
         /**
         Return true if configured for full windowing
         */
         bool isFullWindow() const { return (winRowStart == 0) && (winColStart == 0)
-            && (winWidth >= CCDWidth / colBinFac) && (winHeight >= CCDHeight / rowBinFac); }
+            && (winWidth >= computeBinnedWidth(CCDWidth)) && (winHeight >= computeBinnedHeight(CCDHeight)); }
 
         ReadoutAmps readoutAmps;    /// readout amplifiers
         ReadoutRate readoutRate;    /// readout rate
@@ -86,6 +86,25 @@ namespace arcticICC {
         int winRowStart;   /// starting row for data subwindow (binned pixels, starting from 0)
         int winWidth;      /// window width (binned pixels)
         int winHeight;     /// window height (binned pixels)
+
+        static int getMaxWidth(); /// get maximum image width (unbinned pixels)
+        static int getMaxHeight(); /// get maximum image height (unbinned pixels)
+
+        /**
+        Compute a binned width
+
+        The value is even for both amplifiers, even if only using single readout,
+        just to keep the system more predictable. The result is that the full image size
+        is the same for 3x3 binning regardless of whether you read one amp or four,
+        and as a result you lose one row and one column when you read one amp.
+        */
+        int computeBinnedWidth(int unbWidth) const { return (unbWidth / (2 * colBinFac)) * 2; }
+        /**
+        Compute a binned height
+
+        See notes for computeBinnedHeight
+        */
+        int computeBinnedHeight(int unbHeight) const { return (unbHeight / (2 * rowBinFac)) * 2; }
     };
 
     /**
