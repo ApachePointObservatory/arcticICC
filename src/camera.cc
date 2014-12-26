@@ -212,6 +212,7 @@ namespace arcticICC {
         _expName(),
         _expType(ExposureType::Object),
         _cmdExpSec(-1),
+        _estExpSec(-1),
         _segmentExpSec(-1),
         _segmentStartTime(),
         _segmentStartValid(false),
@@ -244,6 +245,7 @@ namespace arcticICC {
 
         // set default configuration
         setConfig(_config);
+        _setIdle();
     }
 
     Camera::~Camera() {
@@ -255,7 +257,7 @@ namespace arcticICC {
     }
 
     void Camera::startExposure(double expTime, ExposureType expType, std::string const &name) {
-        assertIdle();
+        _assertIdle();
         if (expTime < 0) {
             std::ostringstream os;
             os << "exposure time=" << expTime << " must be non-negative";
@@ -283,6 +285,7 @@ namespace arcticICC {
         _expName = name;
         _expType = expType;
         _cmdExpSec = expTime;
+        _estExpSec = -1;
         _segmentExpSec = _cmdExpSec;
         _segmentStartTime = std::chrono::steady_clock::now();
         _segmentStartValid = true;
@@ -294,7 +297,8 @@ namespace arcticICC {
         }
         runCommand("pause exposure", TIM_ID, PEX);
         // decrease _segmentExpSec by the duration of the exposure segment just ended
-        _segmentExpSec -= elapsedSec(_segmentStartTime, std::chrono::steady_clock::now());
+        double segmentSec = elapsedSec(_segmentStartTime, std::chrono::steady_clock::now());
+        _segmentExpSec -= segmentSec;
         _segmentStartValid = false;    // indicates that _segmentStartTime is invalid
     }
 
@@ -324,6 +328,14 @@ namespace arcticICC {
         if (expState.state == StateEnum::Reading || expState.remTime < 0.1) {
             // if reading out or nearly ready to read out then it's too late to stop; let the exposure end normally
             return;
+        } else if (expState.state == StateEnum::Paused) {
+            // stop a paused exposure; _segmentExpSec contains the remaining time for a full exposure
+            _estExpSec = std::max(0, _cmdExpSec - _segmentExpSec);
+        } else if (expState.state == StateEnum::Exposing) {
+            // stop an active exposure
+            double segmentDuration = elapsedSec(_segmentStartTime, std::chrono::steady_clock::now());
+            double missingTime = _segmentExpSec - segmentDuration;
+            _estExpSec = std::max(0, _cmdExpSec - missingTime);
         }
         runCommand("stop exposure", TIM_ID, SET, 0);
     }
@@ -338,8 +350,12 @@ namespace arcticICC {
             int totPix = _config.getBinnedWidth() * _config.getBinnedHeight();
             int numPixRead = _device.GetPixelCount();
             int numPixRemaining = std::max(totPix - numPixRead, 0);
-            double fullReadTime = _readTime(totPix);
-            double remReadTime = _readTime(numPixRemaining);
+            double fullReadTime = _estimateReadTime(totPix);
+            double remReadTime = _estimateReadTime(numPixRemaining);
+            if (_estExpSec < 0) {
+                // exposure finished normally (instead of being stopped early); assume it was the right length
+                _estExpSec = _cmdExpSec;
+            }
             return ExposureState(StateEnum::Reading, fullReadTime, remReadTime);
         } else if (_bufferCleared && static_cast<uint16_t *>(_device.CommonBufferVA())[0] == 0) {
             // the && above helps in case getExposureState was not called often enough to clear _bufferCleared
@@ -353,7 +369,7 @@ namespace arcticICC {
     void Camera::setConfig(CameraConfig const &config) {
         std::cout << "setConfig(" << config << ")\n";
         config.assertValid();
-        assertIdle();
+        _assertIdle();
 
         runCommand("set col bin factor",  TIM_ID, WRM, ( Y_MEM | 0x5 ), config.colBinFac);
 
@@ -422,13 +438,87 @@ namespace arcticICC {
             std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
             cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
 
-            cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
+            if (_expType == ExpType::Bias) {
+                expTime = 0;
+                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
+            } else if (expTime < 0) {
+                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &_estExpSec, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("estimated exposure time (sec)"));
+            } else {
+                doWriteEstExpSec = true;
+                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("measured exposure time (sec)"));
+                cFits.WriteKeyword(const_cast<char *>("ESTEXPTM"), &_estExpSec, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("estimated exposure time (sec)"));
+            }
 
             std::string readoutAmpsStr = ReadoutAmpsNameMap.find(_config.readoutAmps)->second;
             cFits.WriteKeyword(const_cast<char *>("READAMPS"), &readoutAmpsStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout amplifier(s)"));
 
             std::string readoutRateStr = ReadoutRateNameMap.find(_config.readoutRate)->second;
             cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
+
+            // DATASEC and BIASSEC
+            // for the bias region: use all overscan except the first two columns (closest to the data)
+            int const prescanWidth = _config.colBinFac == 3 ? 3 : 2;
+            int const prescanHeight = _config.rowBinFac == 3 ? 1 : 0;
+            if (_config.getNumAmps() == 4) {
+                /* amp arrangement:
+                  4   3
+                  1   2
+                */
+                int const overscanWidth  = _config.getBinnedWidth()  - ((2 * prescanWidth) + _config.winWidth); // total, not per amp
+                int const overscanHeight = _config.getBinnedHeight() - ((2 * prescanHeight) + _config.winHeight);   // total, not per amp
+                bool const isTopHalf = amp > 2;
+                bool const isRightHalf = (amp == 2) || (amp == 3);
+                for (int amp = 1; amp <= 4; ++amp) {
+                    int colDataStart = 1 + prescanWidth;
+                    if (isRightHalf) {
+                        colDataStart += (_config.winWidth / 2) + overscanWidth;
+                    }
+                    int rowDataStart = 1 + prescanHeight;
+                    if (isTopHalf) {
+                        rowDataStart += (_config.winHeight / 2) + overscanHeight;
+                    }
+                    int const colDataEnd = colDataStart + _config.winWidth  - 1;
+                    int const rowDataEnd = rowDataStart + _config.winHeight - 1;
+
+                    std::ostringstream dskey;
+                    dskey << "DATASEC" << amp;
+                    std::ostringstream dsval;
+                    dsval << "[" << colDataStart << ":" << colDataEnd
+                          << "," << rowDataStart << ":" << rowDataEnd << "]";
+                    cFits.WriteKeyword(dskey.str(), &dsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+
+                    int const biasWidth = (overscanWidth / 2) - 2; // "- 2" to skip first two columns of overscan
+                    int colBiasEnd = _config.getBinnedWidth() / 2;
+                    if (isRightHalf) {
+                        colBiasEnd += biasWidth;
+                    }
+                    int const colBiasStart = 1 + colBiasEnd - biasWidth;
+                    std::ostringstream bskey;
+                    bskey << "BIASSEC" << amp;
+                    std::ostringstream bsval;
+                    bsval << "[" << colBiasStart << ":" << colBiasEnd;
+                          << "," << rowDataStart << ":" << rowDataEnd << "]";
+                    cFits.WriteKeyword(bskey.str(), &bsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+            } else if (_config.getNumAmps() == 1) {
+                int const colDataStart = 1 + prescanWidth;
+                int const rowDataStart = 1 + prescanHeight;
+                int const colDataEnd = colDataStart + _config.winWidth  - 1;
+                int const rowDataEnd = rowDataStart + _config.winHeight - 1;
+                std::ostringstream dsval;
+                dsval << "[" << colDataStart << ":" << colDataEnd
+                      << "," << rowDataStart << ":" << rowDataEnd << "]";
+                cFits.WriteKeyword(const_cast<char *>("DATASEC"), &dsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+
+                int const colBiasEnd = _config.getBinnedWidth();
+                int const colBiasBeg = 1 + colBiasEnd - biasWidth;
+                std::ostringstream bsval;
+                    bsval << "[" << colBiasStart << ":" << colBiasEnd;
+                          << "," << rowDataStart << ":" << rowDataEnd << "]";
+                cFits.WriteKeyword(const_cast<char *>("BIASSEC"), &bsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+
+            } else {
+                std::cout << "Warning: numAmps=" << _config.getNumAmps() << " != 1 or 4; cannot write DATASEC and BIASSEC" << std::endl;
+            }
 
             cFits.Write(_device.CommonBufferVA());
             if (expTime < 0) {
@@ -444,25 +534,21 @@ namespace arcticICC {
     }
 
     void Camera::openShutter() {
-        assertIdle();
+        _assertIdle();
         runCommand("open shutter", TIM_ID, OSH);
     }
 
     void Camera::closeShutter() {
-        assertIdle();
+        _assertIdle();
         runCommand("close shutter", TIM_ID, CSH);
     }
 
 // private methods
 
-    void Camera::assertIdle() {
+    void Camera::_assertIdle() {
         if (this->isBusy()) {
             throw std::runtime_error("busy");
         }
-    }
-
-    double Camera::_readTime(int nPix) const {
-        return nPix / ReadoutRateFreqMap.find(_config.readoutRate)->second;
     }
 
     void Camera::_clearBuffer() {
@@ -471,8 +557,13 @@ namespace arcticICC {
         _bufferCleared = true;
     }
 
+    double Camera::_estimateReadTime(int nPix) const {
+        return nPix / ReadoutRateFreqMap.find(_config.readoutRate)->second;
+    }
+
     void Camera::_setIdle() {
         _cmdExpSec = -1;
+        _estExpSec = -1;
         _segmentExpSec = -1;
         _segmentStartValid = false;
         _clearBuffer();

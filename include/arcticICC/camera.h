@@ -190,6 +190,9 @@ namespace arcticICC {
         @param[in] configuration  new configuration
 
         @throw std::runtime_error if new configuration not valid or if camera is not idle
+
+        @warning if this fails then the camera is in an unknown and possibly invalid state.
+        If this occurs then you should retry the command or reset the camera.
         */
         void setConfig(CameraConfig const &cameraConfig);
 
@@ -197,6 +200,7 @@ namespace arcticICC {
         Save image to a FITS file
 
         @param[in] expTime  exposure time (sec); if <0 then the internal timer is used.
+            If taking a bias then expTime is ignored; the reported exposure time is 0;
             If you have feedback from the shutter then you can provide a better value than the internal timer.
 
         @throw std::runtime_error if no image is available to be saved
@@ -218,10 +222,10 @@ namespace arcticICC {
         void closeShutter();
 
     private:
-        void assertIdle();  /// assert that the camera is not busy
-        void _setIdle();    /// set values indicating idle state (_cmdExpSec, _fullReadTime and _isPaused)
+        void _assertIdle();  /// assert that the camera is not busy
         void _clearBuffer();    /// clear image buffer and set _bufferCleared
-        double _readTime(int nPix) const; /// estimate readout time (sec) based on number of pixels to read
+        double _estimateReadTime(int nPix) const; /// estimate readout time (sec) based on number of pixels to read
+        void _setIdle();    /// set values indicating idle state (_cmdExpSec, _fullReadTime and _isPaused)
         /**
         Run one command, as described in the Leach document Controller Command Description
         @param[in] boardID  controller board code: one of TIM_ID, PCI_ID or UTIL_ID
@@ -231,16 +235,13 @@ namespace arcticICC {
         @param[in] arg3  argument 3 (optional)
         */
         void runCommand(std::string const &descr, int boardID, int cmd, int arg1=0, int arg2=0, int arg3=0);
-        // it might be better to read the following parameters directly from the controller,
-        // but they cannot safely be read while the controller is reading out an image
-        /**
-        Set number of rows to skip, based on readout amps and bin factor
-        */
-        CameraConfig _config;   /// camera configuration
+        CameraConfig _config;       /// camera configuration
         std::string _expName;       /// exposure name (used for the FITS file)
         ExposureType _expType;      /// exposure type
         double _cmdExpSec;          /// commanded exposure time, in seconds; <0 if idle
-        double _segmentExpSec;      /// exposure time for this segment; this starts at the requested exposur time
+        double _estExpSec;          /// estimated actuall exposure time, in seconds;
+            /// set to -1 until the exposure ends (either prematurely via stop or normally as detected by getStatus)
+        double _segmentExpSec;      /// exposure time for this segment; this starts at the requested exposure time
             /// and is decreased each time the exposure is paused
         std::chrono::steady_clock::time_point _segmentStartTime;   /// start time of this exposure segment;
             /// updated when an exposure is paused or resumed; invalid if isExposing false

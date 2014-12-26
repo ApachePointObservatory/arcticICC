@@ -7,19 +7,18 @@ Note: at power on the ICC reads two config files:
 
 *** SET ***
 
-set bin=n window=[llx,llr,width,height|full] amps=amps readoutRate=readoutRate filter=nameOrNum temp=degC
+set bin=bin window=[llx,llr,width,height|full] amps=amps readoutRate=readoutRate filter=nameOrNum temp=degC
 
 Set parameters:
-- bin is probably a single integer that applies to both x and y; however, the camera supports separate x,y binning so we can easily support that if desired
-- window is in unbinned pixels. Warning: you can only sub-window if reading one amplifier (see "amps")
-- amps is one of: ll, lr, ur, lr, all, auto
-    in auto mode all amplifiers are used unless window a window is specified, in which case
-    the amplifier corner closest to the edge of the window is used (does this really matter? If not always use ll)
+- bin is either a pair of integers or a single integer (in which case it applies to x and y)
+- window is in binned pixels. Warning: you can only sub-window if reading one amplifier (see "amps")
+- amps is one of: ll, quad, auto
+    where "auto" means "quad" if the specified window is "full" or the equivalent values, else "ll"
 - readoutRate is one of: slow, medium, fast
-- filter value may be a filter name or a slot number (1-n); the reported value includes both values (slot and name)
+- filter value may be a filter name or a slot number (1-n); the reported filter includes both the slot and name
 - temp is the temperature setpoint in C
 
-The advantage to specifying everything at once is that TUI can send it all at once and the ICC can choose the most efficient way to set it. The disadvantage is that the ICC becomes a bit more complicated.
+The advantage to specifying everything at once is that TUI can send it all at once and the ICC can choose the most efficient way to set it. The disadvantage is that the ICC becomes a bit more complicated. If it really makes life easier we can use a separate command to set set filter and/or temperature; the remaining parameters are all values sent to the camera via a CameraConfig object.
 
 *** EXPOSE ***
 
