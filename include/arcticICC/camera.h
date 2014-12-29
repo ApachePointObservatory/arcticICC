@@ -43,47 +43,44 @@ namespace arcticICC {
         Set configuration for full windowing
         */
         void setFullWindow() {
-            winColStart = 0;
-            winRowStart = 0;
+            winStartCol = 0;
+            winStartRow = 0;
             winWidth = computeBinnedWidth(CCDWidth);
             winHeight = computeBinnedHeight(CCDHeight);
         };
 
         /**
-        Return image width (including overscan), in unbinned pixels
+        Return image width (including prescan and overscan), in unbinned pixels
         */
-        int getUnbinnedWidth() const { return getBinnedWidth() * colBinFac; }
+        int getUnbinnedWidth() const { return getBinnedWidth() * binFacCol; }
 
         /**
-        Return image height,, in unbinned pixels
-
-        2 pixels of overscan are included if using quad readout,
-        to provide a visible boundary between the amplifiers.
+        Return image height (including prescan and overscan) in unbinned pixels
         */
-        int getUnbinnedHeight() const { return getBinnedHeight() * rowBinFac; }
+        int getUnbinnedHeight() const { return getBinnedHeight() * binFacRow; }
 
         /**
-        Return image width (including prescan and overscan), in binned pixels
+        Return image width (including prescan and overscan) in binned pixels
         */
         int getBinnedWidth() const;
 
         /**
-        Return image height (including prescan and overscan), in binned pixels
+        Return image height (including prescan and overscan) in binned pixels
         */
         int getBinnedHeight() const;
 
         /**
         Return true if configured for full windowing
         */
-        bool isFullWindow() const { return (winRowStart == 0) && (winColStart == 0)
+        bool isFullWindow() const { return (winStartRow == 0) && (winStartCol == 0)
             && (winWidth >= computeBinnedWidth(CCDWidth)) && (winHeight >= computeBinnedHeight(CCDHeight)); }
 
         ReadoutAmps readoutAmps;    /// readout amplifiers
         ReadoutRate readoutRate;    /// readout rate
-        int colBinFac;     /// column bin factor; must be in range 1-MaxBinFactor
-        int rowBinFac;     /// row bin factor; must be in range 1-MaxBinFactor
-        int winColStart;   /// starting column for data subwindow (binned pixels, starting from 0)
-        int winRowStart;   /// starting row for data subwindow (binned pixels, starting from 0)
+        int binFacCol;     /// column bin factor; must be in range 1-MaxBinFactor
+        int binFacRow;     /// row bin factor; must be in range 1-MaxBinFactor
+        int winStartCol;   /// starting column for data subwindow (binned pixels, starting from 0)
+        int winStartRow;   /// starting row for data subwindow (binned pixels, starting from 0)
         int winWidth;      /// window width (binned pixels)
         int winHeight;     /// window height (binned pixels)
 
@@ -98,14 +95,64 @@ namespace arcticICC {
         is the same for 3x3 binning regardless of whether you read one amp or four,
         and as a result you lose one row and one column when you read one amp.
         */
-        int computeBinnedWidth(int unbWidth) const { return (unbWidth / (2 * colBinFac)) * 2; }
+        int computeBinnedWidth(int unbWidth) const { return (unbWidth / (2 * binFacCol)) * 2; }
         /**
         Compute a binned height
 
         See notes for computeBinnedHeight
         */
-        int computeBinnedHeight(int unbHeight) const { return (unbHeight / (2 * rowBinFac)) * 2; }
+        int computeBinnedHeight(int unbHeight) const { return (unbHeight / (2 * binFacRow)) * 2; }
     };
+
+    /**
+    Amplifier electronic parameters, especially those affected by readout rate
+    */
+    class AmplifierElectronicParameters {
+    public:
+        double gain;        /// predicted gain (e-/ADU)
+        double readNoise;   /// predicted readout noise (e-)
+    };
+
+    class AmplifierData {
+    public:
+        int xIndex;
+        int yIndex;
+        std::unordered_map<ReadoutRate, AmplifierElectronicParameters>
+
+        /**
+        Get amplifier name as <xIndex+1><yIndex+1>
+        */
+        std::string getXYName() const {
+            std::ostringstream os;
+            os << xIndex + 1 << yIndex + 1;
+            return os.str();
+        }
+    };
+
+    #ifndef SWIG
+    const std::unordered_map<ReadoutAmps, AmplifierData> AmplifierDataMap = {
+        {ReadoutAmps::LL, {0, 0, {
+            {ReadoutRate::Slow,     {0, 0}},
+            {ReadoutRate::Medium,   {0, 0}},
+            {ReadoutRate::Fast,     {0, 0}},
+        }},
+        {ReadoutAmps::LR, {1, 0, {
+            {ReadoutRate::Slow,     {0, 0}},
+            {ReadoutRate::Medium,   {0, 0}},
+            {ReadoutRate::Fast,     {0, 0}},
+        }},
+        {ReadoutAmps::UL, {0, 1, {
+            {ReadoutRate::Slow,     {0, 0}},
+            {ReadoutRate::Medium,   {0, 0}},
+            {ReadoutRate::Fast,     {0, 0}},
+        }},
+        {ReadoutAmps::UR, {1, 1, {
+            {ReadoutRate::Slow,     {0, 0}},
+            {ReadoutRate::Medium,   {0, 0}},
+            {ReadoutRate::Fast,     {0, 0}},
+        }},
+    };
+    #endif
 
     /**
     ARCTIC imager CCD

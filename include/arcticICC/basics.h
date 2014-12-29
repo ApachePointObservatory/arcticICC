@@ -15,7 +15,7 @@ enum class StateEnum {
 };
 
 #ifndef SWIG
-const static std::map<StateEnum, std::string> StateNameMap = {
+const static std::map<StateEnum, std::string> StateNameMap {
     {StateEnum::Idle,      "Idle"},
     {StateEnum::Exposing,  "Exposing"},
     {StateEnum::Paused,    "Paused"},

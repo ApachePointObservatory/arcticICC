@@ -82,38 +82,38 @@ class CameraWdg(Tkinter.Frame):
         row += 1
 
         binFrame = Tkinter.Frame(self)
-        self.colBinFacWdg = RO.Wdg.IntEntry(
+        self.binFacColWdg = RO.Wdg.IntEntry(
             master = binFrame,
             defValue = 2,
             autoIsCurrent = True,
             helpText = "x bin factor",
         )
-        self.colBinFacWdg.pack(side="left")
-        self.rowBinFacWdg = RO.Wdg.IntEntry(
+        self.binFacColWdg.pack(side="left")
+        self.binFacRowWdg = RO.Wdg.IntEntry(
             master = binFrame,
             defValue = 2,
             autoIsCurrent = True,
             helpText = "y bin factor",
         )
-        self.rowBinFacWdg.pack(side="left")
+        self.binFacRowWdg.pack(side="left")
         binFrame.grid(row=row, column=0)
         row += 1
 
         windowFrame = Tkinter.Frame(self)
-        self.winColStartWdg = RO.Wdg.IntEntry(
+        self.winStartColWdg = RO.Wdg.IntEntry(
             master = windowFrame,
             defValue = 0,
             autoIsCurrent = True,
             helpText = "window starting column",
         )
-        self.winColStartWdg.pack(side="left")
-        self.winRowStartWdg = RO.Wdg.IntEntry(
+        self.winStartColWdg.pack(side="left")
+        self.winStartRowWdg = RO.Wdg.IntEntry(
             master = windowFrame,
             defValue = 0,
             autoIsCurrent = True,
             helpText = "window starting row",
         )
-        self.winRowStartWdg.pack(side="left")
+        self.winStartRowWdg.pack(side="left")
         self.winWidthWdg = RO.Wdg.IntEntry(
             master = windowFrame,
             defValue = 0,
@@ -213,10 +213,10 @@ class CameraWdg(Tkinter.Frame):
             camConfig = self.camera.getConfig()
             self.readoutRateWdg.setDefault(ReadoutRateEnumNameDict[camConfig.readoutRate])
             self.readoutAmpsWdg.setDefault(ReadoutAmpsEnumNameDict[camConfig.readoutAmps])
-            self.colBinFacWdg.setDefault(camConfig.colBinFac)
-            self.rowBinFacWdg.setDefault(camConfig.rowBinFac)
-            self.winColStartWdg.setDefault(camConfig.winColStart)
-            self.winRowStartWdg.setDefault(camConfig.winRowStart)
+            self.binFacColWdg.setDefault(camConfig.binFacCol)
+            self.binFacRowWdg.setDefault(camConfig.binFacRow)
+            self.winStartColWdg.setDefault(camConfig.winStartCol)
+            self.winStartRowWdg.setDefault(camConfig.winStartRow)
             self.winWidthWdg.setDefault(camConfig.winWidth)
             self.winHeightWdg.setDefault(camConfig.winHeight)
         finally:
@@ -238,10 +238,10 @@ class CameraWdg(Tkinter.Frame):
         config.readoutAmps = ReadoutAmpsNameEnumDict[readoutAmpsStr]
         readoutRateStr = self.readoutRateWdg.getString()
         config.readoutRate = ReadoutRateNameEnumDict[readoutRateStr]
-        config.colBinFac = self.colBinFacWdg.getNum()
-        config.rowBinFac = self.rowBinFacWdg.getNum()
-        config.winColStart = self.winColStartWdg.getNum()
-        config.winRowStart = self.winRowStartWdg.getNum()
+        config.binFacCol = self.binFacColWdg.getNum()
+        config.binFacRow = self.binFacRowWdg.getNum()
+        config.winStartCol = self.winStartColWdg.getNum()
+        config.winStartRow = self.winStartRowWdg.getNum()
         config.winWidth = self.winWidthWdg.getNum()
         config.winHeight = self.winHeightWdg.getNum()
         self.camera.setConfig(config)
@@ -254,11 +254,11 @@ class CameraWdg(Tkinter.Frame):
         # note that readout amp *might* have an effect (I hope it will not)
         readoutAmpsStr = self.readoutAmpsWdg.getString()
         config.readoutAmps = ReadoutAmpsNameEnumDict[readoutAmpsStr]
-        config.colBinFac = self.colBinFacWdg.getNum()
-        config.rowBinFac = self.rowBinFacWdg.getNum()
+        config.binFacCol = self.binFacColWdg.getNum()
+        config.binFacRow = self.binFacRowWdg.getNum()
         config.setFullWindow()
-        self.winColStartWdg.set(config.winColStart)
-        self.winRowStartWdg.set(config.winRowStart)
+        self.winStartColWdg.set(config.winStartCol)
+        self.winStartRowWdg.set(config.winStartRow)
         self.winWidthWdg.set(config.winWidth)
         self.winHeightWdg.set(config.winHeight)
 

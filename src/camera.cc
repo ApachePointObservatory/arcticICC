@@ -29,6 +29,14 @@ namespace {
         {arcticICC::ReadoutAmps::Quad, AMP_ALL},
     };
 
+    // list of readout amps, in no particular order
+    std::vector<arcticICC::ReadoutAmps> ReadoutAmpList {
+        arcticICC::ReadoutAmps::LL,
+        arcticICC::ReadoutAmps::LR,
+        arcticICC::ReadoutAmps::UR,
+        arcticICC::ReadoutAmps::UL,
+    }
+
 // this results in undefined link symbols, so use direct constants for now. But why???
     // std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
     //     {arcticICC::ReadoutAmps::LL,    arc::deinterlace::CArcDeinterlace::DEINTERLACE_NONE},
@@ -113,10 +121,10 @@ namespace arcticICC {
     CameraConfig::CameraConfig() :
         readoutAmps(ReadoutAmps::Quad),
         readoutRate(ReadoutRate::Medium),
-        colBinFac(2),
-        rowBinFac(2),
-        winColStart(0),
-        winRowStart(0),
+        binFacCol(2),
+        binFacRow(2),
+        winStartCol(0),
+        winStartRow(0),
         winWidth(CCDWidth/2),
         winHeight(CCDHeight/2)
     {}
@@ -124,10 +132,10 @@ namespace arcticICC {
     std::ostream &operator<<(std::ostream &os, CameraConfig const &config) {
         os << "CameraConfig(readoutAmps=" << ReadoutAmpsNameMap.find(config.readoutAmps)->second
             << ", readoutRate=" << ReadoutRateNameMap.find(config.readoutRate)->second
-            << ", colBinFac=" << config.colBinFac
-            << ", rowBinFac=" << config.rowBinFac
-            << ", winColStart=" << config.winColStart
-            << ", winRowStart=" << config.winRowStart
+            << ", binFacCol=" << config.binFacCol
+            << ", binFacRow=" << config.binFacRow
+            << ", winStartCol=" << config.winStartCol
+            << ", winStartRow=" << config.winStartRow
             << ", winWidth=" << config.winWidth
             << ", winHeight=" << config.winHeight
             << ")";
@@ -141,37 +149,37 @@ namespace arcticICC {
                 << ReadoutAmpsNameMap.find(readoutAmps)->second;
             throw std::runtime_error(os.str());
         }
-        if (colBinFac < 1 or colBinFac > MaxBinFactor) {
+        if (binFacCol < 1 or binFacCol > MaxBinFactor) {
             std::ostringstream os;
-            os << "colBinFac=" << colBinFac << " < 1 or > " << MaxBinFactor;
+            os << "binFacCol=" << binFacCol << " < 1 or > " << MaxBinFactor;
             throw std::runtime_error(os.str());
         }
-        if (rowBinFac < 1 or rowBinFac > MaxBinFactor) {
+        if (binFacRow < 1 or binFacRow > MaxBinFactor) {
             std::ostringstream os;
-            os << "rowBinFac=" << rowBinFac << " < 1 or > " << MaxBinFactor;
+            os << "binFacRow=" << binFacRow << " < 1 or > " << MaxBinFactor;
             throw std::runtime_error(os.str());
         }
 
         int const binnedCCDWidth = computeBinnedWidth(CCDWidth);
         int const binnedCCDHeight = computeBinnedHeight(CCDHeight);
-        if ((winColStart < 0) || (winColStart >= binnedCCDWidth)) {
+        if ((winStartCol < 0) || (winStartCol >= binnedCCDWidth)) {
             std::ostringstream os;
-            os << "winColStart=" << winColStart << " < 0 or >= " << binnedCCDWidth;
+            os << "winStartCol=" << winStartCol << " < 0 or >= " << binnedCCDWidth;
             throw std::runtime_error(os.str());
         }
-        if ((winRowStart < 0) || (winRowStart >= binnedCCDHeight)) {
+        if ((winStartRow < 0) || (winStartRow >= binnedCCDHeight)) {
             std::ostringstream os;
-            os << "winRowStart=" << winRowStart << " < 0 or >= " << binnedCCDHeight;
+            os << "winStartRow=" << winStartRow << " < 0 or >= " << binnedCCDHeight;
             throw std::runtime_error(os.str());
         }
-        if ((winWidth < 1) || (winWidth > binnedCCDWidth - winColStart)) {
+        if ((winWidth < 1) || (winWidth > binnedCCDWidth - winStartCol)) {
             std::ostringstream os;
-            os << "winWidth=" << winWidth << " < 1 or > " << binnedCCDWidth - winColStart;
+            os << "winWidth=" << winWidth << " < 1 or > " << binnedCCDWidth - winStartCol;
             throw std::runtime_error(os.str());
         }
-        if ((winHeight < 1) || (winHeight > binnedCCDHeight - winRowStart)) {
+        if ((winHeight < 1) || (winHeight > binnedCCDHeight - winStartRow)) {
             std::ostringstream os;
-            os << "winHeight=" << winHeight << " < 1 or > " << binnedCCDHeight - winRowStart;
+            os << "winHeight=" << winHeight << " < 1 or > " << binnedCCDHeight - winStartRow;
             throw std::runtime_error(os.str());
         }
 
@@ -371,9 +379,9 @@ namespace arcticICC {
         config.assertValid();
         _assertIdle();
 
-        runCommand("set col bin factor",  TIM_ID, WRM, ( Y_MEM | 0x5 ), config.colBinFac);
+        runCommand("set col bin factor",  TIM_ID, WRM, ( Y_MEM | 0x5 ), config.binFacCol);
 
-        runCommand("set row bin factor",  TIM_ID, WRM, ( Y_MEM | 0x6 ), config.rowBinFac);
+        runCommand("set row bin factor",  TIM_ID, WRM, ( Y_MEM | 0x6 ), config.binFacRow);
 
         if (config.isFullWindow()) {
             runCommand("set full window", TIM_ID, SSS, 0, 0, 0);
@@ -391,9 +399,9 @@ namespace arcticICC {
             // - arg1 is the subarray Y position. This is the number of rows (in pixels) to the lower left corner of the desired subarray region.
             // - arg2 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
             // - arg3 is the bias region offset. This is the number of columns (in pixels) to the left edge of the desired bias region.
-            int const windowEndCol = config.winColStart + config.winWidth;
+            int const windowEndCol = config.winStartCol + config.winWidth;
             int const afterDataGap = 5 + config.computeBinnedWidth(CCDWidth) - windowEndCol; // 5 skips some odd gunk
-            runCommand("set window position", TIM_ID, SSP, config.winRowStart, config.winColStart, afterDataGap);
+            runCommand("set window position", TIM_ID, SSP, config.winStartRow, config.winStartCol, afterDataGap);
         }
 
         int readoutAmpsCmdValue = ReadoutAmpsCmdValueMap.find(config.readoutAmps)->second;
@@ -403,12 +411,12 @@ namespace arcticICC {
         runCommand("set readout rate", TIM_ID, SPS, readoutRateCmdValue, DON);
 
         if (config.readoutAmps == ReadoutAmps::Quad) {
-            int xSkip = ColBinXSkipMap_Quad.find(config.colBinFac)->second;
-            int ySkip = config.rowBinFac == 3 ? 1 : 0;
+            int xSkip = ColBinXSkipMap_Quad.find(config.binFacCol)->second;
+            int ySkip = config.binFacRow == 3 ? 1 : 0;
             runCommand("set xy skip for all amps", TIM_ID, SXY, xSkip, ySkip);
         } else {
-            int xSkip = ColBinXSkipMap_One.find(config.colBinFac)->second;
-            xSkip = std::max(0, xSkip - config.winColStart);
+            int xSkip = ColBinXSkipMap_One.find(config.binFacCol)->second;
+            xSkip = std::max(0, xSkip - config.winStartCol);
             runCommand("set xy skip for one amp", TIM_ID, SXY, xSkip, 0);
         }
 
@@ -436,7 +444,7 @@ namespace arcticICC {
             arc::fits::CArcFitsFile cFits(_expName.c_str(), _config.getBinnedHeight(), _config.getBinnedWidth());
 
             std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
-            cFits.WriteKeyword(const_cast<char *>("EXPTYPE"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
+            cFits.WriteKeyword(const_cast<char *>("IMAGETYP"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
 
             if (_expType == ExpType::Bias) {
                 expTime = 0;
@@ -455,37 +463,58 @@ namespace arcticICC {
             std::string readoutRateStr = ReadoutRateNameMap.find(_config.readoutRate)->second;
             cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
 
+            cFits.WriteKeyword(const_cast<char *>("CCDBIN1"), &_config.binFacCol, arc::fits::CArcFitsFile::FITS_INTEGER_KEY, const_cast<char *>("column bin factor"));
+            cFits.WriteKeyword(const_cast<char *>("CCDBIN2"), &_config.binFacRow, arc::fits::CArcFitsFile::FITS_INTEGER_KEY, const_cast<char *>("row bin factor"));
+
             // DATASEC and BIASSEC
             // for the bias region: use all overscan except the first two columns (closest to the data)
-            int const prescanWidth = _config.colBinFac == 3 ? 3 : 2;
-            int const prescanHeight = _config.rowBinFac == 3 ? 1 : 0;
+            // amp names are <x><y> e.g. 11, 12, 21, 22
+            int const prescanWidth = _config.binFacCol == 3 ? 3 : 2;
+            int const prescanHeight = _config.binFacRow == 3 ? 1 : 0;
             if (_config.getNumAmps() == 4) {
-                /* amp arrangement:
-                  4   3
-                  1   2
-                */
+                cFits.WriteKeyword(const_cast<char *>("AMPLIST"), const_cast<char *>("11 12 21 22")
+                    &readoutAmpsStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("amplifiers read <x><y> e.g. 12=LR"));
                 int const overscanWidth  = _config.getBinnedWidth()  - ((2 * prescanWidth) + _config.winWidth); // total, not per amp
                 int const overscanHeight = _config.getBinnedHeight() - ((2 * prescanHeight) + _config.winHeight);   // total, not per amp
-                bool const isTopHalf = amp > 2;
-                bool const isRightHalf = (amp == 2) || (amp == 3);
-                for (int amp = 1; amp <= 4; ++amp) {
-                    int colDataStart = 1 + prescanWidth;
-                    if (isRightHalf) {
-                        colDataStart += (_config.winWidth / 2) + overscanWidth;
-                    }
-                    int rowDataStart = 1 + prescanHeight;
-                    if (isTopHalf) {
-                        rowDataStart += (_config.winHeight / 2) + overscanHeight;
-                    }
-                    int const colDataEnd = colDataStart + _config.winWidth  - 1;
-                    int const rowDataEnd = rowDataStart + _config.winHeight - 1;
+                for (auto readoutAmp: ReadoutAmpList) {
+                    auto ampData = AmplifierDataMap.find(readoutAmp)->second;
+                    auto const xyName = ampData.getXYName();
+                    bool const isTopHalf   = (ampData.xIndex == 1);
+                    bool const isRightHalf = (ampData.yIndex == 1);
 
-                    std::ostringstream dskey;
-                    dskey << "DATASEC" << amp;
-                    std::ostringstream dsval;
-                    dsval << "[" << colDataStart << ":" << colDataEnd
-                          << "," << rowDataStart << ":" << rowDataEnd << "]";
-                    cFits.WriteKeyword(dskey.str(), &dsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+                    // CSEC is the section of the CCD covered by the data (unbinned)
+                    int const csecWidth  = _config.winWidth  * _config.binFacCol / 2;
+                    int const csecHeight = _config.winHeight * _config.binFacRow / 2;
+                    int const csecStartCol = isRightHalf ? 1 + csecWidth  : 1;
+                    int const csecStartRow = isTopHalf   ? 1 + csecHeight : 1;
+                    int const csecEndCol = csecStartCol + csecWidth  - 1;
+                    int const csecEndRow = csecStartRow + csecHeight - 1;
+                    std::ostringstream asecKey;
+                    asecKey << "CSEC" << xyName;
+                    std::ostringstream dsecVal;
+                    dsecVal << "[" << csecStartCol << ":" << csecEndCol
+                          << "," << csecStartRow << ":" << csecEndRow << "]";
+                    cFits.WriteKeyword(asecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
+                        const_cast<char *>("data section of CCD (unbinned)");
+
+                    // DSEC is the section of the image that is data (binned)
+                    int dsecStartCol = 1 + prescanWidth;
+                    if (isRightHalf) {
+                        dsecStartCol += (_config.winWidth / 2) + overscanWidth;
+                    }
+                    int dsecStartRow = 1 + prescanHeight;
+                    if (isTopHalf) {
+                        dsecStartRow += (_config.winHeight / 2) + overscanHeight;
+                    }
+                    int const dsecEndCol = dsecStartCol + _config.winWidth  - 1;
+                    int const dsecEndRow = dsecStartRow + _config.winHeight - 1;
+                    std::ostringstream dsecKey;
+                    dsecKey << "DSEC" << xyName;
+                    std::ostringstream dsecVal;
+                    dsecVal << "[" << dsecStartCol << ":" << dsecEndCol
+                          << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                    cFits.WriteKeyword(dsecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
+                        const_cast<char *>("data section of image (binned)");
 
                     int const biasWidth = (overscanWidth / 2) - 2; // "- 2" to skip first two columns of overscan
                     int colBiasEnd = _config.getBinnedWidth() / 2;
@@ -493,29 +522,74 @@ namespace arcticICC {
                         colBiasEnd += biasWidth;
                     }
                     int const colBiasStart = 1 + colBiasEnd - biasWidth;
-                    std::ostringstream bskey;
-                    bskey << "BIASSEC" << amp;
-                    std::ostringstream bsval;
-                    bsval << "[" << colBiasStart << ":" << colBiasEnd;
-                          << "," << rowDataStart << ":" << rowDataEnd << "]";
-                    cFits.WriteKeyword(bskey.str(), &bsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+                    std::ostringstream bsecKey;
+                    bsecKey << "BSEC" << xyName;
+                    std::ostringstream bsecVal;
+                    bsecVal << "[" << colBiasStart << ":" << colBiasEnd;
+                          << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                    cFits.WriteKeyword(bsecKey.str(), &bsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
+                        const_cast<char *>("bias section of image (binned)");
+
+                    std::ostringstream gainKey;
+                    gainKey << "GTGAIN" << xyName;
+                    cFits.WriteKeyword(gainKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
+                        const_cast<char *>("predicted gain (e-/ADU)");
+
+                    std::ostringstream readNoiseKey;
+                    readNoiseKey << "GTRON" << xyName;
+                    cFits.WriteKeyword(readNoiseKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
+                        const_cast<char *>("predicted read noise (e-)");
+                }
             } else if (_config.getNumAmps() == 1) {
-                int const colDataStart = 1 + prescanWidth;
-                int const rowDataStart = 1 + prescanHeight;
-                int const colDataEnd = colDataStart + _config.winWidth  - 1;
-                int const rowDataEnd = rowDataStart + _config.winHeight - 1;
-                std::ostringstream dsval;
-                dsval << "[" << colDataStart << ":" << colDataEnd
-                      << "," << rowDataStart << ":" << rowDataEnd << "]";
-                cFits.WriteKeyword(const_cast<char *>("DATASEC"), &dsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+                auto ampData = AmplifierDataMap.find(readoutAmp)->second;
+                auto const xyName = ampData.getXYName();
 
+                int const csecWidth  = _config.winWidth  * _config.binFacCol;
+                int const csecHeight = _config.winHeight * _config.binFacRow;
+                int const csecStartCol = 1 + (_config.winStartCol * _config.binFacCol);
+                int const csecStartRow = 1 + (_config.winStartRow * _config.binFacRow);
+                int csecEndCol = csecStartCol + csecWidth  - 1;
+                int csecEndRow = csecStartRow + csecHeight - 1;
+                std::ostringstream asecKey;
+                asecKey << "CSEC" << xyName;
+                std::ostringstream dsecVal;
+                dsecVal << "[" << csecStartCol << ":" << csecEndCol
+                      << "," << csecStartRow << ":" << csecEndRow << "]";
+                cFits.WriteKeyword(asecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
+                    const_cast<char *>("section in CCD of DSEC (unbinned)");
+
+                int const dsecStartCol = 1 + _config.winStartCol + prescanWidth;
+                int const dsecStartRow = 1 + _config.winStartRow + prescanHeight;
+                int const dsecEndCol = dsecStartCol + _config.winWidth  - 1;
+                int const dsecEndRow = dsecStartRow + _config.winHeight - 1;
+                std::ostringstream dsecVal;
+                dsecVal << "[" << dsecStartCol << ":" << dsecEndCol
+                      << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                std::ostringstream dsecKey;
+                dsecKey << "DSEC" << xyName;
+                cFits.WriteKeyword(dsecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
+                    const_cast<char *>("data section (binned)");
+
+                int const biasWidth = overscanWidth - 2; // "- 2" to skip first two columns of overscan
                 int const colBiasEnd = _config.getBinnedWidth();
-                int const colBiasBeg = 1 + colBiasEnd - biasWidth;
-                std::ostringstream bsval;
-                    bsval << "[" << colBiasStart << ":" << colBiasEnd;
-                          << "," << rowDataStart << ":" << rowDataEnd << "]";
-                cFits.WriteKeyword(const_cast<char *>("BIASSEC"), &bsval.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY);
+                int const colBiasStart = 1 + colBiasEnd - biasWidth;
+                std::ostringstream bsecKey;
+                bsecKey << "BSEC" << xyName;
+                std::ostringstream bsecVal;
+                bsecVal << "[" << colBiasStart << ":" << colBiasEnd;
+                      << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                cFits.WriteKeyword(bsecKey.str(), &bsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
+                    const_cast<char *>("bias section (binned)");
 
+                std::ostringstream gainKey;
+                gainKey << "GTGAIN" << xyName;
+                cFits.WriteKeyword(gainKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
+                    const_cast<char *>("predicted gain (e-/ADU)");
+
+                std::ostringstream readNoiseKey;
+                readNoiseKey << "GTRON" << xyName;
+                cFits.WriteKeyword(readNoiseKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
+                    const_cast<char *>("predicted read noise (e-)");                
             } else {
                 std::cout << "Warning: numAmps=" << _config.getNumAmps() << " != 1 or 4; cannot write DATASEC and BIASSEC" << std::endl;
             }
