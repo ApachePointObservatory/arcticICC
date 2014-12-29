@@ -109,7 +109,7 @@ namespace arcticICC {
     */
     class AmplifierElectronicParameters {
     public:
-        double gain;        /// predicted gain (e-/ADU)
+        double gain;        /// predicted gain (e-/DN)
         double readNoise;   /// predicted readout noise (e-)
     };
 
@@ -117,7 +117,7 @@ namespace arcticICC {
     public:
         int xIndex;
         int yIndex;
-        std::unordered_map<ReadoutRate, AmplifierElectronicParameters>
+        std::unordered_map<ReadoutRate, AmplifierElectronicParameters> electronicParamMap;
 
         /**
         Get amplifier name as <xIndex+1><yIndex+1>
@@ -132,24 +132,24 @@ namespace arcticICC {
     #ifndef SWIG
     const std::unordered_map<ReadoutAmps, AmplifierData> AmplifierDataMap = {
         {ReadoutAmps::LL, {0, 0, {
-            {ReadoutRate::Slow,     {0, 0}},
-            {ReadoutRate::Medium,   {0, 0}},
-            {ReadoutRate::Fast,     {0, 0}},
+            {ReadoutRate::Fast,     {6.6, 1.98}},
+            {ReadoutRate::Medium,   {4.5, 1.99}},
+            {ReadoutRate::Slow,     {4.0, 1.43}},
         }},
         {ReadoutAmps::LR, {1, 0, {
-            {ReadoutRate::Slow,     {0, 0}},
-            {ReadoutRate::Medium,   {0, 0}},
-            {ReadoutRate::Fast,     {0, 0}},
+            {ReadoutRate::Fast,     {6.4, 1.97}},
+            {ReadoutRate::Medium,   {4.3, 1.97}},
+            {ReadoutRate::Slow,     {3.7, 1.42}},
         }},
         {ReadoutAmps::UL, {0, 1, {
-            {ReadoutRate::Slow,     {0, 0}},
-            {ReadoutRate::Medium,   {0, 0}},
-            {ReadoutRate::Fast,     {0, 0}},
+            {ReadoutRate::Fast,     {6.4, 2.01}},
+            {ReadoutRate::Medium,   {4.6, 2.03}},
+            {ReadoutRate::Slow,     {3.8, 1.43}},
         }},
         {ReadoutAmps::UR, {1, 1, {
-            {ReadoutRate::Slow,     {0, 0}},
-            {ReadoutRate::Medium,   {0, 0}},
-            {ReadoutRate::Fast,     {0, 0}},
+            {ReadoutRate::Fast,     {6.5, 1.99}},
+            {ReadoutRate::Medium,   {4.4, 1.98}},
+            {ReadoutRate::Slow,     {3.7, 1.41}},
         }},
     };
     #endif

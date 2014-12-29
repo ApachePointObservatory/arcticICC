@@ -66,10 +66,19 @@ const static std::map<ReadoutRate, std::string> ReadoutRateNameMap {
 };
 
 /// map of ReadoutRate enum: approximate pixel raad frequency (Hz)
+/// 900e3, etc. is from Joseph Heunerhof
+/// 
 const static std::map<ReadoutRate, double> ReadoutRateFreqMap {
-    {ReadoutRate::Slow,   150e3},
-    {ReadoutRate::Medium, 450e3},
-    {ReadoutRate::Fast,   900e3}
+    // from Joseph Heunerhof:
+    // {ReadoutRate::Fast,   900e3}
+    // {ReadoutRate::Medium, 450e3},
+    // {ReadoutRate::Slow,   150e3},
+    // from Bob Leach's final report: read times were: 6.6, 20.0 and 41.7 seconds for full CCD in quad mode,
+    // binned 2x2 and probably a total of 50 pixels X prescan + overscan and negligible Y prescan + overscan
+    // (hence 4296704 = 2048 * 2098 pixels)
+    {ReadoutRate::Fast,   651015.8}
+    {ReadoutRate::Medium, 214835.2},
+    {ReadoutRate::Slow,   103038.5},
 };
 #endif
 

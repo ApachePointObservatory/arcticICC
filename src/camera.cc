@@ -581,14 +581,15 @@ namespace arcticICC {
                 cFits.WriteKeyword(bsecKey.str(), &bsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
                     const_cast<char *>("bias section (binned)");
 
+                auto electronicParams = ampData.electronicParamMap.find(_config.readoutRate)->second;
                 std::ostringstream gainKey;
                 gainKey << "GTGAIN" << xyName;
-                cFits.WriteKeyword(gainKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
+                cFits.WriteKeyword(gainKey.str(), &electronicParams.gain, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
                     const_cast<char *>("predicted gain (e-/ADU)");
 
                 std::ostringstream readNoiseKey;
                 readNoiseKey << "GTRON" << xyName;
-                cFits.WriteKeyword(readNoiseKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
+                cFits.WriteKeyword(readNoiseKey.str(), &electronicParams.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
                     const_cast<char *>("predicted read noise (e-)");                
             } else {
                 std::cout << "Warning: numAmps=" << _config.getNumAmps() << " != 1 or 4; cannot write DATASEC and BIASSEC" << std::endl;
