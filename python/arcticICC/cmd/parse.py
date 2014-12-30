@@ -25,6 +25,7 @@ class CommonParseItems(object):
         """
         self.ppFloat = self.floatDef()
         self.ppQuotedString = self.quotedStringDef()
+        self.ppWord = self.wordDef()
 
         # keyword
         # self.keyword = pp.Word(pp.alphas + pp.alphanums, pp.alphas + '_:.' + pp.alphanums)
@@ -57,8 +58,19 @@ class CommonParseItems(object):
         return pp.Word(pp.alphas + pp.alphanums, pp.alphas + '_:.' + pp.alphanums)
 
     def keywordDef(self, matchList):
-        """A RO MatchList object
+        """matchList: A RO MatchList object
         """
+        def onParse(tolken):
+            kw = str(tolken[0])
+            # see if keyword is in list, else raise a parse error
+            try:
+                fullKW = matchList.getUniqueMatch(kw)
+            except ValueError:
+                raise ParseError("%s not uniquely defined in %s"%(kw, str(matchList.valueList)))
+            return fullKW
+        return self.ppWord.setParseAction(onParse)
+
+
 
 
 class ParsedCommand(object):
@@ -136,6 +148,9 @@ class CommandSet(object):
 #         self.negatable=negatable
 
 class ArgumentBase(object):
+
+    def __init__(self):
+        pass
 
     @property
     def parserElement(self):
