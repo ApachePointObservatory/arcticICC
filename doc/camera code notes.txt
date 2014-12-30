@@ -1,39 +1,37 @@
 CCD is 4096x4096
 
-Caveats:
-- Windowing:
+Notes (additions and clarifications to Leach the documentation, especially the CommandDescription manual):
+- Windowing (SSS and SSP commands):
     - It is only possible to subwindow if reading out the whole CCD from a single amplifier.
-    - There is no prescan, which affects image size calculation
-    - The SSP command's 3rd argument is start of overscan subregion - end of data subregion
-    - There is prescan and a funny gap before overscan, so I still don't fully understand SSS and SSP
-- When using all amps the data must have an even number of columns and rows; this affects valid bin factors vs. image size
+    - Arguments to SSS and SSP are in binned pixels.
+    - The SSP command's 3rd argument is start of overscan subregion - end of data subregion.
+- When reading quad amps the data must have an even number of columns and rows.
 - Do NOT send commands to the Leach timer board during readout. That will suspend readout. Read about it in the CRD command in the CommandDescription.
 
-Rather than use the provided API directly, we will use a thin wrapper with these properties:
+Rather than use the provided API directly, we will use a wrapper with these properties:
 - Easier and safer to use:
     - Catch errors early. For instance the API allows setting bin factors that the deinterlacer cannot handle, and this only fails after the image is read out.
-    - Avoid the need to specify image dimensions to functions
-    - Avoid the need to specify configuration parameters to functions (hard-code them or read a config file)
-    - Support RAII (resource acquisition is initialization)
-- Add missing functionality. For instance the API does not include functions to set readout rate or readout amplifiers
-- Provide sub-windowing based on corner and dimensions rather than center and dimensions
-- Provide a python wrapper
+    - Set configuration in a correct and unambiguous order (avoid separate calls to set readout amps, bin factor and window, which can easily lead to an unexpected or invalid state).
+    - Support RAII (resource acquisition is initialization) so that the camera is reliably acquired and given up.
+    - Functions should only take that are directly relevant (avoid extra parameters, such as image dimensions, that can more easily and safely be computed).
+- Add missing functionality. For instance the API does not include functions to set readout rate or readout amplifiers.
+- Provide sub-windowing based on corner and dimensions rather than center and dimensions.
+- Provide a python wrapper.
 
 TO DO:
-- Fix windowing so there is no prescan to discard and all extra pixels are in post-scan;
-    also get rid of the strange bottom row in the Y direction (again, a prescan issue?).
-- Write FITS header info for data and bias region(s); this depends on whether we are reading 1 or 4 amps.
-    The table of prescan and overscan below may prove helpful. From that I'm not sure I can predict
-    the behavior for higher binning factor. I suspect we should just prohibit bin factor > 4.
-- Perhaps take shutter delay into account when predicting duration of exposure time state
+- Try to fix initial bad row when windowing (which is only present if window start row > 0). This may require a change to the DSP code.
+  If this cannot be fixed then add a row when windowing (if window start row > 0) and omit it from DATASEC and BIASSEC.
+- Fill in gain and read noise table in camera.cc. An alternative is to move that data to a text file; it adds some flexibility but makes the code more complex and fragile. Since the data doesn't change often I'm inclined to rebuild when it does. If we do use a file then consider using use boost::property_tree to read it in INFO format, or find a JSON parser that supports comments and use that.
 
-Total image size
+Total image size and related notes:
 - The x prescan is hard-coded at different bin factors (and is not trivial to predict; just measure and make a lookup table); there is no y prescan.
-- The computer sets the total image size (as long as it is larger than prescan + ccd pixels), so the computer indirectly commands the number of overscan pixels in x and y.
-- In order to support 1, 2, 3 and 4x binning in both directions we will use an unbinned image size of 4200x4104 pixels and limit the bin factor to a maximum of 4.
-- In order to support 3x3 binning with quad readout it is necessary to skip one row in y in order to use the center two rows of data; otherwise they end up a mix of overscan and data. In addition, the data is slightly nicer data if we skip two columns for single-amplifier 3x binning.
+- The user specified the total image size (as long as it is larger than prescan + ccd pixels), so the user indirectly commands the number of overscan pixels in x and y.
+- Given the difficulty of predicting prescan and the limitations of image size for quad readout, we will only support 1, 2, 3 and 4x binning.
+- In order to support 3x3 binning with quad readout it is necessary to skip one row in y in order to use the center two rows of data; otherwise they end up a mix of overscan and data, and the center of the image is a lousy place for bad rows and columns. Use the SXY (skip X,Y) command for this.
+- The data looks slightly nicer data if we skip two columns for single-amplifier 3x binning. Use the SXY (skip X,Y) command for this.
+- We will have 2 rows of y overscan when using quad readout, to give visual separation.
 
-Prescan and overscan for 4200x4104 pixels:
+Prescan and overscan for 4200x4104 pixels without using SXY to skip initial rows and columns:
 amps   bin  x amp   x pre   x over  x pre+over  x data      y amp   y pre   y over  y pre+over  y data  skipX   skipY
 4/all   1   2100    6       46       52         2048        2052    0*      4        4          2048    0       0
 4/all   2   1050    4       22       26         1024        1026    0*      2        2          1024    0       0
@@ -45,7 +43,7 @@ amps   bin  x amp   x pre   x over  x pre+over  x data      y amp   y pre   y ov
 1/ll    3   1400    3       32       35         1365        1368    0*      3        3          1365    2       0
 1/ll    4   1050    3       23       26         1024        1026    0*      2*       2          1024    0       0
 
-*One row/col looks like valid data but with a lower gain. For now I'm assuming it is usable data (part of DATASEC),
+*One row/col looks like valid data but with a lower gain. We will assume it is usable data (part of DATASEC),
 since it can presumably be calibrated out.
 
 
@@ -65,5 +63,5 @@ WRM: set bin factor, and other things. To set bin factor:
     Command(TIM_ID, WRM, (Y_MEM | 0x6), binRows)
 OSH: open shutter
 CSH: close shutter
-SPS: NOT DOCUMENTED: sets the readout rate (set pixel speed?); used by Owl in SelectableReadoutSpeedCC.bsh
-SXY: ADDED FOR US: skip the specified number of columns and rows
+SPS: NOT DOCUMENTED: set the readout rate; supported values are FST, MED, SLW; see Owl code SelectableReadoutSpeedCC.bsh
+SXY: NOT DOCUMENTED (added for us): skip the specified number of columns and rows

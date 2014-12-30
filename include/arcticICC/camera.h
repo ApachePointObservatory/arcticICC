@@ -12,17 +12,10 @@ namespace arcticICC {
 
     static int const CCDWidth = 4096;   // width of CCD (unbinned pixels)
     static int const CCDHeight = 4096;  // width of CCD (unbinned pixels)
-    static int const XExtraPix = 104;   // total x prescan + overscan pixels for all amplifiers combined (unbinned pixels)
-    static int const YExtraPix = 8;     // total y overscan (y prescan=0) for all amplifiers combined
+    static int const XOverscan = 102;   // desired width of x overscan region, unbinned pixels
+        // if using quad readout then each amplifier gets half of this
+        // the actual overscan region is further reduced by any prescan (2 binned pixels per amp, in our case)
     static int const MaxBinFactor = 4;  // maximum allowed bin factor
-    /// map of x bin factor: x prescan pixels (defined as all pixels to discard before good data);
-    /// the distinction only matters for 3x binning, where the 4th pixel is a mix of prescan and data
-    #ifndef SWIG
-    static std::map<int, int> XBinPrescanMap { // bin factor: x prescan (pixels to discard before good data)
-        {1, 6}, {2, 4}, {3, 4}, {4, 3}
-    };
-    static int const OneAmpOverscan = XExtraPix - XBinPrescanMap.find(1)->second; // 98
-    #endif
 
     class CameraConfig {
     public:
@@ -39,54 +32,127 @@ namespace arcticICC {
         /**
         Return true if readoutAmps is compatible with sub-windowing
         */
-        bool canWindow() const { return (readoutAmps == ReadoutAmps::LL) || (readoutAmps == ReadoutAmps::LR)
-            || (readoutAmps == ReadoutAmps::UL) || (readoutAmps == ReadoutAmps::UR); }
+        bool canWindow() const { return (getNumAmps() == 1); }
+
+        /**
+        Return the number of amplifiers being read out
+        */
+        int getNumAmps() const { return ReadoutAmpsNumAmpsMap.find(readoutAmps)->second; }
 
         /**
         Set configuration for full windowing
         */
         void setFullWindow() {
-            winRowStart = 0;
-            winColStart = 0;
-            winWidth == CCDWidth / colBinFac;
-            winHeight == CCDHeight / rowBinFac;
-        }
+            winStartCol = 0;
+            winStartRow = 0;
+            winWidth = computeBinnedWidth(CCDWidth);
+            winHeight = computeBinnedHeight(CCDHeight);
+        };
 
         /**
-        Return image width (including overscan), in unbinned pixels
+        Return image width (including prescan and overscan), in unbinned pixels
         */
-        int getUnbinnedWidth() const { return getBinnedWidth() * colBinFac; }
+        int getUnbinnedWidth() const { return getBinnedWidth() * binFacCol; }
 
         /**
-        Return image height (including overscan), in unbinned pixels
+        Return image height (including prescan and overscan) in unbinned pixels
         */
-        int getUnbinnedHeight() const { return getBinnedHeight() * rowBinFac; }
+        int getUnbinnedHeight() const { return getBinnedHeight() * binFacRow; }
 
         /**
-        Return image width (including overscan), in binned pixels
+        Return image width (including prescan and overscan) in binned pixels
         */
-        int getBinnedWidth() const { return winWidth + (XExtraPix / colBinFac); }
+        int getBinnedWidth() const;
 
         /**
-        Return image height (including overscan), in binned pixels
+        Return image height (including prescan and overscan) in binned pixels
         */
-        int getBinnedHeight() const { return winHeight + (isFullWindow() ? (YExtraPix / rowBinFac) : 0); }
+        int getBinnedHeight() const;
 
         /**
         Return true if configured for full windowing
         */
-        bool isFullWindow() const { return (winRowStart == 0) && (winColStart == 0)
-            && (winWidth >= CCDWidth / colBinFac) && (winHeight >= CCDHeight / rowBinFac); }
+        bool isFullWindow() const { return (winStartRow == 0) && (winStartCol == 0)
+            && (winWidth >= computeBinnedWidth(CCDWidth)) && (winHeight >= computeBinnedHeight(CCDHeight)); }
 
         ReadoutAmps readoutAmps;    /// readout amplifiers
         ReadoutRate readoutRate;    /// readout rate
-        int colBinFac;     /// column bin factor; must be in range 1-MaxBinFactor
-        int rowBinFac;     /// row bin factor; must be in range 1-MaxBinFactor
-        int winColStart;   /// starting column for data subwindow (binned pixels, starting from 0)
-        int winRowStart;   /// starting row for data subwindow (binned pixels, starting from 0)
+        int binFacCol;     /// column bin factor; must be in range 1-MaxBinFactor
+        int binFacRow;     /// row bin factor; must be in range 1-MaxBinFactor
+        int winStartCol;   /// starting column for data subwindow (binned pixels, starting from 0)
+        int winStartRow;   /// starting row for data subwindow (binned pixels, starting from 0)
         int winWidth;      /// window width (binned pixels)
         int winHeight;     /// window height (binned pixels)
+
+        static int getMaxWidth(); /// get maximum image width (unbinned pixels)
+        static int getMaxHeight(); /// get maximum image height (unbinned pixels)
+
+        /**
+        Compute a binned width
+
+        The value is even for both amplifiers, even if only using single readout,
+        just to keep the system more predictable. The result is that the full image size
+        is the same for 3x3 binning regardless of whether you read one amp or four,
+        and as a result you lose one row and one column when you read one amp.
+        */
+        int computeBinnedWidth(int unbWidth) const { return (unbWidth / (2 * binFacCol)) * 2; }
+        /**
+        Compute a binned height
+
+        See notes for computeBinnedHeight
+        */
+        int computeBinnedHeight(int unbHeight) const { return (unbHeight / (2 * binFacRow)) * 2; }
     };
+
+    /**
+    Amplifier electronic parameters, especially those affected by readout rate
+    */
+    class AmplifierElectronicParameters {
+    public:
+        double gain;        /// predicted gain (e-/DN)
+        double readNoise;   /// predicted readout noise (e-)
+    };
+
+    class AmplifierData {
+    public:
+        int xIndex;
+        int yIndex;
+        std::unordered_map<ReadoutRate, AmplifierElectronicParameters> electronicParamMap;
+
+        /**
+        Get amplifier name as <xIndex+1><yIndex+1>
+        */
+        std::string getXYName() const {
+            std::ostringstream os;
+            os << xIndex + 1 << yIndex + 1;
+            return os.str();
+        }
+    };
+
+    #ifndef SWIG
+    const std::unordered_map<ReadoutAmps, AmplifierData> AmplifierDataMap = {
+        {ReadoutAmps::LL, {0, 0, {
+            {ReadoutRate::Fast,     {6.6, 1.98}},
+            {ReadoutRate::Medium,   {4.5, 1.99}},
+            {ReadoutRate::Slow,     {4.0, 1.43}},
+        }},
+        {ReadoutAmps::LR, {1, 0, {
+            {ReadoutRate::Fast,     {6.4, 1.97}},
+            {ReadoutRate::Medium,   {4.3, 1.97}},
+            {ReadoutRate::Slow,     {3.7, 1.42}},
+        }},
+        {ReadoutAmps::UL, {0, 1, {
+            {ReadoutRate::Fast,     {6.4, 2.01}},
+            {ReadoutRate::Medium,   {4.6, 2.03}},
+            {ReadoutRate::Slow,     {3.8, 1.43}},
+        }},
+        {ReadoutAmps::UR, {1, 1, {
+            {ReadoutRate::Fast,     {6.5, 1.99}},
+            {ReadoutRate::Medium,   {4.4, 1.98}},
+            {ReadoutRate::Slow,     {3.7, 1.41}},
+        }},
+    };
+    #endif
 
     /**
     ARCTIC imager CCD
@@ -171,6 +237,9 @@ namespace arcticICC {
         @param[in] configuration  new configuration
 
         @throw std::runtime_error if new configuration not valid or if camera is not idle
+
+        @warning if this fails then the camera is in an unknown and possibly invalid state.
+        If this occurs then you should retry the command or reset the camera.
         */
         void setConfig(CameraConfig const &cameraConfig);
 
@@ -178,6 +247,7 @@ namespace arcticICC {
         Save image to a FITS file
 
         @param[in] expTime  exposure time (sec); if <0 then the internal timer is used.
+            If taking a bias then expTime is ignored; the reported exposure time is 0;
             If you have feedback from the shutter then you can provide a better value than the internal timer.
 
         @throw std::runtime_error if no image is available to be saved
@@ -199,10 +269,10 @@ namespace arcticICC {
         void closeShutter();
 
     private:
-        void assertIdle();  /// assert that the camera is not busy
-        void _setIdle();    /// set values indicating idle state (_cmdExpSec, _fullReadTime and _isPaused)
+        void _assertIdle();  /// assert that the camera is not busy
         void _clearBuffer();    /// clear image buffer and set _bufferCleared
-        double _readTime(int nPix) const; /// estimate readout time (sec) based on number of pixels to read
+        double _estimateReadTime(int nPix) const; /// estimate readout time (sec) based on number of pixels to read
+        void _setIdle();    /// set values indicating idle state (_cmdExpSec, _fullReadTime and _isPaused)
         /**
         Run one command, as described in the Leach document Controller Command Description
         @param[in] boardID  controller board code: one of TIM_ID, PCI_ID or UTIL_ID
@@ -212,16 +282,13 @@ namespace arcticICC {
         @param[in] arg3  argument 3 (optional)
         */
         void runCommand(std::string const &descr, int boardID, int cmd, int arg1=0, int arg2=0, int arg3=0);
-        // it might be better to read the following parameters directly from the controller,
-        // but they cannot safely be read while the controller is reading out an image
-        /**
-        Set number of rows to skip, based on readout amps and bin factor
-        */
-        CameraConfig _config;   /// camera configuration
+        CameraConfig _config;       /// camera configuration
         std::string _expName;       /// exposure name (used for the FITS file)
         ExposureType _expType;      /// exposure type
         double _cmdExpSec;          /// commanded exposure time, in seconds; <0 if idle
-        double _segmentExpSec;      /// exposure time for this segment; this starts at the requested exposur time
+        double _estExpSec;          /// estimated actuall exposure time, in seconds;
+            /// set to -1 until the exposure ends (either prematurely via stop or normally as detected by getStatus)
+        double _segmentExpSec;      /// exposure time for this segment; this starts at the requested exposure time
             /// and is decreased each time the exposure is paused
         std::chrono::steady_clock::time_point _segmentStartTime;   /// start time of this exposure segment;
             /// updated when an exposure is paused or resumed; invalid if isExposing false

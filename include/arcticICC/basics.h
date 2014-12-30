@@ -15,7 +15,7 @@ enum class StateEnum {
 };
 
 #ifndef SWIG
-const static std::map<StateEnum, std::string> StateNameMap = {
+const static std::map<StateEnum, std::string> StateNameMap {
     {StateEnum::Idle,      "Idle"},
     {StateEnum::Exposing,  "Exposing"},
     {StateEnum::Paused,    "Paused"},
@@ -29,7 +29,7 @@ enum class ReadoutAmps {
     LR,
     UR,
     UL,
-    All,
+    Quad,
 };
 
 #ifndef SWIG
@@ -39,7 +39,15 @@ const static std::map<ReadoutAmps, std::string> ReadoutAmpsNameMap {
     {ReadoutAmps::LR,   "LR"},
     {ReadoutAmps::UR,   "UR"},
     {ReadoutAmps::UL,   "UL"},
-    {ReadoutAmps::All,  "All"}
+    {ReadoutAmps::Quad, "Quad"}
+};
+
+std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsNumAmpsMap {
+    {arcticICC::ReadoutAmps::LL,    1},
+    {arcticICC::ReadoutAmps::LR,    1},
+    {arcticICC::ReadoutAmps::UR,    1},
+    {arcticICC::ReadoutAmps::UL,    1},
+    {arcticICC::ReadoutAmps::Quad,  4},
 };
 #endif
 
@@ -58,10 +66,19 @@ const static std::map<ReadoutRate, std::string> ReadoutRateNameMap {
 };
 
 /// map of ReadoutRate enum: approximate pixel raad frequency (Hz)
+/// 900e3, etc. is from Joseph Heunerhof
+/// 
 const static std::map<ReadoutRate, double> ReadoutRateFreqMap {
-    {ReadoutRate::Slow,   150e3},
-    {ReadoutRate::Medium, 450e3},
-    {ReadoutRate::Fast,   900e3}
+    // from Joseph Heunerhof:
+    // {ReadoutRate::Fast,   900e3}
+    // {ReadoutRate::Medium, 450e3},
+    // {ReadoutRate::Slow,   150e3},
+    // from Bob Leach's final report: read times were: 6.6, 20.0 and 41.7 seconds for full CCD in quad mode,
+    // binned 2x2 and probably a total of 50 pixels X prescan + overscan and negligible Y prescan + overscan
+    // (hence 4296704 = 2048 * 2098 pixels)
+    {ReadoutRate::Fast,   651015.8}
+    {ReadoutRate::Medium, 214835.2},
+    {ReadoutRate::Slow,   103038.5},
 };
 #endif
 
