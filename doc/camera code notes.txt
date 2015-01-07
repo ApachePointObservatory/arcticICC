@@ -21,7 +21,8 @@ Rather than use the provided API directly, we will use a wrapper with these prop
 TO DO:
 - Try to fix initial bad row when windowing (which is only present if window start row > 0). This may require a change to the DSP code.
   If this cannot be fixed then add a row when windowing (if window start row > 0) and omit it from DATASEC and BIASSEC.
-- Fill in gain and read noise table in camera.cc. An alternative is to move that data to a text file; it adds some flexibility but makes the code more complex and fragile. Since the data doesn't change often I'm inclined to rebuild when it does. If we do use a file then consider using use boost::property_tree to read it in INFO format, or find a JSON parser that supports comments and use that.
+- In camera.cc switch to using CCFits to write the FITS file. It has a much saner and simpler interface than the mess provided by Leach.
+  It will eliminate about 50% of the code used to write FITS header cards.
 
 Total image size and related notes:
 - The x prescan is hard-coded at different bin factors (and is not trivial to predict; just measure and make a lookup table); there is no y prescan.
