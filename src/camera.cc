@@ -26,7 +26,7 @@ namespace {
         {arcticICC::ReadoutAmps::LR,   AMP_1},
         {arcticICC::ReadoutAmps::UR,   AMP_2},
         {arcticICC::ReadoutAmps::UL,   AMP_3},
-        {arcticICC::ReadoutAmps::Quad, AMP_ALL},
+        {arcticICC::ReadoutAmps::Quad, AMP_ALL}
     };
 
     // list of readout amps, in no particular order
@@ -34,8 +34,8 @@ namespace {
         arcticICC::ReadoutAmps::LL,
         arcticICC::ReadoutAmps::LR,
         arcticICC::ReadoutAmps::UR,
-        arcticICC::ReadoutAmps::UL,
-    }
+        arcticICC::ReadoutAmps::UL
+    };
 
 // this results in undefined link symbols, so use direct constants for now. But why???
     // std::map<arcticICC::ReadoutAmps, int> ReadoutAmpsDeinterlaceAlgorithmMap {
@@ -51,21 +51,21 @@ namespace {
         {arcticICC::ReadoutAmps::LR,    0},
         {arcticICC::ReadoutAmps::UR,    0},
         {arcticICC::ReadoutAmps::UL,    0},
-        {arcticICC::ReadoutAmps::Quad,  3},
+        {arcticICC::ReadoutAmps::Quad,  3}
     };
 
     std::map<int, int> ColBinXSkipMap_One {
         {1, 4},
         {2, 4},
         {3, 3},
-        {4, 4},
+        {4, 4}
     };
 
     std::map<int, int> ColBinXSkipMap_Quad {
         {1, 4},
         {2, 4},
         {3, 3},
-        {4, 4},
+        {4, 4}
     };
 
     // SPS <rate> command: set readout rate
@@ -338,12 +338,12 @@ namespace arcticICC {
             return;
         } else if (expState.state == StateEnum::Paused) {
             // stop a paused exposure; _segmentExpSec contains the remaining time for a full exposure
-            _estExpSec = std::max(0, _cmdExpSec - _segmentExpSec);
+            _estExpSec = std::max(0.0, _cmdExpSec - _segmentExpSec);
         } else if (expState.state == StateEnum::Exposing) {
             // stop an active exposure
             double segmentDuration = elapsedSec(_segmentStartTime, std::chrono::steady_clock::now());
             double missingTime = _segmentExpSec - segmentDuration;
-            _estExpSec = std::max(0, _cmdExpSec - missingTime);
+            _estExpSec = std::max(0.0, _cmdExpSec - missingTime);
         }
         runCommand("stop exposure", TIM_ID, SET, 0);
     }
@@ -444,27 +444,35 @@ namespace arcticICC {
             arc::fits::CArcFitsFile cFits(_expName.c_str(), _config.getBinnedHeight(), _config.getBinnedWidth());
 
             std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
-            cFits.WriteKeyword(const_cast<char *>("IMAGETYP"), &expTypeStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
+            cFits.WriteKeyword(const_cast<char *>("IMAGETYP"), &expTypeStr,
+                arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
 
-            if (_expType == ExpType::Bias) {
+            if (_expType == ExposureType::Bias) {
                 expTime = 0;
-                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
+                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime,
+                    arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("exposure time (sec)"));
             } else if (expTime < 0) {
-                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &_estExpSec, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("estimated exposure time (sec)"));
+                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &_estExpSec,
+                    arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("estimated exposure time (sec)"));
             } else {
-                doWriteEstExpSec = true;
-                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("measured exposure time (sec)"));
-                cFits.WriteKeyword(const_cast<char *>("ESTEXPTM"), &_estExpSec, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("estimated exposure time (sec)"));
+                cFits.WriteKeyword(const_cast<char *>("EXPTIME"), &expTime,
+                    arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("measured exposure time (sec)"));
+                cFits.WriteKeyword(const_cast<char *>("ESTEXPTM"), &_estExpSec,
+                    arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("estimated exposure time (sec)"));
             }
 
             std::string readoutAmpsStr = ReadoutAmpsNameMap.find(_config.readoutAmps)->second;
-            cFits.WriteKeyword(const_cast<char *>("READAMPS"), &readoutAmpsStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout amplifier(s)"));
+            cFits.WriteKeyword(const_cast<char *>("READAMPS"), &readoutAmpsStr,
+                arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout amplifier(s)"));
 
             std::string readoutRateStr = ReadoutRateNameMap.find(_config.readoutRate)->second;
-            cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
+            cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr,
+                arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
 
-            cFits.WriteKeyword(const_cast<char *>("CCDBIN1"), &_config.binFacCol, arc::fits::CArcFitsFile::FITS_INTEGER_KEY, const_cast<char *>("column bin factor"));
-            cFits.WriteKeyword(const_cast<char *>("CCDBIN2"), &_config.binFacRow, arc::fits::CArcFitsFile::FITS_INTEGER_KEY, const_cast<char *>("row bin factor"));
+            cFits.WriteKeyword(const_cast<char *>("CCDBIN1"), &_config.binFacCol,
+                arc::fits::CArcFitsFile::FITS_INTEGER_KEY, const_cast<char *>("column bin factor"));
+            cFits.WriteKeyword(const_cast<char *>("CCDBIN2"), &_config.binFacRow,
+                arc::fits::CArcFitsFile::FITS_INTEGER_KEY, const_cast<char *>("row bin factor"));
 
             // DATASEC and BIASSEC
             // for the bias region: use all overscan except the first two columns (closest to the data)
@@ -472,12 +480,16 @@ namespace arcticICC {
             int const prescanWidth = _config.binFacCol == 3 ? 3 : 2;
             int const prescanHeight = _config.binFacRow == 3 ? 1 : 0;
             if (_config.getNumAmps() == 4) {
-                cFits.WriteKeyword(const_cast<char *>("AMPLIST"), const_cast<char *>("11 12 21 22")
-                    &readoutAmpsStr, arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("amplifiers read <x><y> e.g. 12=LR"));
                 int const overscanWidth  = _config.getBinnedWidth()  - ((2 * prescanWidth) + _config.winWidth); // total, not per amp
                 int const overscanHeight = _config.getBinnedHeight() - ((2 * prescanHeight) + _config.winHeight);   // total, not per amp
+
+                std::string ampListVal{"11 12 21 22"};
+                cFits.WriteKeyword(const_cast<char *>("AMPLIST"), const_cast<char *>(ampListVal.c_str()),
+                     arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("amplifiers read <x><y> e.g. 12=LR"));
+
                 for (auto readoutAmp: ReadoutAmpList) {
                     auto ampData = AmplifierDataMap.find(readoutAmp)->second;
+                    auto electronicParams = ampData.electronicParamMap.find(_config.readoutRate)->second;
                     auto const xyName = ampData.getXYName();
                     bool const isTopHalf   = (ampData.xIndex == 1);
                     bool const isRightHalf = (ampData.yIndex == 1);
@@ -489,13 +501,15 @@ namespace arcticICC {
                     int const csecStartRow = isTopHalf   ? 1 + csecHeight : 1;
                     int const csecEndCol = csecStartCol + csecWidth  - 1;
                     int const csecEndRow = csecStartRow + csecHeight - 1;
-                    std::ostringstream asecKey;
-                    asecKey << "CSEC" << xyName;
-                    std::ostringstream dsecVal;
-                    dsecVal << "[" << csecStartCol << ":" << csecEndCol
-                          << "," << csecStartRow << ":" << csecEndRow << "]";
-                    cFits.WriteKeyword(asecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
-                        const_cast<char *>("data section of CCD (unbinned)");
+                    std::ostringstream csecKeyStream;
+                    csecKeyStream << "CSEC" << xyName;
+                    auto csecKey = csecKeyStream.str();
+                    std::ostringstream csecValStream;
+                    csecValStream << "[" << csecStartCol << ":" << csecEndCol
+                                  << "," << csecStartRow << ":" << csecEndRow << "]";
+                    auto csecVal = csecValStream.str();
+                    cFits.WriteKeyword(const_cast<char *>(csecKey.c_str()), const_cast<char *>(csecVal.c_str()),
+                        arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("data section of CCD (unbinned)"));
 
                     // DSEC is the section of the image that is data (binned)
                     int dsecStartCol = 1 + prescanWidth;
@@ -508,13 +522,15 @@ namespace arcticICC {
                     }
                     int const dsecEndCol = dsecStartCol + _config.winWidth  - 1;
                     int const dsecEndRow = dsecStartRow + _config.winHeight - 1;
-                    std::ostringstream dsecKey;
-                    dsecKey << "DSEC" << xyName;
-                    std::ostringstream dsecVal;
-                    dsecVal << "[" << dsecStartCol << ":" << dsecEndCol
-                          << "," << dsecStartRow << ":" << dsecEndRow << "]";
-                    cFits.WriteKeyword(dsecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
-                        const_cast<char *>("data section of image (binned)");
+                    std::ostringstream dsecKeyStream;
+                    dsecKeyStream << "DSEC" << xyName;
+                    auto dsecKey = dsecKeyStream.str();
+                    std::ostringstream dsecValStream;
+                    dsecValStream << "[" << dsecStartCol << ":" << dsecEndCol
+                                  << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                    auto dsecVal = dsecValStream.str();
+                    cFits.WriteKeyword(const_cast<char *>(dsecKey.c_str()), const_cast<char *>(dsecVal.c_str()),
+                        arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("data section of image (binned)"));
 
                     int const biasWidth = (overscanWidth / 2) - 2; // "- 2" to skip first two columns of overscan
                     int colBiasEnd = _config.getBinnedWidth() / 2;
@@ -522,27 +538,38 @@ namespace arcticICC {
                         colBiasEnd += biasWidth;
                     }
                     int const colBiasStart = 1 + colBiasEnd - biasWidth;
-                    std::ostringstream bsecKey;
-                    bsecKey << "BSEC" << xyName;
-                    std::ostringstream bsecVal;
-                    bsecVal << "[" << colBiasStart << ":" << colBiasEnd;
-                          << "," << dsecStartRow << ":" << dsecEndRow << "]";
-                    cFits.WriteKeyword(bsecKey.str(), &bsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
-                        const_cast<char *>("bias section of image (binned)");
+                    std::ostringstream bsecKeyStream;
+                    bsecKeyStream << "BSEC" << xyName;
+                    auto bsecKey = bsecKeyStream.str();
+                    std::ostringstream bsecValStream;
+                    bsecValStream << "[" << colBiasStart << ":" << colBiasEnd
+                                  << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                    auto bsecVal = bsecValStream.str();
+                    cFits.WriteKeyword(const_cast<char *>(bsecKey.c_str()), const_cast<char *>(bsecVal.c_str()),
+                        arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("bias section of image (binned)"));
 
-                    std::ostringstream gainKey;
-                    gainKey << "GTGAIN" << xyName;
-                    cFits.WriteKeyword(gainKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
-                        const_cast<char *>("predicted gain (e-/ADU)");
+                    std::ostringstream gainKeyStream;
+                    gainKeyStream << "GTGAIN" << xyName;
+                    auto gainKey = gainKeyStream.str();
+                    cFits.WriteKeyword(const_cast<char *>(gainKey.c_str()), &electronicParams.gain,
+                        arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("predicted gain (e-/ADU)"));
 
-                    std::ostringstream readNoiseKey;
-                    readNoiseKey << "GTRON" << xyName;
-                    cFits.WriteKeyword(readNoiseKey.str(), &ampData.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
-                        const_cast<char *>("predicted read noise (e-)");
+                    std::ostringstream readNoiseKeyStream;
+                    readNoiseKeyStream << "GTRON" << xyName;
+                    auto readNoiseKey = readNoiseKeyStream.str();
+                    cFits.WriteKeyword(const_cast<char *>(readNoiseKey.c_str()), &electronicParams.readNoise,
+                        arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("predicted read noise (e-)"));
                 }
             } else if (_config.getNumAmps() == 1) {
-                auto ampData = AmplifierDataMap.find(readoutAmp)->second;
+                int const overscanWidth  = _config.getBinnedWidth()  - (prescanWidth + _config.winWidth);
+                int const overscanHeight = _config.getBinnedHeight() - (prescanHeight + _config.winHeight);
+
+                auto ampData = AmplifierDataMap.find(_config.readoutAmps)->second;
+                auto electronicParams = ampData.electronicParamMap.find(_config.readoutRate)->second;
                 auto const xyName = ampData.getXYName();
+
+                cFits.WriteKeyword(const_cast<char *>("AMPLIST"), const_cast<char *>(xyName.c_str()),
+                     arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("amplifiers read <x><y> e.g. 12=LR"));
 
                 int const csecWidth  = _config.winWidth  * _config.binFacCol;
                 int const csecHeight = _config.winHeight * _config.binFacRow;
@@ -550,47 +577,54 @@ namespace arcticICC {
                 int const csecStartRow = 1 + (_config.winStartRow * _config.binFacRow);
                 int csecEndCol = csecStartCol + csecWidth  - 1;
                 int csecEndRow = csecStartRow + csecHeight - 1;
-                std::ostringstream asecKey;
-                asecKey << "CSEC" << xyName;
-                std::ostringstream dsecVal;
-                dsecVal << "[" << csecStartCol << ":" << csecEndCol
-                      << "," << csecStartRow << ":" << csecEndRow << "]";
-                cFits.WriteKeyword(asecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
-                    const_cast<char *>("section in CCD of DSEC (unbinned)");
+                std::ostringstream csecKeyStream;
+                csecKeyStream << "CSEC" << xyName;
+                auto csecKey = csecKeyStream.str();
+                std::ostringstream csecValStream;
+                csecValStream << "[" << csecStartCol << ":" << csecEndCol
+                              << "," << csecStartRow << ":" << csecEndRow << "]";
+                auto csecVal = csecValStream.str();
+                cFits.WriteKeyword(const_cast<char *>(csecKey.c_str()), const_cast<char *>(csecVal.c_str()),
+                    arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("section in CCD of DSEC (unbinned)"));
 
                 int const dsecStartCol = 1 + _config.winStartCol + prescanWidth;
                 int const dsecStartRow = 1 + _config.winStartRow + prescanHeight;
                 int const dsecEndCol = dsecStartCol + _config.winWidth  - 1;
                 int const dsecEndRow = dsecStartRow + _config.winHeight - 1;
-                std::ostringstream dsecVal;
-                dsecVal << "[" << dsecStartCol << ":" << dsecEndCol
-                      << "," << dsecStartRow << ":" << dsecEndRow << "]";
-                std::ostringstream dsecKey;
-                dsecKey << "DSEC" << xyName;
-                cFits.WriteKeyword(dsecKey.str(), &dsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
-                    const_cast<char *>("data section (binned)");
+                std::ostringstream dsecKeyStream;
+                dsecKeyStream << "DSEC" << xyName;
+                auto dsecKey = dsecKeyStream.str();
+                std::ostringstream dsecValStream;
+                dsecValStream << "[" << dsecStartCol << ":" << dsecEndCol
+                              << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                auto dsecVal = dsecValStream.str();
+                cFits.WriteKeyword(const_cast<char *>(dsecKey.c_str()), const_cast<char *>(dsecVal.c_str()),
+                    arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("data section (binned)"));
 
                 int const biasWidth = overscanWidth - 2; // "- 2" to skip first two columns of overscan
                 int const colBiasEnd = _config.getBinnedWidth();
                 int const colBiasStart = 1 + colBiasEnd - biasWidth;
-                std::ostringstream bsecKey;
-                bsecKey << "BSEC" << xyName;
-                std::ostringstream bsecVal;
-                bsecVal << "[" << colBiasStart << ":" << colBiasEnd;
-                      << "," << dsecStartRow << ":" << dsecEndRow << "]";
-                cFits.WriteKeyword(bsecKey.str(), &bsecVal.str(), arc::fits::CArcFitsFile::FITS_STRING_KEY,
-                    const_cast<char *>("bias section (binned)");
+                std::ostringstream bsecKeyStream;
+                bsecKeyStream << "BSEC" << xyName;
+                auto bsecKey = bsecKeyStream.str();
+                std::ostringstream bsecValStream;
+                bsecValStream << "[" << colBiasStart << ":" << colBiasEnd
+                              << "," << dsecStartRow << ":" << dsecEndRow << "]";
+                auto bsecVal = bsecValStream.str();
+                cFits.WriteKeyword(const_cast<char *>(bsecKey.c_str()), const_cast<char *>(bsecVal.c_str()),
+                    arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("bias section (binned)"));
 
-                auto electronicParams = ampData.electronicParamMap.find(_config.readoutRate)->second;
-                std::ostringstream gainKey;
-                gainKey << "GTGAIN" << xyName;
-                cFits.WriteKeyword(gainKey.str(), &electronicParams.gain, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
-                    const_cast<char *>("predicted gain (e-/ADU)");
+                std::ostringstream gainKeyStream;
+                gainKeyStream << "GTGAIN" << xyName;
+                auto gainKey = gainKeyStream.str();
+                cFits.WriteKeyword(const_cast<char *>(gainKey.c_str()), &electronicParams.gain,
+                    arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("predicted gain (e-/ADU)"));
 
-                std::ostringstream readNoiseKey;
-                readNoiseKey << "GTRON" << xyName;
-                cFits.WriteKeyword(readNoiseKey.str(), &electronicParams.readNoise, arc::fits::CArcFitsFile::FITS_DOUBLE_KEY,
-                    const_cast<char *>("predicted read noise (e-)");                
+                std::ostringstream readNoiseKeyStream;
+                readNoiseKeyStream << "GTRON" << xyName;
+                auto readNoiseKey = readNoiseKeyStream.str();
+                cFits.WriteKeyword(const_cast<char *>(readNoiseKey.c_str()), &electronicParams.readNoise,
+                    arc::fits::CArcFitsFile::FITS_DOUBLE_KEY, const_cast<char *>("predicted read noise (e-)"));
             } else {
                 std::cout << "Warning: numAmps=" << _config.getNumAmps() << " != 1 or 4; cannot write DATASEC and BIASSEC" << std::endl;
             }

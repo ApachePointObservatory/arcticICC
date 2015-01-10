@@ -2,7 +2,6 @@
 
 #include <string>
 #include <map>
-#include <unordered_set>
 
 namespace arcticICC {
 
@@ -76,7 +75,7 @@ const static std::map<ReadoutRate, double> ReadoutRateFreqMap {
     // from Bob Leach's final report: read times were: 6.6, 20.0 and 41.7 seconds for full CCD in quad mode,
     // binned 2x2 and probably a total of 50 pixels X prescan + overscan and negligible Y prescan + overscan
     // (hence 4296704 = 2048 * 2098 pixels)
-    {ReadoutRate::Fast,   651015.8}
+    {ReadoutRate::Fast,   651015.8},
     {ReadoutRate::Medium, 214835.2},
     {ReadoutRate::Slow,   103038.5},
 };
@@ -120,7 +119,9 @@ public:
     /**
     Return true if camera is busy (exposing, paused or reading)
     */
-    bool isBusy() const { return (state == StateEnum::Exposing) || (state == StateEnum::Paused) || (state == StateEnum::Reading); }
+    bool isBusy() const {
+        return (state == StateEnum::Exposing) || (state == StateEnum::Paused) || (state == StateEnum::Reading);
+    }
 };
 
-} // namespace
+} // namespace arcticICC
