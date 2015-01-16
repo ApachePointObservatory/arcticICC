@@ -3,6 +3,8 @@ from __future__ import division, absolute_import
 
 import unittest
 
+from arcticICC.cmd import arcticCommandSet
+
 commandList = [
     "set bin=2 window=2,2,400,800 filter=2 temp=100",
     "set bin=4 window=2,2,400,800 filter=2 temp=100",
@@ -49,7 +51,12 @@ commandList = [
 ]
 
 class TestParser(unittest.TestCase):
-    pass
+    def testSetCmd(self):
+        cmdStr = "set bin=2,2 trash wind=1,2,3,4 amps=qua filter=1 temp=-1e10 dead"
+        parsedCommand = setCmd.parse(cmdStr)
+        x, leftoverStr = parsedCommand.parsedArgs
+        print x
+        import pdb; pdb.set_trace()
 
 if __name__ == '__main__':
     unittest.main()
