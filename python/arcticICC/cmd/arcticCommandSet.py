@@ -2,7 +2,7 @@
 """
 from __future__ import division, absolute_import
 
-from .parse import Command, CommandSet, KeywordValue, Float, String, Int, UniqueMatch
+from .parse import Command, CommandSet, KeywordValue, Float, String, Int, UniqueMatch, RestOfLineString
 
 __all__ = ["arcticCommandSet"]
 
@@ -103,6 +103,41 @@ arcticCommandSet = CommandSet(
                     helpStr="abort subcommand help"
                 ),
             ]
+        ),
+        Command(
+            commandName = "camera",
+            positionalArguments = [UniqueMatch(["status", "init"], helpStr="unique match help")],
+            helpStr = "camera help"
+        ),
+        Command(
+            commandName = "filter",
+            subCommandList = [
+                Command(
+                    commandName = "status",
+                    helpStr = "subcommand status help"
+                ),
+                Command(
+                    commandName = "init",
+                    helpStr = "subcommand init help"
+                ),
+                Command(
+                    commandName = "home",
+                    helpStr = "subcommand home help"
+                ),
+                Command(
+                    commandName = "talk",
+                    positionalArguments = [RestOfLineString(helpStr="text to send to filter")],
+                    helpStr = "subcommand talk help"
+                ),
+            ]
+        ),
+        Command(
+            commandName = "init",
+            helpStr = "init help"
+        ),
+        Command(
+            commandName = "status",
+            helpStr = "status help"
         ),
     ]
 )

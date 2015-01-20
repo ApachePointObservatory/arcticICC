@@ -11,8 +11,8 @@ from RO.StringUtil import unquoteStr
 """@todo:
 pretty printing __str__, __repr__
 help strings, self documentation
-append parent/top command info/name to individual arguments?
 support comments?
+support brackets around list?
 add qualifier indicator
 """
 class INF(int):
@@ -55,10 +55,16 @@ class PyparseItems(object):
         return pp.Word(pp.nums).setParseAction(onParse)
 
     @property
+    def restOfLine(self):
+        def onParse(token):
+            return str(token[0])
+        return pp.restOfLine.setParseAction(onParse)
+
+    @property
     def string(self):
         def onParse(token):
             return str(token[0])
-        return pp.Word(pp.alphanums).setParseAction(onParse)
+        return self.quotedStr ^ pp.Word(pp.alphanums + "/:.-").setParseAction(onParse)
 
     @property
     def quotedStr(self):
@@ -114,15 +120,6 @@ class ArgumentBase(object):
         self.helpStr = helpStr
         # verify that nElements is in a useable format
         self.lowerBound, self.upperBound = self.getBounds(nElements)
-        # begin building pyparsing representation
-
-        # self.pyparseItem = pp.Empty()
-        # if lowerBound > 0:
-        #     self.pyparseItem = self.pyparseItem + pp.And([pyparseItem]*lowerBound)
-        # if upperBound < inf and upperBound != lowerBound:
-        #     self.pyparseItem = self.pyparseItem + pp.And([pp.Optional(pyparseItem)]*(upperBound-lowerBound))
-        # elif upperBound == inf:
-        #     self.pyparseItem = self.pyparseItem + pp.ZeroOrMore(pyparseItem)
 
         self.pyparseItem = pp.delimitedList(pyparseItem)
 
@@ -164,12 +161,6 @@ class ArgumentBase(object):
                 raise CommandDefinitionError("could not cast possibleInt = %s to integer"%(possibleInt))
         return possibleInt
 
-    # def searchString(self, stringToSearch):
-    #     parseResult = self.pyparseItem.searchString(stringToSearch).asList()[0]
-    #     if not self.lowerBound <= len(parseResult)<=self.upperBound:
-    #         raise ParseError("expected between %i and %i values for %s, received: %i"%(self.lowerBound, self.upperBound, self.name, len(parseResult)))
-    #     return parseResult
-
     def scanString(self, stringToSearch):
         # scanString returns a generator, it should be of length 1, call next to get it.
         # returns a pyparsing ParseResult and beg/end positions of the match
@@ -199,6 +190,10 @@ class Int(ArgumentBase):
 class String(ArgumentBase):
     def __init__(self, nElements=1, helpStr=""):
         ArgumentBase.__init__(self, pyparseItems.string, nElements, helpStr)
+
+class RestOfLineString(ArgumentBase):
+    def __init__(self, helpStr=""):
+        ArgumentBase.__init__(self, pyparseItems.restOfLine, nElements=1, helpStr=helpStr)
 
 class Keyword(ArgumentBase):
     def __init__(self, keyword, nElements=1, helpStr=""):
@@ -251,7 +246,19 @@ class CommandSet(object):
         self.commandDict = {}
         for command in commandList:
             self.commandDict[command.commandName] = command
+        self.createHelpCmd()
         self.commandMatchList = MatchList(valueList = self.commandDict.keys())
+        # explicitly set the "help command"
+
+    def createHelpCmd(self):
+        """Create a help command add it to the command dict.
+        """
+        helpCmd = Command(
+            commandName = "help",
+            positionalArguments = [UniqueMatch(self.commandDict.keys(), nElements=(0,1))],
+            helpStr="print help for a command or the whole command set"
+        )
+        self.commandDict[helpCmd.commandName] = helpCmd
 
     def getCommand(self, cmdName):
         """! Get a command in the set from a command name. Name may be abbreviated
@@ -267,11 +274,16 @@ class CommandSet(object):
         """
         # use pyparsing instead? any advantage?
         # determine which command we are parsing
-        cmdName, cmdArgs = cmdStr.split(" ", 1)
+        try:
+            cmdName, cmdArgs = cmdStr.split(" ", 1)
+        except ValueError:
+            # split didn't work (need more than one value to unpack)
+            # means that no cmdArgs were passed!
+            cmdName = cmdStr
+            cmdArgs = ""
         cmdName = cmdName.strip()
         cmdArgs = cmdArgs.strip()
         cmdObj = self.getCommand(cmdName) # cmdName abbreviations allowed!
-        print "command Args", cmdArgs
         return cmdObj.parse(cmdArgs)
 
 class ArgumentSet(object):
@@ -287,7 +299,17 @@ class ArgumentSet(object):
         """@param[in] argString: a string containing arguments to be parsed
         order matters.  If the string isn't completely consume raise ParseError
         """
-        ppOut = self.pyparseItem.parseString(argString, parseAll=True)
+        if not argString:
+            # empty string, are there mandatory positional args?
+            if True in [arg.lowerBound>0 for arg in self.argumentList]:
+                raise ParseError("Mandatory positional arguments not found: %s"%", ".join(str(arg) for arg in self.argumentList if arg.lowerBound>0))
+            # no positional args passed, and no positinal args mandatory...
+            return []
+        try:
+            ppOut = self.pyparseItem.parseString(argString, parseAll=True).asList()
+            assert len(ppOut)==1
+        except:
+            raise ParseError("could not parse positional args: %s"%argString)
         return ppOut
 
     def __nonzero__(self):
@@ -323,7 +345,12 @@ class FloatingArgumentSet(ArgumentSet):
         """
         # figure out which keywords we got, abbreviations allowed!
         gotKeys = set()
-        abbrevKWs = pyparseItems.extractKeys.searchString(argString)[0]
+        # searchString returns ParseResult
+        try:
+            abbrevKWs = pyparseItems.extractKeys.searchString(argString)[0]
+        except IndexError:
+            # found no keywords
+            abbrevKWs = []
         for abbrevKW in abbrevKWs:
             try:
                 keyword = self.argMatchList.getUniqueMatch(abbrevKW)
@@ -361,18 +388,13 @@ class FloatingArgumentSet(ArgumentSet):
         return parsedDict, prunedString
 
 
-
-class PositionalArgumentSet(ArgumentSet):
-    """Searched.
-    """
-    pass
-
 class Command(object):
     def __init__(self,
         commandName,
         subCommandList=None,
         positionalArguments=None,
-        floatingArguments=None
+        floatingArguments=None,
+        helpStr="",
         ):
         """Command may only be a keyword with arguments or subcommands, no value.
         """
@@ -389,27 +411,28 @@ class Command(object):
         else:
             self.subCommandSet = None
         self.commandName = commandName
-        self.positionalArgumentSet = PositionalArgumentSet(positionalArguments or [])
+        self.positionalArgumentSet = ArgumentSet(positionalArguments or [])
         self.floatingArgumentSet = FloatingArgumentSet(floatingArguments or [])
+        self.helpStr=helpStr
 
     def parse(self, argString):
         """! parse a raw command string
         @param[in] argString, string to be parsed.
         """
         # first, look for subcommands.
+
         parsedCommand = ParsedCommand(self.commandName)
         if self.subCommandSet:
             # parse the remaining argument string just like a full command
             parsedCommand.setSubCommand(self.subCommandSet.parse(argString))
         else:
-            if self.floatingArgumentSet:
-                # look for unordered arguments of type keyword=value in order
-                # overwrite argString (remove the key=values after they have been parsed)
-                parsedFloatingArgs, argString = self.floatingArgumentSet.parse(argString)
-                parsedCommand.setParsedFloatingArgs(parsedFloatingArgs)
-            if self.positionalArgumentSet:
-                parsedCommand.setParsedPositionalArgs(self.positionalArgumentSet.parse(argString))
-
+            # look for floating arguments of type keyword=value in order
+            # overwrite argString (remove the key=values after they have been parsed)
+            # note if no floating arguments are found, the argString is unmodified
+            parsedFloatingArgs, argString = self.floatingArgumentSet.parse(argString)
+            parsedCommand.setParsedFloatingArgs(parsedFloatingArgs)
+            # then parse positional arguments
+            parsedCommand.setParsedPositionalArgs(self.positionalArgumentSet.parse(argString))
         return parsedCommand
 
 
@@ -418,6 +441,8 @@ class ParsedCommand(object):
     def __init__(self, cmdName):
         self.cmdName = cmdName
         self.subCommand = None
+        self.parsedPositionalArgs = None
+        self.parsedFloatingArgs = None
 
     def setSubCommand(self, parsedCmd):
         self.subCommand = parsedCmd
@@ -427,9 +452,6 @@ class ParsedCommand(object):
 
     def setParsedPositionalArgs(self, parsedPositionalArgs):
         self.parsedPositionalArgs = parsedPositionalArgs
-
-class ParsedArgument(object):
-    pass
 
 
 
