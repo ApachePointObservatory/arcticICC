@@ -220,7 +220,7 @@ class CameraWdg(Tkinter.Frame):
             self.winWidthWdg.setDefault(camConfig.winWidth)
             self.winHeightWdg.setDefault(camConfig.winHeight)
         finally:
-            self.statusTimer.start(0.1, self.getStatus)
+            self.statusTimer.start(0., self.getStatus)
 
     def doExpose(self):
         expTime = self.expTimeWdg.getNum()

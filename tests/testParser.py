@@ -22,7 +22,7 @@ commandList = [
     "expose object time=100 basename=test",
     "expose object time=100 basename=test/path",
     "expose object time=100 basename='test'",
-    "expose object time=100 basename='test/path'",
+    "Expose object time=100 basename='test/path'",
     "expose object time=100 basename=test comment=atest",
     "expose object time=100 basename=test comment='a comment with a test'",
     "expose object time=100 basename=test comment=\"a comment with a test\"",
