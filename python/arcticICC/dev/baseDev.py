@@ -79,22 +79,26 @@ class BaseDevice(TCPDevice):
         """
         raise NotImplementedError
 
-    def init(self, userCmd=None):
+    def init(self, userCmd=None, timeLim=None, getStatus=None):
         """!Initialize the shutter
         @param[in] userCmd  a twistedActor.BaseCommand
+        @param[in] timeLim  time limit for the init
+        @param[in] getStatus required argument for init
         """
         userCmd = expandUserCmd(userCmd)
         if not hasattr(userCmd, "cmdVerb"):
             userCmd.cmdVerb = "init"
-        self.queueDevCmd(userCmd, "init")
+        if timeLim is not None:
+            userCmd.setTimeLimit(timeLim)
+        self.queueDevCmd("init", userCmd)
         return userCmd
 
-    def status(self, userCmd=None):
+    def getStatus(self, userCmd=None):
         """!Query the device for status
         @param[in] userCmd  a twistedActor.BaseCommand
         """
         userCmd = expandUserCmd(userCmd)
-        self.queueDevCmd(userCmd, "status")
+        self.queueDevCmd("status", userCmd)
         return userCmd
 
     def handleReply(self, replyStr):
@@ -139,7 +143,7 @@ class BaseDevice(TCPDevice):
         """
         raise NotImplementedError
 
-    def queueDevCmd(self, userCmd, devCmdStr):
+    def queueDevCmd(self, devCmdStr, userCmd):
         def queueFunc(userCmd):
             self.startDevCmd(devCmdStr)
         self.cmdQueue.addCmd(userCmd, queueFunc)

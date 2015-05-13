@@ -68,7 +68,6 @@ class ShutterDevice(BaseDevice):
             host = host,
             port = port,
             callFunc = callFunc,
-            cmdInfo = (),
         )
 
     def setupCmdQueue(self):
@@ -136,10 +135,10 @@ class ShutterDevice(BaseDevice):
 
     def parseStatusLine(self, statusLine):
         for keyVal in statusLine.split():
-            if keyVal.startsWith("open="):
+            if keyVal.startswith("open="):
                 self.status.isOpen = keyVal.split("open=")[-1] == "True"
             else:
-                assert keyVal.startsWith("expTime=")
+                assert keyVal.startswith("expTime=")
                 self.status.lastExpTime = float(keyVal.split("expTime=")[-1])
 
 

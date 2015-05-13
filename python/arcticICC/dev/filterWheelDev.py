@@ -29,17 +29,16 @@ class FilterWheelDevice(BaseDevice):
             host = host,
             port = port,
             callFunc = callFunc,
-            cmdInfo = (),
         )
 
-        def setupCmdQueue(self):
-            cmdQueue = CommandQueue(
-                priorityDict = {
-                    "init" : CommandQueue.Immediate,
-                    # all other commands have an equal (default) priority
-                }
-            )
-            return cmdQueue
+    def setupCmdQueue(self):
+        cmdQueue = CommandQueue(
+            priorityDict = {
+                "init" : CommandQueue.Immediate,
+                # all other commands have an equal (default) priority
+            }
+        )
+        return cmdQueue
 
     def move(self, position, userCmd=None):
         """!Move the filter wheel to the wanted position
@@ -48,13 +47,13 @@ class FilterWheelDevice(BaseDevice):
         @param[in] userCmd  a twistedActor.BaseCommand
         """
         userCmd = expandUserCmd(userCmd)
-        self.queueDevCmd(userCmd, "move %i"%position)
+        self.queueDevCmd("move %i"%position, userCmd)
         return userCmd
 
     def parseStatusLine(self, statusLine):
         for keyVal in statusLine.split():
-            if keyVal.startsWith("moving="):
+            if keyVal.startswith("moving="):
                 self.status.isMoving = keyVal.split("moving=")[-1] == "True"
             else:
-                assert keyVal.startsWith("position=")
+                assert keyVal.startswith("position=")
                 self.status.position = int(keyVal.split("position=")[-1])
