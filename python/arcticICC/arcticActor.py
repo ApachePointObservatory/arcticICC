@@ -17,7 +17,8 @@ from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
 from .cmd import arcticCommandSet
 from .version import __version__
 
-import arcticICC.fakeCamera as arctic
+# import arcticICC.fakeCamera as arctic
+import arcticICC.camera as arctic
 from arcticICC.cmd.parse import ParseError
 
 ExpTypeDict = collections.OrderedDict((
@@ -79,6 +80,7 @@ class ArcticActor(Actor):
         self.exposeCmd = UserCmd()
         self.exposeCmd.setState(UserCmd.Done)
         self.pollTimer = Timer()
+        self.expName = None
         Actor.__init__(self,
             userPort = userPort,
             maxUsers = 1,
@@ -134,7 +136,6 @@ class ArcticActor(Actor):
         arg = userCmd.parsedCommand.parsedPositionalArgs[0]
         if arg == "status":
             self.getStatus(userCmd=userCmd, doCamera=True, doFilter=False, doShutter=False)
-            userCmd.setState(userCmd.Done)
         else:
             # how to init the camera, just rebuild it?
             assert arg == "init"
@@ -210,6 +211,7 @@ class ArcticActor(Actor):
         expName = os.path.abspath("%s_%d.fits" % (expType, self.expNum))
         print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
+        self.expName = expName
         self.camera.startExposure(expTime, expTypeEnum, expName)
         self.expNum += 1
         self.pollCamera()
@@ -223,17 +225,18 @@ class ArcticActor(Actor):
         # self.writeToUsers("i", statusStr, self.exposeCmd)
         # log.info(statusStr)
         if expState.state == arctic.ImageRead:
-            print("saving image: exposure %s"%self.camera._expName)
-            log.info("saving image: exposure %s"%self.camera._expName)
+            print("saving image: exposure %s"%self.expName)
+            log.info("saving image: exposure %s"%self.expName)
             self.camera.saveImage() # saveImage sets camera exp state to idle
         if expState.state != arctic.Idle:
             # if the camera is not idle continue polling
             self.pollTimer.start(0., self.pollCamera)
         else:
             # camera is idle, clean up
-            print("exposure %s complete"%self.camera._expName)
-            log.info("exposure %s complete"%self.camera._expName)
+            print("exposure %s complete"%self.expName)
+            log.info("exposure %s complete"%self.expName)
             self.exposeCmd.setState(self.exposeCmd.Done)
+            self.expName = None
 
     def cmd_set(self, userCmd):
         """! Implement the set command
@@ -299,7 +302,7 @@ class ArcticActor(Actor):
         config = self.camera.getConfig()
         keyVals = []
         # camera state
-        keyVals.append("state=%s"%self.camera.state)
+        keyVals.append("busy=%s"%self.camera.isBusy())
         # bin
         keyVals.append("bin=[%i,%i]"%(config.binFacCol, config.binFacRow))
         # window

@@ -13,7 +13,7 @@ import RO.Comm.Generic
 RO.Comm.Generic.setFramework("twisted")
 
 from arcticICC import ArcticActorWrapper
-from arcticICC import fakeCamera
+from arcticICC import camera
 # from arcticICC.cmd import ParseError
 
 # class CmdCallback(object):
@@ -80,11 +80,11 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.binFacRow==2)
             self.assertTrue(config.winStartCol == 0)
             self.assertTrue(config.winStartRow == 0)
-            self.assertTrue(config.winWidth == config.computeBinnedWidth(fakeCamera.CCDWidth))
-            self.assertTrue(config.winHeight == config.computeBinnedHeight(fakeCamera.CCDHeight))
+            self.assertTrue(config.winWidth == config.computeBinnedWidth(camera.CCDWidth))
+            self.assertTrue(config.winHeight == config.computeBinnedHeight(camera.CCDHeight))
             self.assertTrue(config.isFullWindow())
-            self.assertTrue(config.readoutRate == fakeCamera.Slow)
-            self.assertTrue(config.readoutAmps == fakeCamera.LL)
+            self.assertTrue(config.readoutRate == camera.Slow)
+            self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.status.position == 0)
         d.addCallback(checkSet)
@@ -105,8 +105,8 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.winStartRow == 40)
             self.assertTrue(config.winWidth == 60)
             self.assertTrue(config.winHeight == 70)
-            self.assertTrue(config.readoutRate == fakeCamera.Medium)
-            self.assertTrue(config.readoutAmps == fakeCamera.LL)
+            self.assertTrue(config.readoutRate == camera.Medium)
+            self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.status.position == 1)
         d.addCallback(checkSet)
@@ -122,8 +122,8 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.winStartRow == 20)
             self.assertTrue(config.winWidth == 70)
             self.assertTrue(config.winHeight == 90)
-            self.assertTrue(config.readoutRate == fakeCamera.Fast)
-            self.assertTrue(config.readoutAmps == fakeCamera.LL)
+            self.assertTrue(config.readoutRate == camera.Fast)
+            self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 40.6)
             self.assertTrue(self.arcticActor.filterWheelDev.status.position == 2)
         d.addCallback(checkSet)
@@ -139,8 +139,8 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.winStartRow == 40)
             self.assertTrue(config.winWidth == 60)
             self.assertTrue(config.winHeight == 70)
-            self.assertTrue(config.readoutRate == fakeCamera.Slow)
-            self.assertTrue(config.readoutAmps == fakeCamera.LL)
+            self.assertTrue(config.readoutRate == camera.Slow)
+            self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.status.position == 0)
         d.addCallback(checkSet)
@@ -154,10 +154,10 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.binFacRow==4)
             self.assertTrue(config.winStartCol == 0)
             self.assertTrue(config.winStartRow == 0)
-            self.assertTrue(config.winWidth == config.computeBinnedWidth(fakeCamera.CCDWidth))
-            self.assertTrue(config.winHeight == config.computeBinnedHeight(fakeCamera.CCDHeight))
-            self.assertTrue(config.readoutRate == fakeCamera.Slow)
-            self.assertTrue(config.readoutAmps == fakeCamera.Quad)
+            self.assertTrue(config.winWidth == config.computeBinnedWidth(camera.CCDWidth))
+            self.assertTrue(config.winHeight == config.computeBinnedHeight(camera.CCDHeight))
+            self.assertTrue(config.readoutRate == camera.Slow)
+            self.assertTrue(config.readoutAmps == camera.Quad)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.status.position == 0)
         d.addCallback(checkSet)
@@ -179,21 +179,21 @@ class TestArcticICC(TestCase):
         d = self.commandActor(cmdStr="filter talk blah blue2 g\2")
         return d
 
-    def testExpose0(self):
-        d = self.commandActor(cmdStr="expose bias")
-        return d
+    # def testExpose0(self):
+    #     d = self.commandActor(cmdStr="expose bias")
+    #     return d
 
-    def testExpose1(self):
-        d = self.commandActor(cmdStr="expose object time=5")
-        return d
+    # def testExpose1(self):
+    #     d = self.commandActor(cmdStr="expose object time=5")
+    #     return d
 
-    def testExpose2(self):
-        d = self.commandActor(cmdStr="expose flat time=1")
-        return d
+    # def testExpose2(self):
+    #     d = self.commandActor(cmdStr="expose flat time=1")
+    #     return d
 
-    def testExpose3(self):
-        d = self.commandActor(cmdStr="expose dark time=1")
-        return d
+    # def testExpose3(self):
+    #     d = self.commandActor(cmdStr="expose dark time=1")
+    #     return d
 
 
 if __name__ == '__main__':
