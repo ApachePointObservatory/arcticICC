@@ -72,6 +72,8 @@ class FakeFilterWheel(FakeDev):
     def parseCmdStr(self, cmdStr):
         if "status" in cmdStr.lower():
             self.sendStatusAndOK()
+        elif "home" in cmdStr.lower():
+            self.replyTimer.start(replyTimeDelay, self.sendOK)
         elif "move" in cmdStr.lower():
             # get the new position
             newPos = int(cmdStr.split()[-1])
@@ -91,7 +93,7 @@ class FakeFilterWheel(FakeDev):
 
     def moveDone(self):
         self.isMoving = False
-        self.sendOK()
+        self.sendStatusAndOK()
 
     def stateCallback(self, server=None):
         if self.isReady:

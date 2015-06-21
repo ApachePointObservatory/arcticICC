@@ -51,6 +51,11 @@ arcticCommandSet = CommandSet(
                     helpStr="amps help"
                     ),
                 KeywordValue(
+                    keyword="readoutRate",
+                    value=UniqueMatch(["slow", "medium", "fast"], helpStr="unique match"),
+                    helpStr="readoutRate help"
+                    ),
+                KeywordValue(
                     keyword="filter",
                     value=String(helpStr="a name or number"),
                     helpStr="filter help"

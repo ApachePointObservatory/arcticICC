@@ -11,6 +11,9 @@ class FilterWheelStatus(object):
         self.isMoving = False
         self.position = None
 
+    def getStatusStr(self):
+        return ""
+
 class FilterWheelDevice(BaseDevice):
     def __init__(self, name, host, port, callFunc=None):
         """!Construct an FilterWheelDevice
@@ -50,10 +53,32 @@ class FilterWheelDevice(BaseDevice):
         self.queueDevCmd("move %i"%position, userCmd)
         return userCmd
 
+    def home(self, userCmd=None):
+        """!Home the filter wheel
+
+        @param[in] userCmd  a twistedActor.BaseCommand
+        """
+        userCmd = expandUserCmd(userCmd)
+        self.queueDevCmd("home", userCmd)
+        return userCmd
+
+    def talk(self, text, userCmd=None):
+        """!Home the filter wheel
+
+        @param[in] text a string to send to the device
+        @param[in] userCmd  a twistedActor.BaseCommand
+        """
+        userCmd = expandUserCmd(userCmd)
+        self.queueDevCmd(text, userCmd)
+        userCmd.setState(userCmd.Done)
+        return userCmd
+
     def parseStatusLine(self, statusLine):
+        # print("%s parseStatusLine(%s)"%(self, statusLine))
         for keyVal in statusLine.split():
             if keyVal.startswith("moving="):
                 self.status.isMoving = keyVal.split("moving=")[-1] == "True"
             else:
                 assert keyVal.startswith("position=")
                 self.status.position = int(keyVal.split("position=")[-1])
+                # print("%s set postion to %i"%(self, int(keyVal.split("position=")[-1])))

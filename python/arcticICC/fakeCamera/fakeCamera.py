@@ -11,11 +11,17 @@ Flat = "Flat"
 Object = "Object"
 
 # image states
-Idle = "Idle"
-Exposing = "Exposing"
-Paused = "Paused"
-Reading = "Reading"
-ImageRead = "ImageRead"
+# Idle = "Idle"
+# Exposing = "Exposing"
+# Paused = "Paused"
+# Reading = "Reading"
+# ImageRead = "ImageRead"
+
+Idle = 0
+Exposing = 1
+Paused = 2
+Reading = 3
+ImageRead = 4
 
 # read rates
 Slow = "Slow"
@@ -37,6 +43,14 @@ XOverscan = 102
 MaxBinFactor = 4
 XBinnedPrescanPerAmp = 2
 YQuadBorder = 2
+
+StateEnum = {
+    "Idle" : 0,
+    "Exposing" : 1,
+    "Paused" : 2,
+    "Reading" : 3,
+    "ImageRead" : 4,
+}
 
 class CameraConfig(object):
 
@@ -149,6 +163,15 @@ class Exposure(object):
         self.expType = expType
         self.name = name
 
+class ExposureState(object):
+    def __init__(self, state, fullTime, remTime):
+        self.state = state
+        self.fullTime = fullTime
+        self.remTime = remTime
+
+    def isBusy(self):
+        return self.state in [Exposing, Paused, Reading]
+
 class Camera(object):
 
     def __init__(self):
@@ -161,6 +184,7 @@ class Camera(object):
         self.expBegin = None
         self.expAccumulated = None
         self.setConfig(CameraConfig())
+        self._expName = ""
 
     def isBusy(self):
         return self.state != Idle
@@ -170,6 +194,7 @@ class Camera(object):
         assert not self.isBusy()
         self.currExposure = Exposure(expTime, expType, name)
         self.expAccumulated = 0
+        self._expName = name
         self._startOrResumeExposure(expTime)
 
     def pauseExposure(self):
@@ -194,7 +219,9 @@ class Camera(object):
         self._setState(ImageRead)
 
     def getExposureState(self):
-        return self.state
+        expTime = self.currExposure.expTime
+        timeRemaining = expTime - (time.time() - self.expBegin)
+        return ExposureState(self.state, expTime, timeRemaining)
 
     def getConfig(self):
         return self._config
@@ -250,10 +277,14 @@ class Camera(object):
 
         self._config = config;
 
-    def saveImage(self, expTime):
+    def saveImage(self, expTime=-1):
         # save an empty file
-        fileName = "%s_%s_%s.fakeImage"%(self.currExposure.expType, self.currExposure.expTime, self.currExposure.name)
-        open(fileName, "w").close()
+        # fileName = "%s_%s_%s.fakeImage"%(self.currExposure.expType, self.currExposure.expTime, self.currExposure.name)
+        # print "exptype", self.currExposure.expType
+        # print "expTime", self.currExposure.expTime
+        # print "expName", self.currExposure.name
+        open(self.currExposure.name, "w").close()
+        self.state = Idle
 
     def openShutter(self):
         pass
@@ -267,8 +298,8 @@ class Camera(object):
 
     def _startOrResumeExposure(self, expTime):
         self._setState(Exposing)
-        self.expTimer(expTime, self._setState, Reading)
-        self.readTimer(expTime+readTime, self._setState, ImageRead)
+        self.expTimer.start(expTime, self._setState, Reading)
+        self.readTimer.start(expTime+readTime, self._setState, ImageRead)
         self.expBegin = time.time()
 
     def _cancelTimers(self):

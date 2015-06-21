@@ -107,7 +107,7 @@ class PyparseItems(object):
 
 
     def list(self, ppVal):
-        return pp.delimitedList(ppVal)
+        return pp.Suppress(pp.Optional(pp.Literal("(")^pp.Literal("["))) + pp.delimitedList(ppVal) + pp.Suppress(pp.Optional(pp.Literal("]")^pp.Literal(")")))
 
 pyparseItems = PyparseItems()
 
@@ -120,8 +120,11 @@ class ArgumentBase(object):
         self.helpStr = helpStr
         # verify that nElements is in a useable format
         self.lowerBound, self.upperBound = self.getBounds(nElements)
+        self.pyparseItem = pp.delimitedList(pyparseItem) + pp.Optional(pp.Suppress(pp.Literal("]")))
+        # allow brackets or parentheses if this is a list
+        if self.upperBound > 1:
+            self.pyparseItem = pp.Suppress(pp.Optional(pp.Literal("(")^pp.Literal("["))) + self.pyparseItem + pp.Suppress(pp.Optional(pp.Literal("]")^pp.Literal(")")))
 
-        self.pyparseItem = pp.delimitedList(pyparseItem)
 
     def getBounds(self, nElements):
         if isSequence(nElements):

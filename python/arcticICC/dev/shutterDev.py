@@ -50,6 +50,10 @@ class ShutterStatus(object):
         self.lastExpTime = -1
         self.lastDesExpTime = -1
 
+    def getStatusStr(self):
+        return ""
+
+
 class ShutterDevice(BaseDevice):
     def __init__(self, name, host, port, callFunc=None):
         """!Construct an ShutterDevice

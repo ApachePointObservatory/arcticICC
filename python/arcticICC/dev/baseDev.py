@@ -93,12 +93,19 @@ class BaseDevice(TCPDevice):
         self.queueDevCmd("init", userCmd)
         return userCmd
 
+    def _statusCallback(self, cmd):
+        """! When status command is complete, send info to users
+        """
+        if cmd.isDone:
+            self.writeToUsers("i", self.status.getStatusStr(), cmd)
+
     def getStatus(self, userCmd=None):
         """!Query the device for status
         @param[in] userCmd  a twistedActor.BaseCommand
         """
         userCmd = expandUserCmd(userCmd)
         self.queueDevCmd("status", userCmd)
+        userCmd.addCallback(self._statusCallback)
         return userCmd
 
     def handleReply(self, replyStr):
@@ -114,6 +121,7 @@ class BaseDevice(TCPDevice):
         - If a command has finished, call the appropriate command callback
         """
         log.info("%s read %r, currExeCmd: %r" % (self, replyStr, self.currExeCmd))
+        # print("%s read %r, currExeCmd: %r, currDevCmdStr: %s" % (self, replyStr, self.currExeCmd, self.currDevCmdStr))
         if self.currExeCmd.isDone:
             log.info("Ignoring unsolicited output from Galil: %s " % replyStr)
             return
