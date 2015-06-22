@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import division, absolute_import
+import os
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import Deferred
@@ -13,7 +14,8 @@ import RO.Comm.Generic
 RO.Comm.Generic.setFramework("twisted")
 
 from arcticICC import ArcticActorWrapper
-from arcticICC import camera
+# from arcticICC import camera
+from arcticICC import fakeCamera as camera
 # from arcticICC.cmd import ParseError
 
 # class CmdCallback(object):
@@ -38,7 +40,12 @@ class TestArcticICC(TestCase):
         self.aw = ArcticActorWrapper(
             name="arcticActorWrapper",
         )
-        return self.aw.readyDeferred
+        def setTestImageDir(cb):
+            self.arcticActor.imageDir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/images")
+        d = self.aw.readyDeferred
+        d.addCallback(setTestImageDir)
+        # change the image directory to
+        return d
 
     @property
     def arcticActor(self):
@@ -191,9 +198,13 @@ class TestArcticICC(TestCase):
     #     d = self.commandActor(cmdStr="expose flat time=1")
     #     return d
 
-    # def testExpose3(self):
-    #     d = self.commandActor(cmdStr="expose dark time=1")
-    #     return d
+    def testExpose3(self):
+        d = self.commandActor(cmdStr="expose dark time=1")
+        return d
+
+    def testExpose4(self):
+        d = self.commandActor(cmdStr="expose dark time=1 basename=test comment='a comment'")
+        return d
 
 
 if __name__ == '__main__':

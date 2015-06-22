@@ -17,9 +17,11 @@ from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
 from .cmd import arcticCommandSet
 from .version import __version__
 
-# import arcticICC.fakeCamera as arctic
-import arcticICC.camera as arctic
+import arcticICC.fakeCamera as arctic
+# import arcticICC.camera as arctic
 from arcticICC.cmd.parse import ParseError
+
+ImageDir = os.path.join(os.getenv("HOME"), "images")
 
 ExpTypeDict = collections.OrderedDict((
     ("bias", arctic.Bias),
@@ -71,6 +73,7 @@ class ArcticActor(Actor):
         @param[in] shutterDev  a ShutterDevice instance
         @param[in] name  actor name; used for logging
         """
+        self.imageDir = ImageDir
         self.camera = camera
         # self.cameraStatus = CameraStatus(camera)
         self.filterWheelDev = filterWheelDev
@@ -81,6 +84,7 @@ class ArcticActor(Actor):
         self.exposeCmd.setState(UserCmd.Done)
         self.pollTimer = Timer()
         self.expName = None
+        self.comment = None
         Actor.__init__(self,
             userPort = userPort,
             maxUsers = 1,
@@ -175,11 +179,13 @@ class ArcticActor(Actor):
         subCmd = userCmd.parsedCommand.subCommand
         if subCmd.cmdName not in ["pause", "resume", "stop", "abort"]:
             # no current exposure, start one
+            basename = subCmd.parsedFloatingArgs.get("basename", [None])[0]
+            comment = subCmd.parsedFloatingArgs.get("comment", [None])[0]
             if subCmd.cmdName == "bias":
                 expTime = 0
             else:
                 expTime = subCmd.parsedFloatingArgs["time"][0]
-            self.doExpose(userCmd, expType=subCmd.cmdName, expTime=expTime)
+            self.doExpose(userCmd, expType=subCmd.cmdName, expTime=expTime, basename=basename, comment=comment)
             return True
         # there is a current exposure
         if subCmd.cmdName == "pause":
@@ -194,10 +200,12 @@ class ArcticActor(Actor):
         userCmd.setState(userCmd.Done)
         return True
 
-    def doExpose(self, userCmd, expType, expTime):
+    def doExpose(self, userCmd, expType, expTime, basename=None, comment=None):
         """!Begin a camera exposure
 
+        @param[in] userCmd: a twistedActor UserCmd instance
         @param[in] expType: string, one of object, flat, dark, bias
+        @param[in] expTime: float, exposure time.
         """
         # exceptions thrown from c++ code
         # expState = self.camera.getExposureState()
@@ -209,9 +217,16 @@ class ArcticActor(Actor):
         self.exposeCmd = userCmd
         expTypeEnum = ExpTypeDict.get(expType)
         expName = os.path.abspath("%s_%d.fits" % (expType, self.expNum))
+        expName = "%s_%d.fits" % (expType, self.expNum)
+        if basename:
+            expName = basename + "_" + expName
+        if not os.path.exists(self.imageDir):
+            os.makedirs(self.imageDir)
+        expName = os.path.join(self.imageDir, expName)
         print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
+        self.comment = comment
         self.camera.startExposure(expTime, expTypeEnum, expName)
         self.expNum += 1
         self.pollCamera()
@@ -235,8 +250,16 @@ class ArcticActor(Actor):
             # camera is idle, clean up
             print("exposure %s complete"%self.expName)
             log.info("exposure %s complete"%self.expName)
+            # was a comment associated with this exposure
+            if self.comment:
+                print("adding comment %s to exposure %s"%(self.comment, self.expName))
+                self.writeComment()
             self.exposeCmd.setState(self.exposeCmd.Done)
             self.expName = None
+            self.comment = None
+
+    def writeComment(self):
+        pass
 
     def cmd_set(self, userCmd):
         """! Implement the set command
@@ -308,6 +331,8 @@ class ArcticActor(Actor):
         # window
         keyVals.append("window=[%i,%i,%i,%i]"%(config.winStartCol, config.winStartRow, config.winWidth, config.winHeight))
         # temerature stuff, where to get it?
+        keyVals.append("readoutAmps=%s"%ReadoutAmpsEnumNameDict[config.readoutAmps])
+        keyVals.appen("readoutRate=%s"%ReadoutRateEnumNameDict[config.readoutRate])
         keyVals.append("temp=?")
         if self.tempSetpoint is None:
             ts = "None"
