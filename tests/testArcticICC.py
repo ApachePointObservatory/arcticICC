@@ -198,13 +198,13 @@ class TestArcticICC(TestCase):
     #     d = self.commandActor(cmdStr="expose flat time=1")
     #     return d
 
-    def testExpose3(self):
-        d = self.commandActor(cmdStr="expose dark time=1")
-        return d
+    # def testExpose3(self):
+    #     d = self.commandActor(cmdStr="expose dark time=1")
+    #     return d
 
-    def testExpose4(self):
-        d = self.commandActor(cmdStr="expose dark time=1 basename=test comment='a comment'")
-        return d
+    # def testExpose4(self):
+    #     d = self.commandActor(cmdStr="expose dark time=1 basename=test comment='a comment'")
+    #     return d
 
 
 if __name__ == '__main__':
