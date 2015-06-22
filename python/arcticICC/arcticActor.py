@@ -332,7 +332,7 @@ class ArcticActor(Actor):
         keyVals.append("window=[%i,%i,%i,%i]"%(config.winStartCol, config.winStartRow, config.winWidth, config.winHeight))
         # temerature stuff, where to get it?
         keyVals.append("readoutAmps=%s"%ReadoutAmpsEnumNameDict[config.readoutAmps])
-        keyVals.appen("readoutRate=%s"%ReadoutRateEnumNameDict[config.readoutRate])
+        keyVals.append("readoutRate=%s"%ReadoutRateEnumNameDict[config.readoutRate])
         keyVals.append("temp=?")
         if self.tempSetpoint is None:
             ts = "None"
