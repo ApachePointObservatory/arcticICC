@@ -14,8 +14,8 @@ import RO.Comm.Generic
 RO.Comm.Generic.setFramework("twisted")
 
 from arcticICC import ArcticActorWrapper
-# from arcticICC import camera
-from arcticICC import fakeCamera as camera
+from arcticICC import camera
+# from arcticICC import fakeCamera as camera
 # from arcticICC.cmd import ParseError
 
 # class CmdCallback(object):
