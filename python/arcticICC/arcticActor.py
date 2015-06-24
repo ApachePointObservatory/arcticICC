@@ -146,6 +146,7 @@ class ArcticActor(Actor):
         else:
             # how to init the camera, just rebuild it?
             assert arg == "init"
+            self.camera = None
             self.camera = arctic.Camera()
             userCmd.setState(userCmd.Done)
         return True
