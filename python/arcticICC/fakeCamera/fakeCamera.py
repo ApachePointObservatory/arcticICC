@@ -1,6 +1,8 @@
 from __future__ import division, absolute_import
 
 import time
+from astropy.io import fits
+import numpy
 
 from RO.Comm.TwistedTimer import Timer
 
@@ -229,52 +231,6 @@ class Camera(object):
     def setConfig(self, config):
         config.assertValid()
         self._assertIdle()
-
-        # runCommand("set col bin factor",  TIM_ID, WRM, ( Y_MEM | 0x5 ), config.binFacCol);
-
-        # runCommand("set row bin factor",  TIM_ID, WRM, ( Y_MEM | 0x6 ), config.binFacRow);
-
-        # if (config.isFullWindow()) {
-        #     runCommand("set full window", TIM_ID, SSS, 0, 0, 0);
-        # } else {
-        #     # set subarray size; warning: this only works when reading from one amplifier
-        #     # arguments are:
-        #     # - arg1 is the bias region width (in pixels)
-        #     # - arg2 is the subarray width (in pixels)
-        #     # - arg3 is the subarray height (in pixels)
-        #     int const xExtraPix = config.getBinnedWidth() - config.winWidth;
-        #     runCommand("set window size", TIM_ID, SSS, xExtraPix, config.winWidth, config.winHeight);
-
-        #     # set subarray starting-point; warning: this only works when reading from one amplifier
-        #     # SSP arguments are as follows (indexed from 0,0, unbinned pixels)
-        #     # - arg1 is the subarray Y position. This is the number of rows (in pixels) to the lower left corner of the desired subarray region.
-        #     # - arg2 is the subarray X position. This is the number of columns (in pixels) to the lower left corner of the desired subarray region.
-        #     # - arg3 is the bias region offset. This is the number of columns (in pixels) to the left edge of the desired bias region.
-        #     int const windowEndCol = config.winStartCol + config.winWidth;
-        #     int const afterDataGap = 5 + config.computeBinnedWidth(CCDWidth) - windowEndCol; # 5 skips some odd gunk
-        #     runCommand("set window position", TIM_ID, SSP, config.winStartRow, config.winStartCol, afterDataGap);
-        # }
-
-        # int readoutAmpsCmdValue = ReadoutAmpsCmdValueMap.find(config.readoutAmps)->second;
-        # runCommand("set readoutAmps", TIM_ID, SOS, readoutAmpsCmdValue, DON);
-
-        # int readoutRateCmdValue = ReadoutRateCmdValueMap.find(config.readoutRate)->second;
-        # runCommand("set readout rate", TIM_ID, SPS, readoutRateCmdValue, DON);
-
-        # if (config.readoutAmps == ReadoutAmps::Quad) {
-        #     int xSkip = ColBinXSkipMap_Quad.find(config.binFacCol)->second;
-        #     int ySkip = config.binFacRow == 3 ? 1 : 0;
-        #     runCommand("set xy skip for all amps", TIM_ID, SXY, xSkip, ySkip);
-        # } else {
-        #     int xSkip = ColBinXSkipMap_One.find(config.binFacCol)->second;
-        #     xSkip = std::max(0, xSkip - config.winStartCol);
-        #     runCommand("set xy skip for one amp", TIM_ID, SXY, xSkip, 0);
-        # }
-
-        # runCommand("set image width", TIM_ID, WRM, (Y_MEM | 1), config.getBinnedWidth());
-
-        # runCommand("set image height", TIM_ID, WRM, (Y_MEM | 2), config.getBinnedHeight());
-
         self._config = config;
 
     def saveImage(self, expTime=-1):
@@ -283,7 +239,12 @@ class Camera(object):
         # print "exptype", self.currExposure.expType
         # print "expTime", self.currExposure.expTime
         # print "expName", self.currExposure.name
-        open(self.currExposure.name, "w").close()
+        n = numpy.arange(100.0) # a simple sequence of floats from 0.0 to 99.9
+        hdu = fits.PrimaryHDU(n)
+        hdulist = fits.HDUList([hdu])
+        hdulist[0].header["comment"] = "This is a fake image, used for testing."
+        hdulist.writeto(self.currExposure.name)
+        # open(self.currExposure.name, "w").close()
         self.state = Idle
 
     def openShutter(self):

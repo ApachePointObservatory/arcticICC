@@ -8,6 +8,8 @@ import os
 import syslog
 import collections
 
+from astropy.io import fits
+
 from RO.Comm.TwistedTimer import Timer
 
 from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
@@ -17,8 +19,8 @@ from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
 from .cmd import arcticCommandSet
 from .version import __version__
 
-# import arcticICC.fakeCamera as arctic
-import arcticICC.camera as arctic
+import arcticICC.fakeCamera as arctic
+# import arcticICC.camera as arctic
 from arcticICC.cmd.parse import ParseError
 
 ImageDir = os.path.join(os.getenv("HOME"), "images")
@@ -60,7 +62,6 @@ class ArcticActor(Actor):
     # UserPort = 2200
     DefaultTimeLim = 5 # default time limit, in seconds
     def __init__(self,
-        camera,
         filterWheelDev,
         shutterDev,
         name="arcticICC",
@@ -74,8 +75,7 @@ class ArcticActor(Actor):
         @param[in] name  actor name; used for logging
         """
         self.imageDir = ImageDir
-        self.camera = camera
-        # self.cameraStatus = CameraStatus(camera)
+        self.camera = arctic.Camera()
         self.filterWheelDev = filterWheelDev
         self.shutterDev = shutterDev
         self._tempSetpoint = None
@@ -113,7 +113,10 @@ class ArcticActor(Actor):
         """
         userCmd = expandUserCmd(userCmd)
         log.info("%s.init(userCmd=%s, timeLim=%s, getStatus=%s)" % (self, userCmd, timeLim, getStatus))
+        # initialize camera
+        self.camera = arctic.Camera()
         subCmdList = []
+        # initialize devices
         for dev in [self.filterWheelDev, self.shutterDev]:
             subCmdList.append(dev.init())
         if getStatus:
@@ -143,9 +146,9 @@ class ArcticActor(Actor):
         else:
             # how to init the camera, just rebuild it?
             assert arg == "init"
-            self.writeToUsers("w", "camera init not yet implemented", cmd=userCmd)
-            userCmd.setState(userCmd.Failed)
-        # return True
+            self.camera = arctic.Camera()
+            userCmd.setState(userCmd.Done)
+        return True
 
     def cmd_filter(self, userCmd):
         """! Implement the filter command
@@ -259,7 +262,11 @@ class ArcticActor(Actor):
             self.comment = None
 
     def writeComment(self):
-        pass
+        # http://astropy.readthedocs.org/en/latest/io/fits/
+        hdulist = fits.open(self.expName, mode='update')
+        prihdr = hdulist[0].header
+        prihdr['comment'] = self.comment
+        hdulist.close()
 
     def cmd_set(self, userCmd):
         """! Implement the set command

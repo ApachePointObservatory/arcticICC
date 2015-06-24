@@ -4,7 +4,6 @@ from __future__ import division, absolute_import
 from twistedActor import ActorWrapper
 from .arcticActor import ArcticActor
 from .dev import ShutterDeviceWrapper, FilterWheelDeviceWrapper
-from .fakeCamera import fakeCamera
 
 __all__ = ["ArcticActorWrapper"]
 
@@ -14,7 +13,6 @@ class ArcticActorWrapper(ActorWrapper):
     def __init__(self, name, userPort=0):
         self.name = name
         self.actor = None # the ArcticActor, once it's built
-        self.camera = fakeCamera.Camera()
         self.shutterDevWrapper = ShutterDeviceWrapper()
         self.filterDevWrapper = FilterWheelDeviceWrapper()
         ActorWrapper.__init__(self,
@@ -26,7 +24,6 @@ class ArcticActorWrapper(ActorWrapper):
     def _makeActor(self):
         self.actor = ArcticActor(
             name = self.name,
-            camera = self.camera,
             filterWheelDev = self.filterDevWrapper.device,
             shutterDev = self.shutterDevWrapper.device,
             userPort = self._userPort,

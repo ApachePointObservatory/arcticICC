@@ -8,7 +8,6 @@ from twistedActor import startSystemLogging
 # import pdb; pdb.set_trace()
 
 from arcticICC import ArcticActor
-from arcticICC import camera
 from arcticICC.dev import FilterWheelDevice, ShutterDevice
 
 # ports to match bin/runFakeDevs
@@ -30,7 +29,6 @@ shutterDevice = ShutterDevice(
 startSystemLogging(ArcticActor.Facility)
 
 arcticActor = ArcticActor(
-    camera = camera.Camera(),
     filterWheelDev = filterWheelDevice,
     shutterDev = shutterDevice
     )

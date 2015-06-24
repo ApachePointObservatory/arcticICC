@@ -1,6 +1,9 @@
 #!/usr/bin/env python2
 from __future__ import division, absolute_import
 import os
+import glob
+
+from astropy.io import fits
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import Deferred
@@ -14,8 +17,8 @@ import RO.Comm.Generic
 RO.Comm.Generic.setFramework("twisted")
 
 from arcticICC import ArcticActorWrapper
-from arcticICC import camera
-# from arcticICC import fakeCamera as camera
+# from arcticICC import camera
+from arcticICC import fakeCamera as camera
 # from arcticICC.cmd import ParseError
 
 # class CmdCallback(object):
@@ -41,7 +44,13 @@ class TestArcticICC(TestCase):
             name="arcticActorWrapper",
         )
         def setTestImageDir(cb):
-            self.arcticActor.imageDir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/images")
+            testImagePath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/images")
+            # remove any present test images, avoids overwrite errors
+            images = glob.glob(os.path.join(testImagePath, "*"))
+            for image in images:
+                os.remove(image)
+            self.arcticActor.imageDir = testImagePath
+
         d = self.aw.readyDeferred
         d.addCallback(setTestImageDir)
         # change the image directory to
@@ -186,25 +195,33 @@ class TestArcticICC(TestCase):
         d = self.commandActor(cmdStr="filter talk blah blue2 g\2")
         return d
 
-    # def testExpose0(self):
-    #     d = self.commandActor(cmdStr="expose bias")
-    #     return d
+    def testExpose0(self):
+        d = self.commandActor(cmdStr="expose bias")
+        return d
 
-    # def testExpose1(self):
-    #     d = self.commandActor(cmdStr="expose object time=5")
-    #     return d
+    def testExpose1(self):
+        d = self.commandActor(cmdStr="expose object time=5")
+        return d
 
-    # def testExpose2(self):
-    #     d = self.commandActor(cmdStr="expose flat time=1")
-    #     return d
+    def testExpose2(self):
+        d = self.commandActor(cmdStr="expose flat time=1")
+        return d
 
-    # def testExpose3(self):
-    #     d = self.commandActor(cmdStr="expose dark time=1")
-    #     return d
+    def testExpose3(self):
+        d = self.commandActor(cmdStr="expose dark time=1")
+        return d
 
-    # def testExpose4(self):
-    #     d = self.commandActor(cmdStr="expose dark time=1 basename=test comment='a comment'")
-    #     return d
+    def testExpose4(self):
+        comment = "test exposure 4 header"
+        d = self.commandActor(cmdStr="expose dark time=1 basename=testExpose4 comment='%s'"%comment)
+        def checkComment(cb=None):
+            filename = glob.glob(os.path.join(self.arcticActor.imageDir, "*testExpose4*"))[0]
+            hdulist = fits.open(filename)
+            prihdr=hdulist[0].header
+            self.assertTrue(comment in prihdr["comment"])
+            hdulist.close()
+        d.addCallback(checkComment)
+        return d
 
 
 if __name__ == '__main__':
