@@ -19,8 +19,8 @@ from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
 from .cmd import arcticCommandSet
 from .version import __version__
 
-import arcticICC.fakeCamera as arctic
-# import arcticICC.camera as arctic
+# import arcticICC.fakeCamera as arctic
+import arcticICC.camera as arctic
 from arcticICC.cmd.parse import ParseError
 
 ImageDir = os.path.join(os.getenv("HOME"), "images")
@@ -114,6 +114,7 @@ class ArcticActor(Actor):
         userCmd = expandUserCmd(userCmd)
         log.info("%s.init(userCmd=%s, timeLim=%s, getStatus=%s)" % (self, userCmd, timeLim, getStatus))
         # initialize camera
+        self.camera = None
         self.camera = arctic.Camera()
         subCmdList = []
         # initialize devices
