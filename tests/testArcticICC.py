@@ -200,20 +200,20 @@ class TestArcticICC(TestCase):
         return d
 
     def testExpose1(self):
-        d = self.commandActor(cmdStr="expose object time=5")
+        d = self.commandActor(cmdStr="expose object time=0")
         return d
 
     def testExpose2(self):
-        d = self.commandActor(cmdStr="expose flat time=1")
+        d = self.commandActor(cmdStr="expose flat time=0")
         return d
 
     def testExpose3(self):
-        d = self.commandActor(cmdStr="expose dark time=1")
+        d = self.commandActor(cmdStr="expose dark time=0")
         return d
 
     def testExpose4(self):
         comment = "test exposure 4 header"
-        d = self.commandActor(cmdStr="expose dark time=1 basename=testExpose4 comment='%s'"%comment)
+        d = self.commandActor(cmdStr="expose dark time=0 basename=testExpose4 comment='%s'"%comment)
         def checkComment(cb=None):
             filename = glob.glob(os.path.join(self.arcticActor.imageDir, "*testExpose4*"))[0]
             hdulist = fits.open(filename)
