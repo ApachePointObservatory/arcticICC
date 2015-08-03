@@ -1,50 +1,8 @@
 from __future__ import division, absolute_import
 
-import time
-
-import numpy
-
 from RO.StringUtil import strFromException
 
 from twistedActor import TCPDevice, expandUserCmd, log
-
-class ShutterTimer(object):
-    """Measure elapsed time.
-
-    @todo Copied from galilDevice.  Probably should
-    break this out somewhere (twisted Actor?)
-    """
-    def __init__(self):
-        """Construct a ShutterTimer in the reset state
-        """
-        self.reset()
-
-    def reset(self):
-        """Reset (halt) timer; getTime will return nan until startTimer called
-        """
-        self.initTime = numpy.nan
-
-    def startTimer(self):
-        """Start the timer
-        """
-        self.initTime = time.time()
-
-    def getTime(self):
-        """Return elapsed time since last call to startTimer
-
-        Return nan if startTimer not called since construction or last reset.
-        """
-        return "%.2f"%(self._getTime())
-
-    def _getTime(self):
-        return time.time() - self.initTime
-
-class ShutterStatus(object):
-    def __init__(self):
-        self.isOpen = False
-        self.shutterTimer = ShutterTimer()
-        self.lastExpTime = -1
-        self.lastDesExpTime = -1
 
 class BaseDevice(TCPDevice):
     def __init__(self, name, host, port, callFunc=None):

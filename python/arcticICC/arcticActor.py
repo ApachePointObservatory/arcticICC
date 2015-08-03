@@ -17,8 +17,10 @@ from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
 from .cmd import arcticCommandSet
 from .version import __version__
 
-# import arcticICC.fakeCamera as arctic
-import arcticICC.camera as arctic
+if os.environ.get("FAKECAMERA"):
+    import arcticICC.fakeCamera as arctic
+else:
+    import arcticICC.camera as arctic
 from arcticICC.cmd.parse import ParseError
 
 ImageDir = os.path.join(os.getenv("HOME"), "images")
