@@ -14,8 +14,6 @@ from RO.Comm.TwistedTimer import Timer
 
 from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
 
-# from .camera as arcticCamera
-
 from .cmd import arcticCommandSet
 from .version import __version__
 

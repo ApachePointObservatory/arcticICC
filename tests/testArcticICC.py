@@ -195,33 +195,33 @@ class TestArcticICC(TestCase):
         d = self.commandActor(cmdStr="filter talk blah blue2 g\2")
         return d
 
-    def testExpose0(self):
-        d = self.commandActor(cmdStr="expose bias")
-        return d
+    # def testExpose0(self):
+    #     d = self.commandActor(cmdStr="expose bias")
+    #     return d
 
-    def testExpose1(self):
-        d = self.commandActor(cmdStr="expose object time=0")
-        return d
+    # def testExpose1(self):
+    #     d = self.commandActor(cmdStr="expose object time=0")
+    #     return d
 
-    def testExpose2(self):
-        d = self.commandActor(cmdStr="expose flat time=0")
-        return d
+    # def testExpose2(self):
+    #     d = self.commandActor(cmdStr="expose flat time=0")
+    #     return d
 
-    def testExpose3(self):
-        d = self.commandActor(cmdStr="expose dark time=0")
-        return d
+    # def testExpose3(self):
+    #     d = self.commandActor(cmdStr="expose dark time=0")
+    #     return d
 
-    def testExpose4(self):
-        comment = "test exposure 4 header"
-        d = self.commandActor(cmdStr="expose dark time=0 basename=testExpose4 comment='%s'"%comment)
-        def checkComment(cb=None):
-            filename = glob.glob(os.path.join(self.arcticActor.imageDir, "*testExpose4*"))[0]
-            hdulist = fits.open(filename)
-            prihdr=hdulist[0].header
-            self.assertTrue(comment in prihdr["comment"])
-            hdulist.close()
-        d.addCallback(checkComment)
-        return d
+    # def testExpose4(self):
+    #     comment = "test exposure 4 header"
+    #     d = self.commandActor(cmdStr="expose dark time=0 basename=testExpose4 comment='%s'"%comment)
+    #     def checkComment(cb=None):
+    #         filename = glob.glob(os.path.join(self.arcticActor.imageDir, "*testExpose4*"))[0]
+    #         hdulist = fits.open(filename)
+    #         prihdr=hdulist[0].header
+    #         self.assertTrue(comment in prihdr["comment"])
+    #         hdulist.close()
+    #     d.addCallback(checkComment)
+    #     return d
 
 
 if __name__ == '__main__':
