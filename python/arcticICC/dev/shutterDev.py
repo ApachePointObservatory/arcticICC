@@ -3,10 +3,8 @@ from __future__ import division, absolute_import
 import time
 
 import numpy
-
-from RO.Comm.TwistedTimer import Timer
-
 from twistedActor import expandUserCmd, CommandQueue, LinkCommands
+from RO.Comm.TwistedTimer import Timer
 
 from .baseDev import BaseDevice
 
