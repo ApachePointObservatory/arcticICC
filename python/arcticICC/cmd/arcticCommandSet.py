@@ -144,5 +144,9 @@ arcticCommandSet = CommandSet(
             commandName = "status",
             helpStr = "status help"
         ),
+        Command(
+            commandName = "ping",
+            helpStr = "show alive"
+        ),
     ]
 )
