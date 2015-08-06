@@ -133,7 +133,7 @@ class ArcticActor(Actor):
 
         @param[in] cmd  user command (a twistedActor.UserCmd)
         """
-        log.info("%s.parseAndDispatchCmd cmdBody=%r"%cmd.cmdBody)
+        log.info("%s.parseAndDispatchCmd cmdBody=%r"%(self, cmd.cmdBody))
         parsedCommand = arcticCommandSet.parse(cmd.cmdBody)
 
         # append the parsedCommand to the cmd object, and send along
