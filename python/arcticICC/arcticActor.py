@@ -179,6 +179,13 @@ class ArcticActor(Actor):
         # userCmd.setState(userCmd.Done)
         return True
 
+    def cmd_ping(self, userCmd):
+        """! Implement the ping command
+        @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
+        """
+        userCmd.setState(userCmd.Done, textMsg="alive")
+        return True
+
     def cmd_expose(self, userCmd):
         """! Implement the expose command
         @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
