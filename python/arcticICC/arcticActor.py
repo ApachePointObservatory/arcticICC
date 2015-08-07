@@ -335,8 +335,8 @@ class ArcticActor(Actor):
         """! Implement the status command
         @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
         """
-        statusStr = self.getCameraStatus()
-        self.writeToUsers("i", statusStr, cmd=userCmd)
+        # statusStr = self.getCameraStatus()
+        # self.writeToUsers("i", statusStr, cmd=userCmd)
         self.getStatus(userCmd)
         return True
 
@@ -347,15 +347,21 @@ class ArcticActor(Actor):
         config = self.camera.getConfig()
         keyVals = []
         # camera state
-        keyVals.append("busy=%s"%self.camera.isBusy())
+        # keyVals.append("busy=%s"%self.camera.isBusy())
+        keyVals.append("ccdState=ok") # a potential lie?
+        keyVals.append("ccdSize=%i,%i"%(arctic.CCDWidth, arctic.CCDHeight))
+
         # bin
-        keyVals.append("bin=[%i,%i]"%(config.binFacCol, config.binFacRow))
+        keyVals.append("ccdBin=%i,%i"%(config.binFacCol, config.binFacRow))
         # window
-        keyVals.append("window=[%i,%i,%i,%i]"%(config.winStartCol, config.winStartRow, config.winWidth, config.winHeight))
+        keyVals.append("shutter=%s"%("open" if self.camera.state == arctic.Exposing else "closed"))
+        keyVals.append("ccdWindow=%i,%i,%i,%i"%(config.winStartCol, config.winStartRow, config.getBinnedWidth(), config.getBinnedHeight()))
+        keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(config.winStartCol/config.binFacCol, config.winStartRow/config.binFacRow, config.getUnbinnedWidth(), config.getUnbinnedHeight()))
+        keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
         keyVals.append("readoutAmps=%s"%ReadoutAmpsEnumNameDict[config.readoutAmps])
         keyVals.append("readoutRate=%s"%ReadoutRateEnumNameDict[config.readoutRate])
-        keyVals.append("temp=?")
+        keyVals.append("ccdTemp=?")
         if self.tempSetpoint is None:
             ts = "None"
         else:
@@ -371,6 +377,7 @@ class ArcticActor(Actor):
         @param[in] doShutter: bool, if true get shutter status
         """
         assert True in [doFilter, doShutter, doCamera]
+        userCmd = expandUserCmd(userCmd)
         if doCamera:
             statusStr = self.getCameraStatus()
             self.writeToUsers("i", statusStr, cmd=userCmd)
@@ -379,11 +386,13 @@ class ArcticActor(Actor):
             devList.append(self.filterWheelDev)
         if doShutter:
             devList.append(self.shutterDev)
-        userCmd = expandUserCmd(userCmd)
         subCmdList = []
         for dev in devList:
             subCmdList.append(dev.getStatus())
-        LinkCommands(userCmd, subCmdList)
+        if subCmdList:
+            LinkCommands(userCmd, subCmdList)
+        else:
+            userCmd.setState(userCmd.Done)
         return userCmd
 
 

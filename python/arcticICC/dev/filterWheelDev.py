@@ -1,18 +1,31 @@
 from __future__ import division, absolute_import
 
+import collections
+
 from twistedActor import CommandQueue, expandUserCmd
 
 from .baseDev import BaseDevice
 
 __all__ = ["FilterWheelDevice"]
 
+FilterEnumNameDict = collections.OrderedDict((
+    (0, "SDSS u"),
+    (1, "SDSS g"),
+    (2, "SDSS r"),
+    (3, "SDSS i"),
+    (4, "SDSS z"),
+))
+
 class FilterWheelStatus(object):
     def __init__(self):
         self.isMoving = False
-        self.position = None
+        self.position = -1
 
     def getStatusStr(self):
-        return ""
+        filterNames = "filterNames=" + ", ".join(FilterEnumNameDict.values())
+        filterID = "filterID=%i"%self.position
+        filterName = "filterName=%s"%(FilterEnumNameDict[self.position])
+        return "; ".join([filterNames, filterID, filterName])
 
 class FilterWheelDevice(BaseDevice):
     def __init__(self, name, host, port, callFunc=None):
