@@ -289,47 +289,74 @@ class ArcticActor(Actor):
         @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
         """
         argDict = userCmd.parsedCommand.parsedFloatingArgs
+        if not argDict:
+            # nothing was passed?
+            raise ParseError("no arguments received for set command")
+        ccdBin = argDict.get("bin", None)
+        amps = argDict.get("amps", None)
+        window = argDict.get("window", None)
+        readoutRate = argDict.get("readoutRate", None)
+        temp = argDict.get("temp", None)
+        filterPos = argDict.get("filter", None)
+        # begin replacing/and checking config values
+        config = self.camera.getConfig()
         # check validity first
-        amps = argDict["amps"][0]
-        window = argDict["window"]
-        if window[0] != "full":
+        if readoutRate is not None:
+            config.readoutRate = ReadoutRateNameEnumDict[argDict["readoutRate"][0]]
+        if ccdBin is not None:
+            colBin = ccdBin[0]
+            config.binFacCol = colBin
+            rowBin = colBin if len(ccdBin) == 1 else ccdBin[1]
+            config.binFacRow = rowBin
+        # windowing and amps need some careful handling...
+        if window is not None:
             try:
                 [int(x) for x in window]
                 assert len(window)==4
+                # check whether or not this is in fact full frame
             except:
                 raise ParseError("window must be 'full' or a list of 4 integers")
-        if amps == "quad" and window[0] != "full":
-            raise ParseError("amps=quad may only be specified with window='full'")
-        if amps == "auto":
-            if window[0] != "full":
-                amps = "ll"
+            if argDict["window"][0] == "full":
+                config.setFullWindow()
             else:
-                amps = "quad"
+                config.winStartCol = int(argDict["window"][0])
+                config.winStartRow = int(argDict["window"][1])
+                config.winWidth = int(argDict["window"][2])
+                config.winHeight = int(argDict["window"][3])
+            # if amps were not specified be sure this window works
+            # with the current amp configuration, else yell
+            # force the amps check
+            if amps is None:
+                amps = [ReadoutAmpsEnumNameDict[config.readoutAmps]]
+        if amps is not None:
+            # quad amp only valid for full window
+            isFullWindow = config.isFullWindow()
+            if not isFullWindow and amps[0]=="quad":
+                raise ParseError("amps=quad may only be specified with a full window")
+            if isFullWindow and amps[0]=="auto":
+                config.readoutAmps = ReadoutAmpsNameEnumDict["quad"]
+            elif not isFullWindow and amps[0]=="auto":
+                config.readoutAmps = ReadoutAmpsNameEnumDict["ll"]
+            else:
+                config.readoutAmps = ReadoutAmpsNameEnumDict[amps[0]]
 
-        # begin replacing config values
-        config = self.camera.getConfig()
-        config.readoutRate = ReadoutRateNameEnumDict[argDict["readoutRate"][0]]
-        # binning
-        colBin = argDict["bin"][0]
-        config.binFacCol = colBin
-        rowBin = colBin if len(argDict["bin"]) == 1 else argDict["bin"][1]
-        config.binFacRow = rowBin
-        # window
-        if argDict["window"][0] == "full":
-            config.setFullWindow()
-        else:
-            config.winStartCol = int(argDict["window"][0])
-            config.winStartRow = int(argDict["window"][1])
-            config.winWidth = int(argDict["window"][2])
-            config.winHeight = int(argDict["window"][3])
-        config.readoutAmps = ReadoutAmpsNameEnumDict[amps]
+        # set camera configuration
         self.camera.setConfig(config)
 
-        self.setTemp(argDict["temp"][0])
+        if temp is not None:
+            self.setTemp(argDict["temp"][0])
         # move wants an int, maybe some translation should happend here
         # or some mapping between integers and filter names
-        pos = int(argDict["filter"][0])
-        self.filterWheelDev.move(pos, userCmd) # fiterWheel will set command done
+        if filterPos is not None:
+            def getStatusAfterMove(mvCmd):
+                if mvCmd.isDone:
+                    self.getStatus(userCmd) # set the userCmd done
+            pos = int(filterPos[0])
+            mvCmd = self.filterWheelDev.move(pos) # fiterWheel will set command done
+            mvCmd.addCallback(getStatusAfterMove)
+        else:
+            # done: output the new configuration
+            self.getStatus(userCmd) # get status will set command done
         return True
 
     def cmd_status(self, userCmd):

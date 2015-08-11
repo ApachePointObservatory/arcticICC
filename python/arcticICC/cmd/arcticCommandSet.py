@@ -38,31 +38,37 @@ arcticCommandSet = CommandSet(
                 KeywordValue(
                     keyword="bin",
                     value=Int(nElements=(1,2), helpStr="an int"),
+                    isMandatory=False,
                     helpStr="bin help"
                     ),
                 KeywordValue(
                     keyword="window",
                     value=String(nElements=(1,4), helpStr="window list value help"), # must be string to support "full"
+                    isMandatory=False,
                     helpStr="window help"
                     ),
                 KeywordValue(
                     keyword="amps",
                     value=UniqueMatch(["ll", "quad", "auto"], helpStr="unique match"),
+                    isMandatory=False,
                     helpStr="amps help"
                     ),
                 KeywordValue(
                     keyword="readoutRate",
                     value=UniqueMatch(["slow", "medium", "fast"], helpStr="unique match"),
+                    isMandatory=False,
                     helpStr="readoutRate help"
                     ),
                 KeywordValue(
                     keyword="filter",
                     value=String(helpStr="a name or number"),
+                    isMandatory=False,
                     helpStr="filter help"
                     ),
                 KeywordValue(
                     keyword="temp",
                     value=Float(helpStr="temp set point"),
+                    isMandatory=False,
                     helpStr="temp help"
                     ),
             ],
