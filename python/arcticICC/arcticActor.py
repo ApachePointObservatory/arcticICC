@@ -387,7 +387,7 @@ class ArcticActor(Actor):
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(config.winStartCol/config.binFacCol, config.winStartRow/config.binFacRow, config.getUnbinnedWidth(), config.getUnbinnedHeight()))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
-        keyVals.append("ampNames=" + ", ".join([RO.StringUtil.quoteStr("ll"), RO.StringUtil.quoteStr("quad")]))
+        keyVals.append("ampNames=" + ", ".join([RO.StringUtil.quoteStr("ll"), RO.StringUtil.quoteStr("quad"), RO.StringUtil.quoteStr("auto")]))
         keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
         keyVals.append("readoutRateNames="+", ".join([RO.StringUtil.quoteStr(x) for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
