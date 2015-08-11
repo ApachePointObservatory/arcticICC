@@ -11,11 +11,11 @@ from .baseDev import BaseDevice
 __all__ = ["FilterWheelDevice"]
 
 FilterEnumNameDict = collections.OrderedDict((
-    (0, RO.StringUtil.quoteStr("SDSS u")),
-    (1, RO.StringUtil.quoteStr("SDSS g")),
-    (2, RO.StringUtil.quoteStr("SDSS r")),
-    (3, RO.StringUtil.quoteStr("SDSS i")),
-    (4, RO.StringUtil.quoteStr("SDSS z")),
+    (1, RO.StringUtil.quoteStr("SDSS u")),
+    (2, RO.StringUtil.quoteStr("SDSS g")),
+    (3, RO.StringUtil.quoteStr("SDSS r")),
+    (4, RO.StringUtil.quoteStr("SDSS i")),
+    (5, RO.StringUtil.quoteStr("SDSS z")),
 ))
 
 class FilterWheelStatus(object):
