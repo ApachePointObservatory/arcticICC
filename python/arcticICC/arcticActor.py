@@ -10,6 +10,7 @@ import collections
 
 from astropy.io import fits
 
+import RO
 from RO.Comm.TwistedTimer import Timer
 
 from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
@@ -359,8 +360,10 @@ class ArcticActor(Actor):
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(config.winStartCol/config.binFacCol, config.winStartRow/config.binFacRow, config.getUnbinnedWidth(), config.getUnbinnedHeight()))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
-        keyVals.append("readoutAmps=%s"%ReadoutAmpsEnumNameDict[config.readoutAmps])
-        keyVals.append("readoutRate=%s"%ReadoutRateEnumNameDict[config.readoutRate])
+        keyVals.append("ampNames=" + ", ".join([RO.StringUtil.quoteStr("ll"), RO.StringUtil.quoteStr("quad")]))
+        keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
+        keyVals.append("readoutRateNames="+", ".join([RO.StringUtil.quoteStr(x) for x in ReadoutRateEnumNameDict.values()]))
+        keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
         keyVals.append("ccdTemp=?")
         if self.tempSetpoint is None:
             ts = "None"

@@ -2,6 +2,8 @@ from __future__ import division, absolute_import
 
 import collections
 
+import RO
+
 from twistedActor import CommandQueue, expandUserCmd
 
 from .baseDev import BaseDevice
@@ -9,11 +11,11 @@ from .baseDev import BaseDevice
 __all__ = ["FilterWheelDevice"]
 
 FilterEnumNameDict = collections.OrderedDict((
-    (0, "SDSS u"),
-    (1, "SDSS g"),
-    (2, "SDSS r"),
-    (3, "SDSS i"),
-    (4, "SDSS z"),
+    (0, RO.StringUtil.quoteStr("SDSS u")),
+    (1, RO.StringUtil.quoteStr("SDSS g")),
+    (2, RO.StringUtil.quoteStr("SDSS r")),
+    (3, RO.StringUtil.quoteStr("SDSS i")),
+    (4, RO.StringUtil.quoteStr("SDSS z")),
 ))
 
 class FilterWheelStatus(object):
