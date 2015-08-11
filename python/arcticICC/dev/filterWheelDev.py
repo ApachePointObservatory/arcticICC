@@ -25,7 +25,7 @@ class FilterWheelStatus(object):
 
     def getStatusStr(self):
         filterNames = "filterNames=" + ", ".join(FilterEnumNameDict.values())
-        filterID = "filterID=%i"%self.position
+        filterID = "filterID=%i"%self.position+1
         filterName = "filterName=%s"%(FilterEnumNameDict[self.position+1])
         return "; ".join([filterNames, filterID, filterName])
 
