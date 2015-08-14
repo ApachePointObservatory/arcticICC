@@ -7,6 +7,7 @@ or the filter wheel may not move while an exposure is in progress?  Probably.
 import os
 import syslog
 import collections
+import datetime
 
 from astropy.io import fits
 
@@ -57,6 +58,15 @@ StatusStrDict = {
     arctic.ImageRead: "ImageRead",
 }
 
+# exposureState=string
+# The state of any running exposure. Runs through the following:
+# flushing - the CCDs are being flushed.
+# integrating - an object or dark exposure is integrating (resuming a paused exposure generates integrating)
+# reading - the CCDs are being read out.
+# paused - an object exposure has been paused. Resuming will generate integrating
+# done - the exposure has been successfully finished.
+# aborted - the exposure has been aborted, and the image discarded.
+
 
 class ArcticActor(Actor):
     Facility = syslog.LOG_LOCAL1
@@ -99,6 +109,23 @@ class ArcticActor(Actor):
     @property
     def tempSetpoint(self):
         return self._tempSetpoint
+
+    @property
+    def exposureStateKW(self):
+        arcticExpState = self.camera.getExposureState()
+        arcticStatusInt = arcticExpState.state
+        #translate from arctic status string to output that hub/tui expect
+        if arcticStatusInt == arctic.Idle:
+            expStateStr = "done"
+        elif arcticStatusInt == arctic.Exposing:
+            expStateStr = "integrating"
+        elif arcticStatusInt == arctic.Paused:
+            expStateStr = "paused"
+        elif arcticStatusInt in [arctic.Reading, arctic.ImageRead]:
+            expStateStr = "reading"
+        return "exposureState=%s, %.4f"%(expStateStr, arcticExpState.fullTime)
+        timeStampNow = datetime.datetime.now().strftime("%Y-%M-%dT%H:%M:%S.%f")
+        return "exposureState=%s,%s,%.4f,%.4f"%(expStateStr, timeStampNow, arcticExpState.fullTime, arcticExpState.remTime)
 
     def setTemp(self, tempSetpoint):
         """Set the temperature setpoint
@@ -216,6 +243,7 @@ class ArcticActor(Actor):
         else:
             assert subCmd.cmdName == "abort"
             self.camera.abortExposure()
+        self.writeToUsers("i", self.exposureStateKW, userCmd)
         userCmd.setState(userCmd.Done)
         return True
 
@@ -235,18 +263,22 @@ class ArcticActor(Actor):
         assert not self.pollTimer.isActive, "cannot start new exposure, self.pollTimer is active"
         self.exposeCmd = userCmd
         expTypeEnum = ExpTypeDict.get(expType)
-        expName = os.path.abspath("%s_%d.fits" % (expType, self.expNum))
-        expName = "%s_%d.fits" % (expType, self.expNum)
         if basename:
-            expName = basename + "_" + expName
-        if not os.path.exists(self.imageDir):
-            os.makedirs(self.imageDir)
-        expName = os.path.join(self.imageDir, expName)
+            # save location was specified
+            expName = basename
+        else:
+            # wasn't specified choose a default place/name
+            if not os.path.exists(self.imageDir):
+                os.makedirs(self.imageDir)
+            expName = os.path.abspath("%s_%d.fits" % (expType, self.expNum))
+            expName = "%s_%d.fits" % (expType, self.expNum)
+            expName = os.path.join(self.imageDir, expName)
         print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
         self.comment = comment
         self.camera.startExposure(expTime, expTypeEnum, expName)
+        self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         self.expNum += 1
         self.pollCamera()
 
@@ -261,7 +293,9 @@ class ArcticActor(Actor):
         if expState.state == arctic.ImageRead:
             print("saving image: exposure %s"%self.expName)
             log.info("saving image: exposure %s"%self.expName)
+            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
             self.camera.saveImage() # saveImage sets camera exp state to idle
+            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state != arctic.Idle:
             # if the camera is not idle continue polling
             self.pollTimer.start(0., self.pollCamera)
@@ -269,10 +303,11 @@ class ArcticActor(Actor):
             # camera is idle, clean up
             print("exposure %s complete"%self.expName)
             log.info("exposure %s complete"%self.expName)
-            # was a comment associated with this exposure
+            #was a comment associated with this exposure
             if self.comment:
                 print("adding comment %s to exposure %s"%(self.comment, self.expName))
                 self.writeComment()
+            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
             self.exposeCmd.setState(self.exposeCmd.Done)
             self.expName = None
             self.comment = None
@@ -310,15 +345,15 @@ class ArcticActor(Actor):
             config.binFacRow = rowBin
         # windowing and amps need some careful handling...
         if window is not None:
-            try:
-                [int(x) for x in window]
-                assert len(window)==4
-                # check whether or not this is in fact full frame
-            except:
-                raise ParseError("window must be 'full' or a list of 4 integers")
-            if argDict["window"][0] == "full":
+            if str(argDict["window"][0]) == "full":
                 config.setFullWindow()
             else:
+                try:
+                    [int(x) for x in window]
+                    assert len(window)==4
+                    # check whether or not this is in fact full frame?
+                except:
+                    raise ParseError("window must be 'full' or a list of 4 integers")
                 config.winStartCol = int(argDict["window"][0])
                 config.winStartRow = int(argDict["window"][1])
                 config.winWidth = int(argDict["window"][2])
@@ -374,15 +409,15 @@ class ArcticActor(Actor):
         """
         config = self.camera.getConfig()
         keyVals = []
-        # camera state
-        # keyVals.append("busy=%s"%self.camera.isBusy())
+        # exposure state
+        keyVals.append(self.exposureStateKW)
         keyVals.append("ccdState=ok") # a potential lie?
         keyVals.append("ccdSize=%i,%i"%(arctic.CCDWidth, arctic.CCDHeight))
 
         # bin
         keyVals.append("ccdBin=%i,%i"%(config.binFacCol, config.binFacRow))
         # window
-        keyVals.append("shutter=%s"%("open" if self.camera.state == arctic.Exposing else "closed"))
+        keyVals.append("shutter=%s"%("open" if self.camera.getExposureState().state == arctic.Exposing else "closed"))
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(config.winStartCol, config.winStartRow, config.getBinnedWidth(), config.getBinnedHeight()))
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(config.winStartCol/config.binFacCol, config.winStartRow/config.binFacRow, config.getUnbinnedWidth(), config.getUnbinnedHeight()))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
