@@ -354,10 +354,10 @@ class ArcticActor(Actor):
                     # check whether or not this is in fact full frame?
                 except:
                     raise ParseError("window must be 'full' or a list of 4 integers")
-                config.winStartCol = int(argDict["window"][0])
-                config.winStartRow = int(argDict["window"][1])
-                config.winWidth = int(argDict["window"][2])
-                config.winHeight = int(argDict["window"][3])
+                config.winStartCol = int(argDict["window"][0]-1)
+                config.winStartRow = int(argDict["window"][1]-1)
+                config.winWidth = int(argDict["window"][2]-1)
+                config.winHeight = int(argDict["window"][3]-1)
             # if amps were not specified be sure this window works
             # with the current amp configuration, else yell
             # force the amps check
@@ -415,11 +415,24 @@ class ArcticActor(Actor):
         keyVals.append("ccdSize=%i,%i"%(arctic.CCDWidth, arctic.CCDHeight))
 
         # bin
-        keyVals.append("ccdBin=%i,%i"%(config.binFacCol, config.binFacRow))
+        ccdBin = (config.binFacCol, config.binFacRow)
+        keyVals.append("ccdBin=%i,%i"%(ccdBin))
         # window
         keyVals.append("shutter=%s"%("open" if self.camera.getExposureState().state == arctic.Exposing else "closed"))
-        keyVals.append("ccdWindow=%i,%i,%i,%i"%(config.winStartCol, config.winStartRow, config.getBinnedWidth(), config.getBinnedHeight()))
-        keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(config.winStartCol/config.binFacCol, config.winStartRow/config.binFacRow, config.getUnbinnedWidth(), config.getUnbinnedHeight()))
+        ccdWindow = (
+            config.winStartCol + 1, # add one to adhere to tui's convention
+            config.winStartRow + 1,
+            config.winStartCol + config.winWidth + 1,
+            config.winStartRow + config.winHeight + 1,
+        )
+        ccdUBWindow = (
+            ccdWindow[0] * ccdBin[0],
+            ccdWindow[1] * ccdBin[1],
+            ccdWindow[2] * ccdBin[0],
+            ccdWindow[3] * ccdBin[1],
+        )
+        keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))
+        keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(ccdUBWindow))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
         keyVals.append("ampNames=" + ", ".join([RO.StringUtil.quoteStr("ll"), RO.StringUtil.quoteStr("quad")]))
