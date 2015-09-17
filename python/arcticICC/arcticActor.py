@@ -11,7 +11,6 @@ import datetime
 
 from astropy.io import fits
 
-import RO
 from RO.Comm.TwistedTimer import Timer
 
 from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
@@ -424,9 +423,6 @@ class ArcticActor(Actor):
         filterPos = argDict.get("filter", None)
         # begin replacing/and checking config values
         config = self.camera.getConfig()
-        # check validity first
-        # print "window: %s"%str(window)
-     #   prevFullWindow = config.isFullWindow()
 
         if readoutRate is not None:
             config.readoutRate = ReadoutRateNameEnumDict[readoutRate[0]]
@@ -438,10 +434,6 @@ class ArcticActor(Actor):
             config.binFacRow = rowBin
             if window is None:
                 # adjust window based on new bin (if the window wasn't explicitly passed)
-                # note what happens for sub-windowed section if bin factor is changed?
-                # if prevFullWindow:
-                #     config.setFullWindow()
-                # else:
                 # adjust previous window for new bin factor
                 prevCoords = [
                     config.winStartCol + 1,
@@ -459,7 +451,6 @@ class ArcticActor(Actor):
                 try:
                     window = [int(x) for x in window]
                     assert len(window)==4
-                    # check whether or not this is in fact full frame?
                 except:
                     raise ParseError("window must be 'full' or a list of 4 integers")
                 config.winStartCol = window[0]-1 # leach is 0 indexed
@@ -482,15 +473,6 @@ class ArcticActor(Actor):
                 config.readoutAmps = ReadoutAmpsNameEnumDict["ll"]
             else:
                 config.readoutAmps = ReadoutAmpsNameEnumDict[amps[0]]
-
-        print "colBin: %i"%config.binFacCol
-        print "rowBin: %i"%config.binFacRow
-        print "startCol: %i"%config.winStartCol
-        print "startRow: %i"%config.winStartRow
-        print "width: %i"%config.winWidth
-        print "height: %i"%config.winHeight
-        print
-        print
 
         # set camera configuration
         self.camera.setConfig(config)
@@ -539,15 +521,11 @@ class ArcticActor(Actor):
         ccdWindow = (
             config.winStartCol + 1, # add one to adhere to tui's convention
             config.winStartRow + 1,
-            config.winStartCol + config.winWidth,# + 1,
-            config.winStartRow + config.winHeight,# + 1,
+            config.winStartCol + config.winWidth,
+            config.winStartRow + config.winHeight,
         )
-        ccdUBWindow = (
-            ccdWindow[0] * ccdBin[0]-1,
-            ccdWindow[1] * ccdBin[1]-1,
-            ccdWindow[2] * ccdBin[0],#-1,
-            ccdWindow[3] * ccdBin[1],#-1,
-        )
+        ccdUBWindow = tuple(self.unbin(ccdWindow, ccdBin))
+
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(ccdUBWindow))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
