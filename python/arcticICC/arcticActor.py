@@ -298,7 +298,7 @@ class ArcticActor(Actor):
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state != arctic.Idle:
             # if the camera is not idle continue polling
-            self.pollTimer.start(0., self.pollCamera)
+            self.pollTimer.start(0.01, self.pollCamera)
         else:
             # camera is idle, clean up
             print("exposure %s complete"%self.expName)
@@ -319,6 +319,95 @@ class ArcticActor(Actor):
         prihdr['comment'] = self.comment
         hdulist.close()
 
+    def maxCoord(self, binFac=(1,1)):
+        """Returns the maximum binned CCD coordinate, given a bin factor.
+        """
+        assert len(binFac) == 2, "binFac must have 2 elements; binFac = %r" % binFac
+        return [(4096, 4096)[ind] // int(binFac[ind]) for ind in range(2)]
+
+    def minCoord(self, binFac=(1,1)):
+        """Returns the minimum binned CCD coordinate, given a bin factor.
+        """
+        assert len(binFac) == 2, "binFac must have 2 elements; binFac = %r" % binFac
+        return (1, 1)
+
+    def unbin(self, binnedCoords, binFac):
+        """Copied from TUI
+
+        Converts binned to unbinned coordinates.
+
+        The output is constrained to be in range (but such constraint is only
+        needed if the input was out of range).
+
+        A binned coordinate can be be converted to multiple unbinned choices (if binFac > 1).
+        The first two coords are converted to the smallest choice,
+        the second two (if supplied) are converted to the largest choice.
+        Thus 4 coordinates are treated as a window with LL, UR coordinates, inclusive.
+
+        Inputs:
+        - binnedCoords: 2 or 4 coords; see note above
+
+        If any element of binnedCoords or binFac is None, all returned elements are None.
+        """
+        assert len(binnedCoords) in (2, 4), "binnedCoords must have 2 or 4 elements; binnedCoords = %r" % binnedCoords
+        if len(binFac) == 1:
+            binFac = binFac*2
+        assert len(binFac) == 2, "binFac must have 2 elements; binFac = %r" % binFac
+
+        if None in binnedCoords or None in binFac:
+            return (None,)*len(binnedCoords)
+
+        binXYXY = binFac * 2
+        subadd = (1, 1, 0, 0)
+
+        # compute value ignoring limits
+        unbinnedCoords = [((binnedCoords[ind] - subadd[ind]) * binXYXY[ind]) + subadd[ind]
+            for ind in range(len(binnedCoords))]
+
+        # apply limits
+        minUnbinXYXY = self.minCoord()*2
+        maxUnbinXYXY = self.maxCoord()*2
+        unbinnedCoords = [min(max(unbinnedCoords[ind], minUnbinXYXY[ind]), maxUnbinXYXY[ind])
+            for ind in range(len(unbinnedCoords))]
+        print "unbin: converted %r bin %r to %r" % (binnedCoords, binFac, unbinnedCoords)
+        return unbinnedCoords
+
+    def bin(self, unbinnedCoords, binFac):
+        """Copied from TUI
+
+        Converts unbinned to binned coordinates.
+
+        The output is constrained to be in range for the given bin factor
+        (if a dimension does not divide evenly by the bin factor
+        then some valid unbinned coords are out of range when binned).
+
+        Inputs:
+        - unbinnedCoords: 2 or 4 coords
+
+        If any element of binnedCoords or binFac is None, all returned elements are None.
+        """
+        assert len(unbinnedCoords) in (2, 4), "unbinnedCoords must have 2 or 4 elements; unbinnedCoords = %r" % unbinnedCoords
+        if len(binFac) == 1:
+            binFac = binFac*2
+        assert len(binFac) == 2, "binFac must have 2 elements; binFac = %r" % binFac
+
+        if None in unbinnedCoords or None in binFac:
+            return (None,)*len(unbinnedCoords)
+
+        binXYXY = binFac * 2
+
+        # compute value ignoring limits
+        binnedCoords = [1 + ((unbinnedCoords[ind] - 1) // int(binXYXY[ind]))
+            for ind in range(len(unbinnedCoords))]
+
+        # apply limits
+        minBinXYXY = self.minCoord(binFac)*2
+        maxBinXYXY = self.maxCoord(binFac)*2
+        binnedCoords = [min(max(binnedCoords[ind], minBinXYXY[ind]), maxBinXYXY[ind])
+            for ind in range(len(binnedCoords))]
+        print "bin: converted %r bin %r to %r" % (unbinnedCoords, binFac, binnedCoords)
+        return binnedCoords
+
     def cmd_set(self, userCmd):
         """! Implement the set command
         @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
@@ -336,28 +425,47 @@ class ArcticActor(Actor):
         # begin replacing/and checking config values
         config = self.camera.getConfig()
         # check validity first
+        # print "window: %s"%str(window)
+     #   prevFullWindow = config.isFullWindow()
+
         if readoutRate is not None:
-            config.readoutRate = ReadoutRateNameEnumDict[argDict["readoutRate"][0]]
+            config.readoutRate = ReadoutRateNameEnumDict[readoutRate[0]]
         if ccdBin is not None:
+            prevCCDBin = [config.binFacCol, config.binFacRow]
             colBin = ccdBin[0]
             config.binFacCol = colBin
             rowBin = colBin if len(ccdBin) == 1 else ccdBin[1]
             config.binFacRow = rowBin
+            if window is None:
+                # adjust window based on new bin (if the window wasn't explicitly passed)
+                # note what happens for sub-windowed section if bin factor is changed?
+                # if prevFullWindow:
+                #     config.setFullWindow()
+                # else:
+                # adjust previous window for new bin factor
+                prevCoords = [
+                    config.winStartCol + 1,
+                    config.winStartRow + 1,
+                    config.winWidth + config.winStartCol,
+                    config.winHeight + config.winStartRow,
+                ]
+                unbinnedCoords = self.unbin(prevCoords, prevCCDBin)
+                window = self.bin(unbinnedCoords, ccdBin)
         # windowing and amps need some careful handling...
         if window is not None:
-            if str(argDict["window"][0]) == "full":
+            if str(window[0]) == "full":
                 config.setFullWindow()
             else:
                 try:
-                    [int(x) for x in window]
+                    window = [int(x) for x in window]
                     assert len(window)==4
                     # check whether or not this is in fact full frame?
                 except:
                     raise ParseError("window must be 'full' or a list of 4 integers")
-                config.winStartCol = int(argDict["window"][0]-1)
-                config.winStartRow = int(argDict["window"][1]-1)
-                config.winWidth = int(argDict["window"][2]-1)
-                config.winHeight = int(argDict["window"][3]-1)
+                config.winStartCol = window[0]-1 # leach is 0 indexed
+                config.winStartRow = window[1]-1
+                config.winWidth = window[2] - config.winStartCol
+                config.winHeight = window[3] - config.winStartRow
             # if amps were not specified be sure this window works
             # with the current amp configuration, else yell
             # force the amps check
@@ -374,6 +482,15 @@ class ArcticActor(Actor):
                 config.readoutAmps = ReadoutAmpsNameEnumDict["ll"]
             else:
                 config.readoutAmps = ReadoutAmpsNameEnumDict[amps[0]]
+
+        print "colBin: %i"%config.binFacCol
+        print "rowBin: %i"%config.binFacRow
+        print "startCol: %i"%config.winStartCol
+        print "startRow: %i"%config.winStartRow
+        print "width: %i"%config.winWidth
+        print "height: %i"%config.winHeight
+        print
+        print
 
         # set camera configuration
         self.camera.setConfig(config)
@@ -422,22 +539,22 @@ class ArcticActor(Actor):
         ccdWindow = (
             config.winStartCol + 1, # add one to adhere to tui's convention
             config.winStartRow + 1,
-            config.winStartCol + config.winWidth + 1,
-            config.winStartRow + config.winHeight + 1,
+            config.winStartCol + config.winWidth,# + 1,
+            config.winStartRow + config.winHeight,# + 1,
         )
         ccdUBWindow = (
-            ccdWindow[0] * ccdBin[0],
-            ccdWindow[1] * ccdBin[1],
-            ccdWindow[2] * ccdBin[0],
-            ccdWindow[3] * ccdBin[1],
+            ccdWindow[0] * ccdBin[0]-1,
+            ccdWindow[1] * ccdBin[1]-1,
+            ccdWindow[2] * ccdBin[0],#-1,
+            ccdWindow[3] * ccdBin[1],#-1,
         )
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(ccdUBWindow))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
-        keyVals.append("ampNames=" + ", ".join([RO.StringUtil.quoteStr("ll"), RO.StringUtil.quoteStr("quad")]))
+        keyVals.append("ampNames=ll,quad")
         keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
-        keyVals.append("readoutRateNames="+", ".join([RO.StringUtil.quoteStr(x) for x in ReadoutRateEnumNameDict.values()]))
+        keyVals.append("readoutRateNames="+", ".join([x for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
         keyVals.append("ccdTemp=?")
         if self.tempSetpoint is None:
