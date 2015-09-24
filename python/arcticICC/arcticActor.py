@@ -7,7 +7,7 @@ or the filter wheel may not move while an exposure is in progress?  Probably.
 import os
 import syslog
 import collections
-import datetime
+import time
 
 from astropy.io import fits
 
@@ -66,6 +66,44 @@ StatusStrDict = {
 # done - the exposure has been successfully finished.
 # aborted - the exposure has been aborted, and the image discarded.
 
+"""
+Empirically modeled read time estimates
+Model is:
+readtime = dcOff + rowCoeff * nRows + pixCoeff * nRows * nCols
+dcOff, rowCoeff, pixCoeff were solved using a least squares solver
+readtimes were measured for a number of binning / windowing / read rate combiniations
+for Quad and ll readout modes
+here are the full solutions
+fastQuad:        dcOff=0.2652573793  rowMult=0.0010169505  pixMult=0.0000001207
+medQuad:         dcOff=0.2898826491  rowMult=0.0010118056  pixMult=0.0000008999
+slowQuad:        dcOff=0.2891650735  rowMult=0.0010299422  pixMult=0.0000021599
+fastLL:          dcOff=0.5022872975  rowMult=0.0040308398  pixMult=0.0000004820
+medLL:           dcOff=0.4625591256  rowMult=0.0040650412  pixMult=0.0000037180
+slowLL:          dcOff=0.4715621773  rowMult=0.0040715685  pixMult=0.0000087624
+"""
+
+# use the largest values so we tend to err on slight over estimation (nicer for the user)
+dcOff = {
+    "quad"  : 0.29,
+    "single": 0.50,
+}
+rowMult = {
+    "quad"  : 0.00103,
+    "single": 0.00407,
+}
+pixMult = {
+    "quad": {
+        "fast"  : 0.0000001207,
+        "medium": 0.0000008999,
+        "slow"  : 0.0000021599,
+    },
+    "single": {
+        "fast"  : 0.0000004820,
+        "medium": 0.0000037180,
+        "slow"  : 0.0000087624,
+    }
+}
+
 
 class ArcticActor(Actor):
     Facility = syslog.LOG_LOCAL1
@@ -122,9 +160,28 @@ class ArcticActor(Actor):
             expStateStr = "paused"
         elif arcticStatusInt in [arctic.Reading, arctic.ImageRead]:
             expStateStr = "reading"
-        return "exposureState=%s, %.4f"%(expStateStr, arcticExpState.fullTime)
-        timeStampNow = datetime.datetime.now().strftime("%Y-%M-%dT%H:%M:%S.%f")
-        return "exposureState=%s,%s,%.4f,%.4f"%(expStateStr, timeStampNow, arcticExpState.fullTime, arcticExpState.remTime)
+        if arcticStatusInt == arctic.Reading:
+            # use modeled exposure time
+            fullTime = self.getReadTime()
+        else:
+            fullTime = arcticExpState.fullTime
+        return "exposureState=%s, %.4f"%(expStateStr, fullTime)
+
+        # timeStampNow = datetime.datetime.now().strftime("%Y-%M-%dT%H:%M:%S.%f")
+        # return "exposureState=%s,%s,%.4f,%.4f"%(expStateStr, timeStampNow, arcticExpState.fullTime, arcticExpState.remTime)
+
+    def getReadTime(self):
+        """Determine the read time for the current camera configuration
+        """
+        config = self.camera.getConfig()
+        width = int(config.getBinnedWidth())
+        height = int(config.getBinnedHeight())
+        totalPix = width*height
+        readRate = ReadoutRateEnumNameDict[config.readoutRate]
+        readAmps = ReadoutAmpsEnumNameDict[config.readoutAmps]
+        if readAmps != "quad":
+            readAmps = "single"
+        return dcOff[readAmps] + rowMult[readAmps] * height + pixMult[readAmps][readRate] * totalPix
 
     def setTemp(self, tempSetpoint):
         """Set the temperature setpoint
@@ -273,9 +330,11 @@ class ArcticActor(Actor):
             expName = "%s_%d.fits" % (expType, self.expNum)
             expName = os.path.join(self.imageDir, expName)
         print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
+        self.expStartTime = time.time()
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
         self.comment = comment
+        self.readingFlag = False
         self.camera.startExposure(expTime, expTypeEnum, expName)
         self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         self.expNum += 1
@@ -285,31 +344,36 @@ class ArcticActor(Actor):
         """Begin continuously polling the camera for exposure status, write the image when ready.
         """
         expState = self.camera.getExposureState()
-        # statusStr = "%s %0.1f %0.1f" % (StatusStrDict.get(expState.state), expState.fullTime, expState.remTime)
-        # print(statusStr)
-        # self.writeToUsers("i", statusStr, self.exposeCmd)
-        # log.info(statusStr)
+        if expState.state == arctic.Reading and not self.readingFlag:
+            self.readingFlag = True
+            # self.startReadTime = time.time()
+            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state == arctic.ImageRead:
-            print("saving image: exposure %s"%self.expName)
             log.info("saving image: exposure %s"%self.expName)
-            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
+            # config = self.camera.getConfig()
+            # readTime = time.time() - self.startReadTime
+            # xBin = int(config.binFacCol)
+            # yBin = int(config.binFacRow)
+            # width = int(config.getBinnedWidth())
+            # height = int(config.getBinnedHeight())
+            # totalPix = width*height
+            # print("read time: %.2f, rate=%s, amps=%s, bin=[%i,%i], dim=[%i,%i], totalPix=%i"%(readTime, ReadoutRateEnumNameDict[config.readoutRate], ReadoutAmpsEnumNameDict[config.readoutAmps], xBin, yBin, width, height, totalPix))
             self.camera.saveImage() # saveImage sets camera exp state to idle
-            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
-        if expState.state != arctic.Idle:
-            # if the camera is not idle continue polling
-            self.pollTimer.start(0.01, self.pollCamera)
-        else:
-            # camera is idle, clean up
-            print("exposure %s complete"%self.expName)
+            # clean up
             log.info("exposure %s complete"%self.expName)
             #was a comment associated with this exposure
-            if self.comment:
-                print("adding comment %s to exposure %s"%(self.comment, self.expName))
-                self.writeComment()
+            # comment is actually written by the hub!
+            # if self.comment:
+            #     print("adding comment %s to exposure %s"%(self.comment, self.expName))
+            #     self.writeComment()
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
             self.exposeCmd.setState(self.exposeCmd.Done)
             self.expName = None
             self.comment = None
+            self.readingFlag = False
+        elif expState.state != arctic.Idle:
+            # if the camera is not idle continue polling
+            self.pollTimer.start(0.05, self.pollCamera)
 
     def writeComment(self):
         # http://astropy.readthedocs.org/en/latest/io/fits/
@@ -368,7 +432,6 @@ class ArcticActor(Actor):
         maxUnbinXYXY = self.maxCoord()*2
         unbinnedCoords = [min(max(unbinnedCoords[ind], minUnbinXYXY[ind]), maxUnbinXYXY[ind])
             for ind in range(len(unbinnedCoords))]
-        print "unbin: converted %r bin %r to %r" % (binnedCoords, binFac, unbinnedCoords)
         return unbinnedCoords
 
     def bin(self, unbinnedCoords, binFac):
@@ -404,7 +467,6 @@ class ArcticActor(Actor):
         maxBinXYXY = self.maxCoord(binFac)*2
         binnedCoords = [min(max(binnedCoords[ind], minBinXYXY[ind]), maxBinXYXY[ind])
             for ind in range(len(binnedCoords))]
-        print "bin: converted %r bin %r to %r" % (unbinnedCoords, binFac, binnedCoords)
         return binnedCoords
 
     def cmd_set(self, userCmd):
