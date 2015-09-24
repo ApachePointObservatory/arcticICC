@@ -310,11 +310,6 @@ class ArcticActor(Actor):
         @param[in] expType: string, one of object, flat, dark, bias
         @param[in] expTime: float, exposure time.
         """
-        # exceptions thrown from c++ code
-        # expState = self.camera.getExposureState()
-        # if expState != arctic.Idle:
-        #     userCmd.setState(userCmd.failed, "Cannot start new exposure, camera exposure state is %s"%StatusStrDict[expState])
-        #     return
         assert self.exposeCmd.isDone, "cannot start new exposure, self.exposeCmd not done"
         assert not self.pollTimer.isActive, "cannot start new exposure, self.pollTimer is active"
         self.exposeCmd = userCmd
@@ -329,7 +324,7 @@ class ArcticActor(Actor):
             expName = os.path.abspath("%s_%d.fits" % (expType, self.expNum))
             expName = "%s_%d.fits" % (expType, self.expNum)
             expName = os.path.join(self.imageDir, expName)
-        print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
+        # print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
         self.expStartTime = time.time()
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
@@ -350,14 +345,6 @@ class ArcticActor(Actor):
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state == arctic.ImageRead:
             log.info("saving image: exposure %s"%self.expName)
-            # config = self.camera.getConfig()
-            # readTime = time.time() - self.startReadTime
-            # xBin = int(config.binFacCol)
-            # yBin = int(config.binFacRow)
-            # width = int(config.getBinnedWidth())
-            # height = int(config.getBinnedHeight())
-            # totalPix = width*height
-            # print("read time: %.2f, rate=%s, amps=%s, bin=[%i,%i], dim=[%i,%i], totalPix=%i"%(readTime, ReadoutRateEnumNameDict[config.readoutRate], ReadoutAmpsEnumNameDict[config.readoutAmps], xBin, yBin, width, height, totalPix))
             self.camera.saveImage() # saveImage sets camera exp state to idle
             # clean up
             log.info("exposure %s complete"%self.expName)
