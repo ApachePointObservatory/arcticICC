@@ -24,6 +24,8 @@ from arcticICC.fakeCamera import Camera as FakeCamera
 
 from arcticICC.cmd.parse import ParseError
 
+UserPort = 35000
+
 ImageDir = os.path.join(os.getenv("HOME"), "images")
 
 ExpTypeDict = collections.OrderedDict((
@@ -112,7 +114,7 @@ class ArcticActor(Actor):
         filterWheelDev,
         shutterDev,
         name="arcticICC",
-        userPort = 35000,
+        userPort = UserPort,
         test=False,
     ):
         """!Construct an ArcticActor

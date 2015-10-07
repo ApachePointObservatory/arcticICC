@@ -6,8 +6,9 @@ from twisted.internet import reactor
 from twistedActor import startFileLogging
 
 from arcticICC import ArcticActorWrapper
+import arcticICC
 
-UserPort = 35000
+UserPort = arcticICC.UserPort
 
 try:
     startFileLogging("/home/arctic/logs/arcticICC")

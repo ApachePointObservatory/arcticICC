@@ -10,11 +10,15 @@ import syslog
 
 from twistedActor import makeStartupScript
 
+import arcticICC
+
 if __name__ == '__main__':
     startupScript = makeStartupScript(
         actorName="arcticICC",
         pkgName="arcticICC",
         binScript="runArcticICC.py",
-        facility=syslog.LOG_LOCAL1
+        userPort=arcticICC.UserPort,
+        facility=syslog.LOG_LOCAL1,
+
     )
     print startupScript
