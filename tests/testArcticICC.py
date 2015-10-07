@@ -3,8 +3,6 @@ from __future__ import division, absolute_import
 import os
 import glob
 
-from astropy.io import fits
-
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import Deferred
 
@@ -20,20 +18,6 @@ from arcticICC import ArcticActorWrapper
 # from arcticICC import camera
 from arcticICC import fakeCamera as camera
 # from arcticICC.cmd import ParseError
-
-# class CmdCallback(object):
-#     """Call a deferred when a command is finished
-#     """
-#     def __init__(self, deferred, shouldFail, assertTrueMethod):
-#         self.deferred = deferred
-#         self.shouldFail = shouldFail
-#         self.assertTrue = assertTrueMethod
-
-#     def __call__(self, cmd):
-#         # print "generic command callback: %r, %s" % (cmd, cmd.lastCode)
-#         if cmd.isDone:
-#             deferred, self.deferred = self.deferred, None
-#             deferred.callback("done")
 
 class TestArcticICC(TestCase):
     """Tests for each command, and how they behave in collisions
@@ -117,10 +101,10 @@ class TestArcticICC(TestCase):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==2)
             self.assertTrue(config.binFacRow==2)
-            self.assertTrue(config.winStartCol == 20)
-            self.assertTrue(config.winStartRow == 40)
-            self.assertTrue(config.winWidth == 60)
-            self.assertTrue(config.winHeight == 70)
+            self.assertTrue(config.winStartCol == 19)
+            self.assertTrue(config.winStartRow == 39)
+            self.assertTrue(config.winWidth == 41)
+            self.assertTrue(config.winHeight == 31)
             self.assertTrue(config.readoutRate == camera.Medium)
             self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
@@ -134,10 +118,10 @@ class TestArcticICC(TestCase):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==4)
             self.assertTrue(config.binFacRow==2)
-            self.assertTrue(config.winStartCol == 40)
-            self.assertTrue(config.winStartRow == 20)
-            self.assertTrue(config.winWidth == 70)
-            self.assertTrue(config.winHeight == 90)
+            self.assertTrue(config.winStartCol == 39)
+            self.assertTrue(config.winStartRow == 19)
+            self.assertTrue(config.winWidth == 31)
+            self.assertTrue(config.winHeight == 71)
             self.assertTrue(config.readoutRate == camera.Fast)
             self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 40.6)
@@ -151,10 +135,10 @@ class TestArcticICC(TestCase):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==1)
             self.assertTrue(config.binFacRow==4)
-            self.assertTrue(config.winStartCol == 20)
-            self.assertTrue(config.winStartRow == 40)
-            self.assertTrue(config.winWidth == 60)
-            self.assertTrue(config.winHeight == 70)
+            self.assertTrue(config.winStartCol == 19)
+            self.assertTrue(config.winStartRow == 39)
+            self.assertTrue(config.winWidth == 41)
+            self.assertTrue(config.winHeight == 31)
             self.assertTrue(config.readoutRate == camera.Slow)
             self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
@@ -195,33 +179,21 @@ class TestArcticICC(TestCase):
         d = self.commandActor(cmdStr="filter talk blah blue2 g\2")
         return d
 
-    # def testExpose0(self):
-    #     d = self.commandActor(cmdStr="expose bias")
-    #     return d
+    def testExpose0(self):
+        d = self.commandActor(cmdStr="expose bias")
+        return d
 
-    # def testExpose1(self):
-    #     d = self.commandActor(cmdStr="expose object time=0")
-    #     return d
+    def testExpose1(self):
+        d = self.commandActor(cmdStr="expose object time=0")
+        return d
 
-    # def testExpose2(self):
-    #     d = self.commandActor(cmdStr="expose flat time=0")
-    #     return d
+    def testExpose2(self):
+        d = self.commandActor(cmdStr="expose flat time=0")
+        return d
 
-    # def testExpose3(self):
-    #     d = self.commandActor(cmdStr="expose dark time=0")
-    #     return d
-
-    # def testExpose4(self):
-    #     comment = "test exposure 4 header"
-    #     d = self.commandActor(cmdStr="expose dark time=0 basename=testExpose4 comment='%s'"%comment)
-    #     def checkComment(cb=None):
-    #         filename = glob.glob(os.path.join(self.arcticActor.imageDir, "*testExpose4*"))[0]
-    #         hdulist = fits.open(filename)
-    #         prihdr=hdulist[0].header
-    #         self.assertTrue(comment in prihdr["comment"])
-    #         hdulist.close()
-    #     d.addCallback(checkComment)
-    #     return d
+    def testExpose3(self):
+        d = self.commandActor(cmdStr="expose dark time=0")
+        return d
 
 
 if __name__ == '__main__':

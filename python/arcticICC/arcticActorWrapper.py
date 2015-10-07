@@ -10,8 +10,10 @@ __all__ = ["ArcticActorWrapper"]
 class ArcticActorWrapper(ActorWrapper):
     """!A wrapper for the arcticICC talking to a fake camera, fake shutter, and fake filter wheel
     """
-    def __init__(self, name, userPort=0):
+    def __init__(self, name, userPort=0, test=True):
+        # if test=True use fake camera
         self.name = name
+        self.test = test
         self.actor = None # the ArcticActor, once it's built
         self.shutterDevWrapper = ShutterDeviceWrapper()
         self.filterDevWrapper = FilterWheelDeviceWrapper()
@@ -27,4 +29,5 @@ class ArcticActorWrapper(ActorWrapper):
             filterWheelDev = self.filterDevWrapper.device,
             shutterDev = self.shutterDevWrapper.device,
             userPort = self._userPort,
+            test = self.test,
         )

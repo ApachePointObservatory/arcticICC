@@ -1,14 +1,15 @@
 #!/usr/bin/env python2
 from __future__ import division, absolute_import
-
-import socket
+import os
 
 import unittest
 
 import arcticICC
 
-configs = [arcticICC.fakeCamera.Camera().getConfig()]
-if socket.gethostname() == "arctic-icc.apo.nmsu.edu":
+from arcticICC.fakeCamera import Camera
+
+configs = [Camera().getConfig()]
+if os.getenv("HOSTNAME") == "arctic-icc.apo.nmsu.edu":
     configs.append(arcticICC.camera.Camera().getConfig())
 
 class TestCameraConfig(unittest.TestCase):

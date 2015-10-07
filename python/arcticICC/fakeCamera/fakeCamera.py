@@ -6,11 +6,15 @@ import numpy
 
 from RO.Comm.TwistedTimer import Timer
 
+import arcticICC.camera as arctic
+
+from arcticICC.camera import CameraConfig
+
 # exp types
-Bias = "Bias"
-Dark = "Dark"
-Flat = "Flat"
-Object = "Object"
+Bias = arctic.Bias
+Dark = arctic.Dark
+Flat = arctic.Flat
+Object = arctic.Object
 
 # image states
 # Idle = "Idle"
@@ -19,23 +23,23 @@ Object = "Object"
 # Reading = "Reading"
 # ImageRead = "ImageRead"
 
-Idle = 0
-Exposing = 1
-Paused = 2
-Reading = 3
-ImageRead = 4
+Idle = arctic.Idle
+Exposing = arctic.Exposing
+Paused = arctic.Paused
+Reading = arctic.Reading
+ImageRead = arctic.ImageRead
 
 # read rates
-Slow = "Slow"
-Medium = "Medium"
-Fast = "Fast"
+Slow = arctic.Slow
+Medium = arctic.Medium
+Fast = arctic.Fast
 
 # read amps
-LL = "LL"
-LR = "LR"
-UR = "UR"
-UL = "UL"
-Quad = "Quad"
+LL = arctic.LL
+LR = arctic.LR
+UR = arctic.UR
+UL = arctic.UL
+Quad = arctic.Quad
 
 readTime = 3 # seconds
 
@@ -54,110 +58,110 @@ StateEnum = {
     "ImageRead" : 4,
 }
 
-class CameraConfig(object):
+# class CameraConfig(object):
 
-        def __init__(self):
-            self.readoutAmps = Quad # default to quad
-            self.readoutRate = Medium # default to fast
-            self.binFacCol = 2 # default to 1x1 binning
-            self.binFacRow = 2
-            self.winStartCol = 0
-            self.winStartRow = 0
-            self.winWidth = CCDWidth/2
-            self.winHeight = CCDHeight/2
-            self.setFullWindow()
+#         def __init__(self):
+#             self.readoutAmps = Quad # default to quad
+#             self.readoutRate = Medium # default to fast
+#             self.binFacCol = 2 # default to 1x1 binning
+#             self.binFacRow = 2
+#             self.winStartCol = 0
+#             self.winStartRow = 0
+#             self.winWidth = CCDWidth/2
+#             self.winHeight = CCDHeight/2
+#             self.setFullWindow()
 
-        def assertValid(self):
-            return #
-            if (not self.isFullWindow() and not self.canWindow()):
-                errMsg = "cannot window unless reading from a single amplifier; readoutAmps="
-                    #+ ReadoutAmpsNameMap.find(readoutAmps)->second
-                raise RuntimeError(errMsg)
+#         def assertValid(self):
+#             return #
+#             if (not self.isFullWindow() and not self.canWindow()):
+#                 errMsg = "cannot window unless reading from a single amplifier; readoutAmps="
+#                     #+ ReadoutAmpsNameMap.find(readoutAmps)->second
+#                 raise RuntimeError(errMsg)
 
-            if (self.binFacCol < 1 or self.binFacCol > MaxBinFactor):
-                errMsg = "binFacCol=" + str(self.binFacCol) + " < 1 or > " + str(MaxBinFactor)
-                raise RuntimeError(errMsg)
+#             if (self.binFacCol < 1 or self.binFacCol > MaxBinFactor):
+#                 errMsg = "binFacCol=" + str(self.binFacCol) + " < 1 or > " + str(MaxBinFactor)
+#                 raise RuntimeError(errMsg)
 
-            if (self.binFacRow < 1 or self.binFacRow > MaxBinFactor):
-                errMsg = "binFacRow=" + str(self.binFacRow) + " < 1 or > " + str(MaxBinFactor)
-                raise RuntimeError(errMsg)
+#             if (self.binFacRow < 1 or self.binFacRow > MaxBinFactor):
+#                 errMsg = "binFacRow=" + str(self.binFacRow) + " < 1 or > " + str(MaxBinFactor)
+#                 raise RuntimeError(errMsg)
 
 
-            binnedCCDWidth = self.computeBinnedWidth(CCDWidth)
-            binnedCCDHeight = self.computeBinnedHeight(CCDHeight)
-            if ((self.winStartCol < 0) or (self.winStartCol >= binnedCCDWidth)):
-                errMsg = "winStartCol=" + str(self.winStartCol) + " < 0 or >= " + str(binnedCCDWidth)
-                raise RuntimeError(errMsg)
+#             binnedCCDWidth = self.computeBinnedWidth(CCDWidth)
+#             binnedCCDHeight = self.computeBinnedHeight(CCDHeight)
+#             if ((self.winStartCol < 0) or (self.winStartCol >= binnedCCDWidth)):
+#                 errMsg = "winStartCol=" + str(self.winStartCol) + " < 0 or >= " + str(binnedCCDWidth)
+#                 raise RuntimeError(errMsg)
 
-            if ((self.winStartRow < 0) or (self.winStartRow >= binnedCCDHeight)):
-                errMsg = "winStartRow=" + str(self.winStartRow) + " < 0 or >= " + str(binnedCCDHeight)
-                raise RuntimeError(errMsg)
+#             if ((self.winStartRow < 0) or (self.winStartRow >= binnedCCDHeight)):
+#                 errMsg = "winStartRow=" + str(self.winStartRow) + " < 0 or >= " + str(binnedCCDHeight)
+#                 raise RuntimeError(errMsg)
 
-            if ((self.winWidth < 1) or (self.winWidth > binnedCCDWidth - self.winStartCol)):
-                errMsg = "winWidth=" + str(self.winWidth) + " < 1 or > " + str(binnedCCDWidth - self.winStartCol)
-                raise RuntimeError(errMsg)
+#             if ((self.winWidth < 1) or (self.winWidth > binnedCCDWidth - self.winStartCol)):
+#                 errMsg = "winWidth=" + str(self.winWidth) + " < 1 or > " + str(binnedCCDWidth - self.winStartCol)
+#                 raise RuntimeError(errMsg)
 
-            if ((self.winHeight < 1) or (self.winHeight > binnedCCDHeight - self.winStartRow)):
-                errMsg = "winHeight=" + str(self.winHeight) + " < 1 or > " + str(binnedCCDHeight - self.winStartRow)
-                raise RuntimeError(errMsg)
+#             if ((self.winHeight < 1) or (self.winHeight > binnedCCDHeight - self.winStartRow)):
+#                 errMsg = "winHeight=" + str(self.winHeight) + " < 1 or > " + str(binnedCCDHeight - self.winStartRow)
+#                 raise RuntimeError(errMsg)
 
-            # if the following test fails we have mis-set some parameter or are mis-computing getBinnedWidth or getBinnedHeight
-            if (self.getNumAmps() > 1):
-                # the number of binned rows and columns must be even
-                if ((self.getBinnedWidth() % 2 != 0) or (self.getBinnedHeight() % 2 != 0)):
-                    errMsg = "Bug: reading from multiple amplifiers, so the binned width=" + str(self.getBinnedWidth()) + " and height=" + str(self.getBinnedHeight()) + " must both be even"
-                    raise RuntimeError(errMsg)
+#             # if the following test fails we have mis-set some parameter or are mis-computing getBinnedWidth or getBinnedHeight
+#             if (self.getNumAmps() > 1):
+#                 # the number of binned rows and columns must be even
+#                 if ((self.getBinnedWidth() % 2 != 0) or (self.getBinnedHeight() % 2 != 0)):
+#                     errMsg = "Bug: reading from multiple amplifiers, so the binned width=" + str(self.getBinnedWidth()) + " and height=" + str(self.getBinnedHeight()) + " must both be even"
+#                     raise RuntimeError(errMsg)
 
-        def canWindow(self):
-            return self.getNumAmps == 1
+#         def canWindow(self):
+#             return self.getNumAmps == 1
 
-        def getNumAmps(self):
-            if self.readoutAmps == Quad:
-                return 4
-            else:
-                return 1
+#         def getNumAmps(self):
+#             if self.readoutAmps == Quad:
+#                 return 4
+#             else:
+#                 return 1
 
-        def setFullWindow(self):
-            self.winStartCol = 0
-            self.winStartRow = 0
-            self.winWidth = self.computeBinnedWidth(CCDWidth)
-            self.winHeight = self.computeBinnedHeight(CCDHeight)
+#         def setFullWindow(self):
+#             self.winStartCol = 0
+#             self.winStartRow = 0
+#             self.winWidth = self.computeBinnedWidth(CCDWidth)
+#             self.winHeight = self.computeBinnedHeight(CCDHeight)
 
-        def getUnbinnedWidth(self):
-            return self.getBinnedWidth() * self.binFacCol
+#         def getUnbinnedWidth(self):
+#             return self.getBinnedWidth() * self.binFacCol
 
-        def getUnbinnedHeight(self):
-            return self.getBinnedHeight() * self.binFacRow
+#         def getUnbinnedHeight(self):
+#             return self.getBinnedHeight() * self.binFacRow
 
-        def getBinnedWidth(self):
-            # Warning: if you change this code, also update getMaxWidth
-            if self.getNumAmps() > 1:
-                xPrescan = XBinnedPrescanPerAmp * 2
-            else:
-                xPrescan = XBinnedPrescanPerAmp * 1
-            return self.winWidth + xPrescan + self.computeBinnedWidth(XOverscan)
+#         def getBinnedWidth(self):
+#             # Warning: if you change this code, also update getMaxWidth
+#             if self.getNumAmps() > 1:
+#                 xPrescan = XBinnedPrescanPerAmp * 2
+#             else:
+#                 xPrescan = XBinnedPrescanPerAmp * 1
+#             return self.winWidth + xPrescan + self.computeBinnedWidth(XOverscan)
 
-        def getBinnedHeight(self):
-            # Warning: if you change this code, also update getMaxHeight
-            if self.getNumAmps() > 1:
-                return self.winHeight + YQuadBorder
-            else:
-                return self.winHeight
+#         def getBinnedHeight(self):
+#             # Warning: if you change this code, also update getMaxHeight
+#             if self.getNumAmps() > 1:
+#                 return self.winHeight + YQuadBorder
+#             else:
+#                 return self.winHeight
 
-        def isFullWindow(self):
-            return (self.winStartRow == 0) and (self.winStartCol == 0) and (self.winWidth >= self.computeBinnedWidth(CCDWidth)) and (self.winHeight >= self.computeBinnedHeight(CCDHeight))
+#         def isFullWindow(self):
+#             return (self.winStartRow == 0) and (self.winStartCol == 0) and (self.winWidth >= self.computeBinnedWidth(CCDWidth)) and (self.winHeight >= self.computeBinnedHeight(CCDHeight))
 
-        def getMaxWidth(self):
-            return CCDWidth + (2 * XBinnedPrescanPerAmp) + XOverscan
+#         def getMaxWidth(self):
+#             return CCDWidth + (2 * XBinnedPrescanPerAmp) + XOverscan
 
-        def getMaxHeight(self):
-            return CCDHeight + YQuadBorder
+#         def getMaxHeight(self):
+#             return CCDHeight + YQuadBorder
 
-        def computeBinnedWidth(self, unbWidth):
-            return ((unbWidth) / (2 * self.binFacCol)) * 2
+#         def computeBinnedWidth(self, unbWidth):
+#             return ((unbWidth) / (2 * self.binFacCol)) * 2
 
-        def computeBinnedHeight(self, unbHeight):
-            return ((unbHeight) / (2 * self.binFacRow)) * 2
+#         def computeBinnedHeight(self, unbHeight):
+#             return ((unbHeight) / (2 * self.binFacRow)) * 2
 
 class Exposure(object):
     def __init__(self, expTime, expType, name):
@@ -222,8 +226,11 @@ class Camera(object):
 
     def getExposureState(self):
         expTime = self.currExposure.expTime
-        timeRemaining = expTime - (time.time() - self.expBegin)
-        return ExposureState(self.state, expTime, timeRemaining)
+        if self.state != Idle:
+            timeRemaining = expTime - (time.time() - self.expBegin)
+        else:
+            timeRemaining = 0.
+        return ExposureState(self.state, expTime or 0., timeRemaining)
 
     def getConfig(self):
         return self._config

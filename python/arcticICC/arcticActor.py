@@ -19,6 +19,9 @@ from .cmd import arcticCommandSet
 from .version import __version__
 
 import arcticICC.camera as arctic
+
+from arcticICC.fakeCamera import Camera as FakeCamera
+
 from arcticICC.cmd.parse import ParseError
 
 ImageDir = os.path.join(os.getenv("HOME"), "images")
@@ -110,16 +113,19 @@ class ArcticActor(Actor):
         shutterDev,
         name="arcticICC",
         userPort = 35000,
+        test=False,
     ):
         """!Construct an ArcticActor
 
-        @param[in] camera instance
-        @param[in] filterDev  a FilterWheelDevice instance
+        @param[in] filterWheelDev  a FilterWheelDevice instance
         @param[in] shutterDev  a ShutterDevice instance
         @param[in] name  actor name; used for logging
+        @param[in] userPort port on which this service runs
+        @param[in] test bool. If true, use a fake camera.
         """
         self.imageDir = ImageDir
-        self.camera = arctic.Camera()
+        self.test = test
+        self.setCamera()
         self.filterWheelDev = filterWheelDev
         self.shutterDev = shutterDev
         self._tempSetpoint = None
@@ -138,6 +144,14 @@ class ArcticActor(Actor):
             doConnect = True,
             doDevNameCmds = False,
             )
+
+    def setCamera(self):
+        self.camera = None
+        if self.test:
+            # use fake camera
+            self.camera = FakeCamera()
+        else:
+            self.camera = arctic.Camera()
 
     @property
     def tempSetpoint(self):
@@ -194,8 +208,7 @@ class ArcticActor(Actor):
         userCmd = expandUserCmd(userCmd)
         log.info("%s.init(userCmd=%s, timeLim=%s, getStatus=%s)" % (self, userCmd, timeLim, getStatus))
         # initialize camera
-        self.camera = None
-        self.camera = arctic.Camera()
+        self.setCamera()
         subCmdList = []
         # initialize devices
         for dev in [self.filterWheelDev, self.shutterDev]:
@@ -233,8 +246,7 @@ class ArcticActor(Actor):
         else:
             # how to init the camera, just rebuild it?
             assert arg == "init"
-            self.camera = None
-            self.camera = arctic.Camera()
+            self.setCamera()
             userCmd.setState(userCmd.Done)
         return True
 
