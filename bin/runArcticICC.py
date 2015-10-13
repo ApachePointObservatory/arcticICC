@@ -7,7 +7,7 @@ from twisted.internet import reactor
 from twistedActor import startFileLogging
 
 from arcticICC import ArcticActor
-from arcticICC.dev import FilterWheelDevice, ShutterDevice
+from arcticICC.dev import FilterWheelDevice, ShutterDevice, FakeShutter
 
 
 UserPort = 35000
@@ -20,27 +20,31 @@ except KeyError:
 
 # ports to match bin/runFakeDevs
 fwPort = 37000
+fwAddress = "10.50.1.245" # "localhost"
 fsPort = 55555
 
-filterWheelDevice = FilterWheelDevice(
-    name = "filterWheelDevice",
-    host = "localhost",
-    port = fwPort
-    )
 
-shutterDevice = ShutterDevice(
-    name = "shutterDevice",
-    host = "localhost",
-    port = fsPort
-    )
+def startDevs(fs):
+    if fs.isReady:
+        filterWheelDevice = FilterWheelDevice(
+            host = fwAddress,
+            port = fwPort
+            )
 
-# startSystemLogging(ArcticActor.Facility)
+        shutterDevice = ShutterDevice(
+            name = "shutterDevice",
+            host = "localhost",
+            port = fsPort
+            )
 
-arcticActor = ArcticActor(
-    filterWheelDev = filterWheelDevice,
-    shutterDev = shutterDevice
-    )
+        # startSystemLogging(ArcticActor.Facility)
 
+        arcticActor = ArcticActor(
+            filterWheelDev = filterWheelDevice,
+            shutterDev = shutterDevice
+            )
+fs = FakeShutter("fakeShutter", fsPort)
+fs.addStateCallback(startDevs)
 reactor.run()
 
 
