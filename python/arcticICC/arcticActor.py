@@ -257,16 +257,22 @@ class ArcticActor(Actor):
         @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
         """
         subCmd = userCmd.parsedCommand.subCommand
-        if subCmd.cmdName == "status":
-            self.getStatus(userCmd=userCmd, doCamera=False, doFilter=True, doShutter=False)
-        elif subCmd.cmdName == "init":
-            self.filterWheelDev.init(userCmd=userCmd)
-        elif subCmd.cmdName == "home":
-            self.filterWheelDev.home(userCmd=userCmd)
-        else:
-            assert subCmd.cmdName == "talk"
+        userCmd = expandUserCmd(userCmd)
+        # if subCmd.cmdName == "status":
+        #     self.getStatus(userCmd=userCmd, doCamera=False, doFilter=True, doShutter=False)
+        # elif subCmd.cmdName == "init":
+        #     self.filterWheelDev.init(userCmd=userCmd)
+        # elif subCmd.cmdName == "home":
+        #     self.filterWheelDev.home(userCmd=userCmd)
+        # else:
+        #     assert subCmd.cmdName == "talk"
+        if subCmd.cmdName == "talk":
             talkTxt = subCmd.parsedPositionalArgs[0]
-            self.filterWheelDev.talk(text=talkTxt, userCmd=userCmd)
+            self.filterWheelDev.startCmd(talkTxt, userCmd=userCmd)
+        else:
+            # just pass along the command
+            assert subCmd.cmdName in ["status", "init", "home"]
+            self.filterWheelDev.startCmd(subCmd.cmdName, userCmd=userCmd)
         return True
 
     def cmd_init(self, userCmd):
@@ -545,8 +551,7 @@ class ArcticActor(Actor):
                 if mvCmd.isDone:
                     self.getStatus(userCmd) # set the userCmd done
             pos = int(filterPos[0])
-            mvCmd = self.filterWheelDev.move(pos) # fiterWheel will set command done
-            mvCmd.addCallback(getStatusAfterMove)
+            self.filterWheelDev.startCmd("move %i"%(pos,), callFunc=getStatusAfterMove) # userCmd set done in callback after status
         else:
             # done: output the new configuration
             self.getStatus(userCmd) # get status will set command done
@@ -613,14 +618,11 @@ class ArcticActor(Actor):
         if doCamera:
             statusStr = self.getCameraStatus()
             self.writeToUsers("i", statusStr, cmd=userCmd)
-        devList = []
-        if doFilter:
-            devList.append(self.filterWheelDev)
-        if doShutter:
-            devList.append(self.shutterDev)
         subCmdList = []
-        for dev in devList:
-            subCmdList.append(dev.getStatus())
+        if doShutter:
+            subCmdList.append(self.shutterDev.getStatus())
+        if doFilter:
+            subCmdList.append(self.filterWheelDev.startCmd("status"))
         if subCmdList:
             LinkCommands(userCmd, subCmdList)
         else:
