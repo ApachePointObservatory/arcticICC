@@ -2,6 +2,7 @@
 setupRequired("RO")
 setupRequired("twistedActor")
 setupRequired("opscore")
+setupRequired("arcticFilterWheel")
 setupRequired("swig")
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)

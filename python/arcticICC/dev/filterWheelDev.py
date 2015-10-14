@@ -202,6 +202,7 @@ class FilterWheelDevice(ActorDevice):
     def __init__(self,
         host,
         port,
+        name = "arcticfilterwheel"
     ):
         """!Construct a FilterWheelDevice
 
@@ -210,7 +211,7 @@ class FilterWheelDevice(ActorDevice):
         @paramp[in] name name of the device (should match model name in actorkeys)
         """
         ActorDevice.__init__(self,
-            name="arcticfilterwheel",
+            name=name,
             host=host,
             port=port,
         )

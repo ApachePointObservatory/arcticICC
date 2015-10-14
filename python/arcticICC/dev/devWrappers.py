@@ -7,6 +7,8 @@ from .fakeDev import FakeShutter, FakeFilterWheel
 from .filterWheelDev import FilterWheelDevice
 from .shutterDev import ShutterDevice
 
+from arcticFilterWheel import ArcticFWActorWrapper
+
 __all__ = ["ShutterDeviceWrapper", "FilterWheelDeviceWrapper"]
 
 class ArcticDeviceWrapper(DeviceWrapper):
@@ -68,12 +70,38 @@ class ShutterDeviceWrapper(ArcticDeviceWrapper):
         ):
         ArcticDeviceWrapper.__init__(self, devClass, fakeControllerClass, name)
 
-class FilterWheelDeviceWrapper(ArcticDeviceWrapper):
+class FilterWheelDeviceWrapperOld(ArcticDeviceWrapper):
     def __init__(self,
-        name = "filterDevice",
+        name = "arcticfilterwheel",
         devClass = FilterWheelDevice,
         fakeControllerClass = FakeFilterWheel,
         ):
         ArcticDeviceWrapper.__init__(self, devClass, fakeControllerClass, name)
+
+class FilterWheelDeviceWrapper(DeviceWrapper):
+    """!A wrapper for an FilterWheelDevice talking to a fake filter wheel controller
+    """
+    def __init__(self,
+        name="arcticfilterwheel",
+        port=0
+    ):
+        """!Construct a FilterWheelDeviceWrapper that manages its fake mirror controller
+
+        @param[in] name a name
+        """
+        controllerWrapper = ArcticFWActorWrapper(
+            name="arcticFWActorWrapper",
+        )
+        DeviceWrapper.__init__(self, name=name, controllerWrapper=controllerWrapper)
+
+    def _makeDevice(self):
+        port = self.port
+        if port is None:
+            raise RuntimeError("Controller port is unknown")
+        self.debugMsg("_makeDevice, port=%s" % (port,))
+        self.device = FilterWheelDevice(
+            host="localhost",
+            port=port,
+        )
 
 
