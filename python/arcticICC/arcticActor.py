@@ -8,6 +8,7 @@ import os
 import syslog
 import collections
 import time
+import datetime
 
 from astropy.io import fits
 
@@ -137,6 +138,8 @@ class ArcticActor(Actor):
         self.pollTimer = Timer()
         self.expName = None
         self.comment = None
+        self.expStartTime = None
+        self.expStartTimeHeader = None
         Actor.__init__(self,
             userPort = userPort,
             maxUsers = 1,
@@ -345,6 +348,7 @@ class ArcticActor(Actor):
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
         self.comment = comment
+        self.expStartTimeHeader = datetime.datetime.now().isoformat()
         self.readingFlag = False
         self.camera.startExposure(expTime, expTypeEnum, expName)
         self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
@@ -372,22 +376,28 @@ class ArcticActor(Actor):
                 filterPos = "unknown"
             else:
                 filterPos = int(filterPos)
+            self.writeHeader("date-obs", self.expStartTimeHeader, "TAI time at the start of the exposure")
             self.writeHeader("filpos", filterPos)
             self.writeHeader("filter", self.filterWheelDev.filterName)
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
             self.exposeCmd.setState(self.exposeCmd.Done)
             self.expName = None
             self.comment = None
+            self.expStartTime = None
+            self.expStartTimeHeader = None
             self.readingFlag = False
         elif expState.state != arctic.Idle:
             # if the camera is not idle continue polling
             self.pollTimer.start(0.05, self.pollCamera)
 
-    def writeHeader(self, keyword, value):
+    def writeHeader(self, keyword, value, comment=None):
         # http://astropy.readthedocs.org/en/latest/io/fits/
         hdulist = fits.open(self.expName, mode='update')
         prihdr = hdulist[0].header
-        prihdr[keyword] = value
+        if comment is None:
+            prihdr[keyword] = value
+        else:
+            prihdr[keyword] = (value, comment)
         hdulist.close()
 
     def maxCoord(self, binFac=(1,1)):
