@@ -119,7 +119,7 @@ namespace {
 
 namespace arcticICC {
     CameraConfig::CameraConfig() :
-        readoutAmps(ReadoutAmps::Quad),
+        readoutAmps(ReadoutAmps::LL),
         readoutRate(ReadoutRate::Medium),
         binFacCol(2),
         binFacRow(2),
@@ -436,7 +436,7 @@ namespace arcticICC {
         try {
             int deinterlaceAlgorithm = ReadoutAmpsDeinterlaceAlgorithmMap.find(_config.readoutAmps)->second;
             arc::deinterlace::CArcDeinterlace deinterlacer;
-            std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", " 
+            std::cout << "deinterlacer.RunAlg(" << _device.CommonBufferVA() << ", "
                 <<  _config.getBinnedHeight() << ", " << _config.getBinnedWidth() << ", " << deinterlaceAlgorithm << ")" << std::endl;
             deinterlacer.RunAlg(_device.CommonBufferVA(), _config.getBinnedHeight(), _config.getBinnedWidth(), deinterlaceAlgorithm);
 
