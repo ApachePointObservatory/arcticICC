@@ -133,24 +133,24 @@ namespace arcticICC {
     #ifndef SWIG
     const std::map<ReadoutAmps, AmplifierData> AmplifierDataMap = {
         {ReadoutAmps::LL, {0, 0, {
-            {ReadoutRate::Fast,     {6.6, 1.98}},
-            {ReadoutRate::Medium,   {4.5, 1.99}},
-            {ReadoutRate::Slow,     {4.0, 1.43}}
+            {ReadoutRate::Fast,     {1.98, 6.0}},
+            {ReadoutRate::Medium,   {1.99, 3.8}},
+            {ReadoutRate::Slow,     {1.43, 3.4}}
         }}},
         {ReadoutAmps::LR, {1, 0, {
-            {ReadoutRate::Fast,     {6.4, 1.97}},
-            {ReadoutRate::Medium,   {4.3, 1.97}},
-            {ReadoutRate::Slow,     {3.7, 1.42}}
+            {ReadoutRate::Fast,     {1.97, 6.4}},
+            {ReadoutRate::Medium,   {1.97, 4.3}},
+            {ReadoutRate::Slow,     {1.42, 3.7}}
         }}},
         {ReadoutAmps::UL, {0, 1, {
-            {ReadoutRate::Fast,     {6.4, 2.01}},
-            {ReadoutRate::Medium,   {4.6, 2.03}},
-            {ReadoutRate::Slow,     {3.8, 1.43}}
+            {ReadoutRate::Fast,     {2.01, 6.4}},
+            {ReadoutRate::Medium,   {2.03, 4.6}},
+            {ReadoutRate::Slow,     {1.43, 3.8}}
         }}},
         {ReadoutAmps::UR, {1, 1, {
-            {ReadoutRate::Fast,     {6.5, 1.99}},
-            {ReadoutRate::Medium,   {4.4, 1.98}},
-            {ReadoutRate::Slow,     {3.7, 1.41}}
+            {ReadoutRate::Fast,     {1.99, 6.5}},
+            {ReadoutRate::Medium,   {1.98, 4.4}},
+            {ReadoutRate::Slow,     {1.41, 3.7}}
         }}}
     };
     #endif
