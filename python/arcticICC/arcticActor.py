@@ -364,11 +364,11 @@ class ArcticActor(Actor):
             self.camera.saveImage() # saveImage sets camera exp state to idle
             # clean up
             log.info("exposure %s complete"%self.expName)
-            #was a comment associated with this exposure
-            # comment is actually written by the hub!
-            # if self.comment:
-            #     print("adding comment %s to exposure %s"%(self.comment, self.expName))
-            #     self.writeComment()
+            # note comment header is written by hub, so we don't
+            # do it here
+            # exposure is done, add filter headers
+            self.writeHeader("filpos", self.filterWheelDev.filterPos)
+            self.writeHeader("filter", self.filterWheelDev.filterName)
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
             self.exposeCmd.setState(self.exposeCmd.Done)
             self.expName = None
@@ -378,11 +378,11 @@ class ArcticActor(Actor):
             # if the camera is not idle continue polling
             self.pollTimer.start(0.05, self.pollCamera)
 
-    def writeComment(self):
+    def writeHeader(self, keyword, value):
         # http://astropy.readthedocs.org/en/latest/io/fits/
         hdulist = fits.open(self.expName, mode='update')
         prihdr = hdulist[0].header
-        prihdr['comment'] = self.comment
+        prihdr[keyword] = str(value)
         hdulist.close()
 
     def maxCoord(self, binFac=(1,1)):
