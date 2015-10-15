@@ -367,7 +367,12 @@ class ArcticActor(Actor):
             # note comment header is written by hub, so we don't
             # do it here
             # exposure is done, add filter headers
-            self.writeHeader("filpos", self.filterWheelDev.filterPos)
+            filterPos = self.filterWheelDev.filterPos
+            if filterPos is None:
+                filterPos = "unknown"
+            else:
+                filterPos = int(filterPos)
+            self.writeHeader("filpos", filterPos)
             self.writeHeader("filter", self.filterWheelDev.filterName)
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
             self.exposeCmd.setState(self.exposeCmd.Done)
@@ -382,7 +387,7 @@ class ArcticActor(Actor):
         # http://astropy.readthedocs.org/en/latest/io/fits/
         hdulist = fits.open(self.expName, mode='update')
         prihdr = hdulist[0].header
-        prihdr[keyword] = str(value)
+        prihdr[keyword] = value
         hdulist.close()
 
     def maxCoord(self, binFac=(1,1)):

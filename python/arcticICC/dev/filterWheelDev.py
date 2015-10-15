@@ -168,13 +168,13 @@ class FilterWheelDevice(ActorDevice):
     @property
     def filterName(self):
         """! Integer filter position
+
+        return a string
         """
         # filterID updated output filterID and filterName
         filterNames = self.filterNames
-        if not filterNames:
-            return None
-        if self.filterPos is None:
-            return None
+        if not filterNames or self.filterPos is None:
+            return "None"
         else:
             return self.filterNames[int(self.filterPos)-1]
 
