@@ -444,7 +444,7 @@ namespace arcticICC {
             arc::fits::CArcFitsFile cFits(_expName.c_str(), _config.getBinnedHeight(), _config.getBinnedWidth());
 
             std::string expTypeStr = ExposureTypeNameMap.find(_expType)->second;
-            cFits.WriteKeyword(const_cast<char *>("IMAGETYP"), &expTypeStr,
+            cFits.WriteKeyword(const_cast<char *>("IMAGETYP"), const_cast<char *>(expTypeStr.c_str()),
                 arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("exposure type"));
 
             if (_expType == ExposureType::Bias) {
@@ -462,11 +462,11 @@ namespace arcticICC {
             }
 
             std::string readoutAmpsStr = ReadoutAmpsNameMap.find(_config.readoutAmps)->second;
-            cFits.WriteKeyword(const_cast<char *>("READAMPS"), &readoutAmpsStr,
+            cFits.WriteKeyword(const_cast<char *>("READAMPS"), const_cast<char *>(readoutAmpsStr.c_str()),
                 arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout amplifier(s)"));
 
             std::string readoutRateStr = ReadoutRateNameMap.find(_config.readoutRate)->second;
-            cFits.WriteKeyword(const_cast<char *>("READRATE"), &readoutRateStr,
+            cFits.WriteKeyword(const_cast<char *>("READRATE"), const_cast<char *>(readoutRateStr.c_str()),
                 arc::fits::CArcFitsFile::FITS_STRING_KEY, const_cast<char *>("readout rate"));
 
             cFits.WriteKeyword(const_cast<char *>("CCDBIN1"), &_config.binFacCol,
