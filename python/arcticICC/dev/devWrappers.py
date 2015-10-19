@@ -92,7 +92,7 @@ class FilterWheelDeviceWrapper(DeviceWrapper):
         controllerWrapper = ArcticFWActorWrapper(
             name="arcticFWActorWrapper",
         )
-        DeviceWrapper.__init__(self, name=name, controllerWrapper=controllerWrapper)
+        DeviceWrapper.__init__(self, name=name, stateCallback=None, controllerWrapper=controllerWrapper, debug=True)
 
     def _makeDevice(self):
         port = self.port
