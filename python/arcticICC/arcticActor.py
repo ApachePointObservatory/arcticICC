@@ -318,6 +318,8 @@ class ArcticActor(Actor):
         else:
             assert subCmd.cmdName == "abort"
             self.camera.abortExposure()
+            # explicilty write abort exposure state
+            self.writeToUsers("i", "exposureState=aborted,0")
             self.exposeCleanup()
         self.writeToUsers("i", self.exposureStateKW, userCmd)
         userCmd.setState(userCmd.Done)
@@ -353,6 +355,8 @@ class ArcticActor(Actor):
         self.readingFlag = False
         self.camera.startExposure(expTime, expTypeEnum, expName)
         self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
+        if expType in ["object", "flat"]:
+            self.writeToUsers("i", "shutter=open") # fake shutter
         self.expNum += 1
         self.pollCamera()
 
@@ -362,6 +366,7 @@ class ArcticActor(Actor):
         expState = self.camera.getExposureState()
         if expState.state == arctic.Reading and not self.readingFlag:
             self.readingFlag = True
+            self.writeToUsers("i", "shutter=closed") # fake shutter
             # self.startReadTime = time.time()
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state == arctic.ImageRead:
@@ -389,8 +394,9 @@ class ArcticActor(Actor):
             self.pollTimer.start(0.05, self.pollCamera)
 
     def exposeCleanup(self):
-        self.pollTimer.cancel()
+        self.pollTimer.cancel() # just incase
         self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
+        self.writeToUsers("i", "shutter=closed") # fake shutter
         if not self.exposeCmd.isDone:
             self.exposeCmd.setState(self.exposeCmd.Done)
         self.expName = None
