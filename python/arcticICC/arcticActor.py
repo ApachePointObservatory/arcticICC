@@ -385,6 +385,16 @@ class ArcticActor(Actor):
             self.writeHeader("date-obs", self.expStartTimeHeader, "TAI time at the start of the exposure")
             self.writeHeader("filpos", filterPos)
             self.writeHeader("filter", self.filterWheelDev.filterName)
+            # explicitly add in BINX BINY BEGX BEGY for WCS computation made by hub
+            config = self.camera.getConfig()
+            begx = config.winStartCol + 1
+            begy = config.winStartRow + 1
+            binx = config.binFacCol
+            biny = config.binFacRow
+            self.writeHeader("begx", begx, "starting column of ccdWindow used for WCS computation")
+            self.writeHeader("begy", begy, "starting row of ccdWindow used for WCS computation")
+            self.writeHeader("binx", binx, "binning factor column used for WCS computation")
+            self.writeHeader("biny", biny, "binning factor row used for WCS computation")
             self.exposeCleanup()
         elif expState.state == arctic.Idle:
             log.warn("pollCamera() called but exposure state is idle.  Should be harmless, but why did it happen?")
