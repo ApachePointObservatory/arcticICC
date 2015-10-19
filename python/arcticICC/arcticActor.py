@@ -318,6 +318,7 @@ class ArcticActor(Actor):
         else:
             assert subCmd.cmdName == "abort"
             self.camera.abortExposure()
+            self.exposeCleanup()
         self.writeToUsers("i", self.exposureStateKW, userCmd)
         userCmd.setState(userCmd.Done)
         return True
@@ -379,16 +380,24 @@ class ArcticActor(Actor):
             self.writeHeader("date-obs", self.expStartTimeHeader, "TAI time at the start of the exposure")
             self.writeHeader("filpos", filterPos)
             self.writeHeader("filter", self.filterWheelDev.filterName)
-            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
-            self.exposeCmd.setState(self.exposeCmd.Done)
-            self.expName = None
-            self.comment = None
-            self.expStartTime = None
-            self.expStartTimeHeader = None
-            self.readingFlag = False
-        elif expState.state != arctic.Idle:
+            self.exposeCleanup()
+        elif expState.state == arctic.Idle:
+            log.warn("pollCamera() called but exposure state is idle.  Should be harmless, but why did it happen?")
+            self.exposeCleanup()
+        else:
             # if the camera is not idle continue polling
             self.pollTimer.start(0.05, self.pollCamera)
+
+    def exposeCleanup(self):
+        self.pollTimer.cancel()
+        self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
+        if not self.exposeCmd.isDone:
+            self.exposeCmd.setState(self.exposeCmd.Done)
+        self.expName = None
+        self.comment = None
+        self.expStartTime = None
+        self.expStartTimeHeader = None
+        self.readingFlag = False
 
     def writeHeader(self, keyword, value, comment=None):
         # http://astropy.readthedocs.org/en/latest/io/fits/
