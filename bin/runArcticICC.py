@@ -20,8 +20,7 @@ except KeyError:
 
 # ports to match bin/runFakeDevs
 fwPort = 37000
-# fwAddress = "10.50.1.245" # "localhost"
-fwAddress = "localhost"
+fwAddress = "10.50.1.245" # "localhost"
 fsPort = 55555
 
 
