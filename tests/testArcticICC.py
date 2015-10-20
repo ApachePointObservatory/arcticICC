@@ -55,7 +55,7 @@ class TestArcticICC(TestCase):
         def fireDeferred(cbCmd):
             if cbCmd.isDone:
                 d.callback("done")
-                print("fire deferred!")
+                # print("fire deferred!")
         def checkCmdState(cb):
             self.assertTrue(shouldFail==cmd.didFail)
         cmd.addCallback(fireDeferred)
@@ -188,10 +188,10 @@ class TestArcticICC(TestCase):
         d = self.commandActor(cmdStr="filter home")
         return d
 
-    def testFilter3(self):
-        self.fakeHome()
-        d = self.commandActor(cmdStr="filter talk blah blue2 g\2")
-        return d
+    # def testFilter3(self):
+    #     self.fakeHome()
+    #     d = self.commandActor(cmdStr="filter talk blah blue2 g\2")
+    #     return d
 
     # note these dont cause real exposures, test camera object is used
     def testExpose0(self):
