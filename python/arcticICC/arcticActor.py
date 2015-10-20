@@ -12,6 +12,7 @@ import datetime
 
 from astropy.io import fits
 
+import RO
 from RO.Comm.TwistedTimer import Timer
 
 from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
@@ -591,11 +592,17 @@ class ArcticActor(Actor):
                 if mvCmd.isDone:
                     self.getStatus(userCmd) # set the userCmd done
             pos = int(filterPos[0])
+            self.outputCmdFilter(pos)
+            # output commanded position keywords here (move to filterWheelActor eventually?)
             self.filterWheelDev.startCmd("move %i"%(pos,), callFunc=getStatusAfterMove) # userCmd set done in callback after status
         else:
             # done: output the new configuration
             self.getStatus(userCmd) # get status will set command done
         return True
+
+    def outputCmdFilter(self, filterPos):
+        filterName = RO.StringUtil.quoteStr(self.filterWheelDev.filterNames[filterPos-1])
+        self.writeToUsers(msgCode="i", msgStr="cmdFilter=%i, %s"%(filterPos, filterName))
 
     def cmd_status(self, userCmd):
         """! Implement the status command

@@ -21,7 +21,7 @@ __all__ = ["FilterWheelDevice"]
 class KWForwarder(object):
     fwKeywords = [
         "wheelID",
-        "filterID",
+        # "filterID",
         "encoderPos",
         "desiredStep",
         "currentStep"
@@ -38,9 +38,10 @@ class KWForwarder(object):
             getattr(self.model, kw).addValueCallback(self.forwardKW, callNow = True)
         # ouput available filter names with the wheelID
         self.model.wheelID.addValueCallback(self.outputFilterNames, callNow = True)
-        self.model.wheelID.addValueCallback(self.outputFilterName, callNow = True)
+        self.model.wheelID.addValueCallback(self.outputCurrFilter, callNow = True)
         # output the current filter name with the filterID
-        self.model.filterID.addValueCallback(self.outputFilterName, callNow = True)
+        self.model.filterID.addValueCallback(self.outputCurrFilter, callNow = True)
+        self.model.cmdFilterID.addValueCallback(self.outputCmdFilter, callNow = True)
         for kw in ["isMoving", "isHomed", "isHoming"]:
             # all these keywords output the state keyword
             getattr(self.model, kw).addValueCallback(self.state, callNow = True)
@@ -60,8 +61,23 @@ class KWForwarder(object):
         filterNameStr = ", ".join([RO.StringUtil.quoteStr(name) for name in self.actor.filterNames])
         self.writeToUsers(msgCode="i", msgStr="filterNames=%s"%(filterNameStr,))
 
-    def outputFilterName(self, value, isCurrent, keyVar):
-        self.writeToUsers(msgCode="i", msgStr="filterName=%s"%(RO.StringUtil.quoteStr(self.actor.filterName),))
+    def outputCurrFilter(self, value, isCurrent, keyVar):
+        filterID = self.model.filterID.valueList[0]
+        if filterID is None:
+            filterID = "NaN"
+        else:
+            filterID = "%i"%(filterID,)
+        filterName = RO.StringUtil.quoteStr(self.actor.filterName)
+        self.writeToUsers(msgCode="i", msgStr="currFilter=%s, %s"%(filterID, filterName))
+
+    def outputCmdFilter(self, value, isCurrent, keyVar):
+        filterID = self.model.filterID.valueList[0]
+        if filterID is None:
+            filterID = "NaN"
+        else:
+            filterID = "%i"%(filterID,)
+        filterName = RO.StringUtil.quoteStr(self.actor.filterName)
+        self.writeToUsers(msgCode="i", msgStr="cmdFilter=%s, %s"%(filterID, filterName))
 
     def state(self, value, isCurrent, keyVar):
         # filter wheel state updated output new state
@@ -78,7 +94,10 @@ class KWForwarder(object):
             msgCode = "w"
         elif moving is not None and bool(moving):
             state = "Moving"
-        self.writeToUsers(msgCode=msgCode, msgStr="state=%s"%(state,))
+        msgStr = "filterState=%s, 0, 0"%(state,)
+        if state == "Moving":
+            msgStr += "; currFilter=NaN, ?"
+        self.writeToUsers(msgCode=msgCode, msgStr=msgStr)
 
     def printKW(self, value, isCurrent, keyVar):
         print("value %s, isCurrent %s, keyVar %s"%(str(value), str(isCurrent), str(keyVar)))
@@ -174,7 +193,7 @@ class FilterWheelDevice(ActorDevice):
         # filterID updated output filterID and filterName
         filterNames = self.filterNames
         if not filterNames or self.filterPos is None:
-            return "None"
+            return "?"
         else:
             return self.filterNames[int(self.filterPos)-1]
 
