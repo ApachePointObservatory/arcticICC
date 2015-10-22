@@ -37,14 +37,16 @@ class KWForwarder(object):
             # all these get simply forwarded
             getattr(self.model, kw).addValueCallback(self.forwardKW, callNow = True)
         # ouput available filter names with the wheelID
-        self.model.wheelID.addValueCallback(self.outputFilterNames, callNow = True)
-        self.model.wheelID.addValueCallback(self.outputCurrFilter, callNow = True)
+        self.model.wheelID.addValueCallback(self.actor.outputFilterNames, callNow = True)
+        # self.model.wheelID.addValueCallback(self.actor.outputCurrFilter, callNow = True)
+        # self.model.wheelID.addValueCallback(self.actor.outputCmdFilter, callNow = True)
         # output the current filter name with the filterID
-        self.model.filterID.addValueCallback(self.outputCurrFilter, callNow = True)
-        self.model.cmdFilterID.addValueCallback(self.outputCmdFilter, callNow = True)
-        for kw in ["isMoving", "isHomed", "isHoming"]:
-            # all these keywords output the state keyword
-            getattr(self.model, kw).addValueCallback(self.state, callNow = True)
+        self.model.filterID.addValueCallback(self.actor.outputCurrFilter, callNow = True)
+        self.model.cmdFilterID.addValueCallback(self.actor.outputCmdFilter, callNow = True)
+        self.model.state.addValueCallback(self.actor.outputFilterState, callNow = True)
+        # for kw in ["isMoving", "isHomed", "isHoming"]:
+        #     # all these keywords output the state keyword
+        #     getattr(self.model, kw).addValueCallback(self.actor.outputFilterState, callNow = True)
 
 
     @property
@@ -54,50 +56,6 @@ class KWForwarder(object):
     @property
     def writeToUsers(self):
         return self.actor.writeToUsers
-
-    def outputFilterNames(self, value, isCurrent, keyVar):
-        """output all available filter names, get them from file in home directory
-        """
-        filterNameStr = ", ".join([RO.StringUtil.quoteStr(name) for name in self.actor.filterNames])
-        self.writeToUsers(msgCode="i", msgStr="filterNames=%s"%(filterNameStr,))
-
-    def outputCurrFilter(self, value, isCurrent, keyVar):
-        filterID = self.model.filterID.valueList[0]
-        if filterID is None:
-            filterID = "NaN"
-        else:
-            filterID = "%i"%(filterID,)
-        filterName = RO.StringUtil.quoteStr(self.actor.filterName)
-        self.writeToUsers(msgCode="i", msgStr="currFilter=%s, %s"%(filterID, filterName))
-
-    def outputCmdFilter(self, value, isCurrent, keyVar):
-        filterID = self.model.filterID.valueList[0]
-        if filterID is None:
-            filterID = "NaN"
-        else:
-            filterID = "%i"%(filterID,)
-        filterName = RO.StringUtil.quoteStr(self.actor.filterName)
-        self.writeToUsers(msgCode="i", msgStr="cmdFilter=%s, %s"%(filterID, filterName))
-
-    def state(self, value, isCurrent, keyVar):
-        # filter wheel state updated output new state
-        homing = self.model.isHoming.valueList[0]
-        homed = self.model.isHomed.valueList[0]
-        moving = self.model.isMoving.valueList[0]
-        state = "Done"
-        msgCode = "i"
-        if homing is not None and bool(homing):
-            state = "Homing"
-            msgCode = "w"
-        elif homed is not None and not bool(homed):
-            state = "NotHomed"
-            msgCode = "w"
-        elif moving is not None and bool(moving):
-            state = "Moving"
-        msgStr = "filterState=%s, 0, 0"%(state,)
-        if state == "Moving":
-            msgStr += "; currFilter=NaN, ?"
-        self.writeToUsers(msgCode=msgCode, msgStr=msgStr)
 
     def printKW(self, value, isCurrent, keyVar):
         print("value %s, isCurrent %s, keyVar %s"%(str(value), str(isCurrent), str(keyVar)))
@@ -132,6 +90,7 @@ class FilterWheelDevice(ActorDevice):
         @param[in] port  mirror controller port
         @paramp[in] name name of the device (should match model name in actorkeys)
         """
+        # self.lastFilterState = None
         ActorDevice.__init__(self,
             name=name,
             host=host,
@@ -140,12 +99,21 @@ class FilterWheelDevice(ActorDevice):
         # self.kwForwarder = KWForwarder(self.dispatcher.model, self.writeToUsers)
         self.kwForwarder = KWForwarder(self)
 
+    @property
+    def model(self):
+        return self.dispatcher.model
 
     @property
     def filterPos(self):
         """! Integer filter position
         """
         return self.model.filterID.valueList[0]
+
+    @property
+    def cmdFilterPos(self):
+        """! Integer filter position
+        """
+        return self.model.cmdFilterID.valueList[0]
 
     @property
     def filterNames(self):
@@ -191,15 +159,74 @@ class FilterWheelDevice(ActorDevice):
         return a string
         """
         # filterID updated output filterID and filterName
-        filterNames = self.filterNames
-        if not filterNames or self.filterPos is None:
-            return "?"
-        else:
+        # filterNames = self.filterNames
+        try:
             return self.filterNames[int(self.filterPos)-1]
+        except:
+            return "?"
+        # if not filterNames or self.filterPos is None:
+        #     return "?"
+        # else:
+        #     return self.filterNames[int(self.filterPos)-1]
 
     @property
-    def model(self):
-        return self.dispatcher.model
+    def cmdFilterName(self):
+        """! Integer filter position
+
+        return a string
+        """
+        try:
+            return self.filterNames[int(self.cmdFilterPos)-1]
+        except:
+            return "?"
+
+        # filterID updated output filterID and filterName
+        # filterNames = self.filterNames
+        # if not filterNames or self.cmdFilterPos is None:
+        #     return "?"
+        # else:
+        #     return self.filterNames[int(self.cmdFilterPos)-1]
+
+    @property
+    def filterState(self):
+        return self.model.state.valueList[0]
+
+    def outputFilterNames(self, value, isCurrent, keyVar):
+        """output all available filter names, get them from file in home directory
+        """
+        filterNameStr = ", ".join([RO.StringUtil.quoteStr(name) for name in self.filterNames])
+        self.writeToUsers(msgCode="i", msgStr="filterNames=%s"%(filterNameStr,))
+
+    def outputCurrFilter(self, value, isCurrent, keyVar):
+        filterID = self.model.filterID.valueList[0]
+        try:
+            filterID = "%i"%(filterID,)
+        except:
+            filterID = "NaN"
+        filterName = RO.StringUtil.quoteStr(self.filterName)
+        self.writeToUsers(msgCode="i", msgStr="currFilter=%s, %s"%(filterID, filterName))
+
+    def outputCmdFilter(self, value, isCurrent, keyVar):
+        filterID = self.model.cmdFilterID.valueList[0]
+        try:
+            filterID = "%i"%(filterID,)
+        except:
+            filterID = "NaN"
+        filterName = RO.StringUtil.quoteStr(self.cmdFilterName)
+        self.writeToUsers(msgCode="i", msgStr="cmdFilter=%s, %s"%(filterID, filterName))
+
+    def outputFilterState(self, value, isCurrent, keyVar):
+        msgCode = "i"
+        state = self.filterState
+        # if state == self.lastFilterState:
+        #     # state unchanged, don't output
+        #     print "state", state
+        #     return
+        # self.lastFilterState = state
+        if state in ["Homing", "NotHomed"]:
+            msgCode = "w"
+        self.writeToUsers(msgCode=msgCode, msgStr="filterState=%s, 0, 0"%(state,))
+
 
     def init(self, userCmd=None, timeLim=10, getStatus=True):
         """!Initialize the device and cancel all pending commands
@@ -216,7 +243,7 @@ class FilterWheelDevice(ActorDevice):
     def handleReply(self, reply):
         """!Called each time a reply comes through the line
         """
-        # print "%s.handleReply(reply=%r)" % (self, reply)
+        print "%s.handleReply(reply=%r)" % (self, reply)
         log.info("%s read %r" % (self, reply))
 
     def startCmd(self, cmdStr, userCmd=None, callFunc=None, timeLim=0.):

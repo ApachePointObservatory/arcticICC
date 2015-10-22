@@ -49,7 +49,7 @@ arcticCommandSet = CommandSet(
                     ),
                 KeywordValue(
                     keyword="amps",
-                    value=UniqueMatch(["ll", "quad", "auto"], helpStr="unique match"),
+                    value=UniqueMatch(["ll", "ul", "ur", "lr", "quad", "auto"], helpStr="unique match"),
                     isMandatory=False,
                     helpStr="amps help"
                     ),

@@ -9,7 +9,7 @@ from twistedActor import startFileLogging
 
 from arcticICC import ArcticActorWrapper
 
-UserPort = 35000
+UserPort = 36000
 
 try:
     startFileLogging("emulateArcticICC")

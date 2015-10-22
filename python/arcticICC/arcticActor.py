@@ -12,7 +12,6 @@ import datetime
 
 from astropy.io import fits
 
-import RO
 from RO.Comm.TwistedTimer import Timer
 
 from twistedActor import Actor, expandUserCmd, log, LinkCommands, UserCmd
@@ -379,10 +378,10 @@ class ArcticActor(Actor):
             # do it here
             # exposure is done, add filter headers
             filterPos = self.filterWheelDev.filterPos
-            if filterPos is None:
-                filterPos = "unknown"
-            else:
+            try:
                 filterPos = int(filterPos)
+            except:
+                filterPos = "unknown"
             self.writeHeader("date-obs", self.expStartTimeHeader, "TAI time at the start of the exposure")
             self.writeHeader("filpos", filterPos)
             self.writeHeader("filter", self.filterWheelDev.filterName)
@@ -570,15 +569,16 @@ class ArcticActor(Actor):
                 amps = [ReadoutAmpsEnumNameDict[config.readoutAmps]]
         if amps is not None:
             # quad amp only valid for full window
+            amps = amps[0]
             isFullWindow = config.isFullWindow()
-            if not isFullWindow and amps[0]=="quad":
+            if not isFullWindow and amps=="quad":
                 raise ParseError("amps=quad may only be specified with a full window")
-            if isFullWindow and amps[0]=="auto":
+            if isFullWindow and amps=="auto":
                 config.readoutAmps = ReadoutAmpsNameEnumDict["quad"]
-            elif not isFullWindow and amps[0]=="auto":
+            elif not isFullWindow and amps=="auto":
                 config.readoutAmps = ReadoutAmpsNameEnumDict["ll"]
             else:
-                config.readoutAmps = ReadoutAmpsNameEnumDict[amps[0]]
+                config.readoutAmps = ReadoutAmpsNameEnumDict[amps]
 
         # set camera configuration
         self.camera.setConfig(config)
@@ -590,9 +590,13 @@ class ArcticActor(Actor):
         if filterPos is not None:
             def getStatusAfterMove(mvCmd):
                 if mvCmd.isDone:
-                    self.getStatus(userCmd) # set the userCmd done
+                    # did the move fail? if so fail the userCmd and ask for status
+                    if mvCmd.didFail:
+                        userCmd.setState(userCmd.Failed, "Filter move failed: %s"%mvCmd.textMsg)
+                        self.getStatus()
+                    else:
+                        self.getStatus(userCmd) # set the userCmd done
             pos = int(filterPos[0])
-            self.outputCmdFilter(pos)
             # output commanded position keywords here (move to filterWheelActor eventually?)
             self.filterWheelDev.startCmd("move %i"%(pos,), callFunc=getStatusAfterMove) # userCmd set done in callback after status
         else:
@@ -600,9 +604,6 @@ class ArcticActor(Actor):
             self.getStatus(userCmd) # get status will set command done
         return True
 
-    def outputCmdFilter(self, filterPos):
-        filterName = RO.StringUtil.quoteStr(self.filterWheelDev.filterNames[filterPos-1])
-        self.writeToUsers(msgCode="i", msgStr="cmdFilter=%i, %s"%(filterPos, filterName))
 
     def cmd_status(self, userCmd):
         """! Implement the status command
@@ -641,8 +642,10 @@ class ArcticActor(Actor):
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(ccdUBWindow))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
-        keyVals.append("ampNames=ll,quad")
-        keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
+        # keyVals.append("ampNames=%s"%(",".join([key.upper() for key in ReadoutAmpsNameEnumDict])))
+        # only show Quad, and LL in TUI rather than all options
+        keyVals.append("ampNames=LL, QUAD")
+        keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps].upper())
         keyVals.append("readoutRateNames="+", ".join([x for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
         keyVals.append("ccdTemp=?")
