@@ -387,10 +387,10 @@ class ArcticActor(Actor):
             self.writeHeader("filter", self.filterWheelDev.filterName)
             # explicitly add in BINX BINY BEGX BEGY for WCS computation made by hub
             config = self.camera.getConfig()
-            begx = config.winStartCol + 1
-            begy = config.winStartRow + 1
             binx = config.binFacCol
             biny = config.binFacRow
+            begx = config.winStartCol*binx + 1
+            begy = config.winStartRow*biny + 1
             self.writeHeader("begx", begx, "starting column of ccdWindow used for WCS computation")
             self.writeHeader("begy", begy, "starting row of ccdWindow used for WCS computation")
             self.writeHeader("binx", binx, "binning factor column used for WCS computation")
