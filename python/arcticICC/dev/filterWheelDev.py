@@ -8,15 +8,40 @@ from twistedActor import expandUserCmd, ActorDevice, log
 
 __all__ = ["FilterWheelDevice"]
 
-"""
-    put this model into tui
-    Key("state",
-        String(help="State of device, one of: Moving, Done, Homing, Failed, NotHomed"),
-        Float(invalid="NaN", units="seconds", help="remaining time for command, if known, else 0"),
-        Float(invalid="NaN", units="seconds", help="total time for command, if known, else 0"),
-        help = "summarizes current state of the filter wheel",
-    ),
-"""
+def parseData(dataList):
+   """Parse a list of filter slot name data
+
+   Each line is of the form:
+       slot name
+   where:
+   - name is optional
+   - slot may be followed by any amount of whitespace
+   - blank lines and lines starting with # are ignored
+   - leading and trailing whitespace space is ignored
+
+   Returns a list of 6 names in slot order; omitted slots or slots with no specified name
+   are given the name "filter N" where N is the slot number, starting from 1
+   """
+   nameList = ["empty %d" % (i + 1,) for i in range(6)]
+   for lineInd, line in enumerate(dataList):
+       line = line.strip()
+       if not line or line.startswith("#"):
+           continue
+       try:
+           data = line.split(None, 1)
+           slot = int(data[0])
+           assert 1 <= slot <= 6
+           if len(data) == 1:
+               continue # no name; use default
+           nameList[slot-1] = data[1]
+       except Exception as e:
+           raise RuntimeError("Could not parse line %s of data %r: %s" % (lineInd + 1, line, e))
+   return nameList
+
+def parseFile(filePath):
+   with open(filePath, "rU") as f:
+       return parseData(f.readlines())
+
 
 class KWForwarder(object):
     fwKeywords = [
@@ -144,13 +169,16 @@ class FilterWheelDevice(ActorDevice):
         fileName = "fw%i.txt"%wheelID
         homeDir = os.getenv("HOME")
         filePath = os.path.join(homeDir, "filterNames", fileName)
-        with open(filePath, "r") as f:
-            lines = f.readlines()
-        filterNameList = []
-        for line in lines:
-            filterNum, filterName = line.split(None, 1)
-            filterNameList.append(filterName.strip())
-        return filterNameList
+        return parseFile(filePath)
+
+        # with open(filePath, "r") as f:
+        #     lines = f.readlines()
+        # return
+        # filterNameList = []
+        # for line in lines:
+        #     filterNum, filterName = line.split(None, 1)
+        #     filterNameList.append(filterName.strip())
+        # return filterNameList
 
     @property
     def filterName(self):
@@ -179,13 +207,6 @@ class FilterWheelDevice(ActorDevice):
             return self.filterNames[int(self.cmdFilterPos)-1]
         except:
             return "?"
-
-        # filterID updated output filterID and filterName
-        # filterNames = self.filterNames
-        # if not filterNames or self.cmdFilterPos is None:
-        #     return "?"
-        # else:
-        #     return self.filterNames[int(self.cmdFilterPos)-1]
 
     @property
     def filterState(self):
