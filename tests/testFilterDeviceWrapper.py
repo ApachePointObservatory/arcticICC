@@ -10,21 +10,21 @@ testUtils.init(__file__)
 
 from arcticICC.dev import FilterWheelDeviceWrapper
 
-# class TestMirrorDeviceWrapper(TestCase):
-#     """Test basics of MirrorDeviceWrapper
-#     """
-#     def setUp(self):
-#         self.dw = FilterWheelDeviceWrapper()
-#         return self.dw.readyDeferred
+class TestFilterWheelDeviceWrapper(TestCase):
+    """Test basics of MirrorDeviceWrapper
+    """
+    def setUp(self):
+        self.dw = FilterWheelDeviceWrapper()
+        return self.dw.readyDeferred
 
-#     def tearDown(self):
-#         d = self.dw.close()
-#         return d
+    def tearDown(self):
+        d = self.dw.close()
+        return d
 
-#     def testSetUpTearDown(self):
-#         self.assertFalse(self.dw.didFail)
-#         self.assertFalse(self.dw.isDone)
-#         self.assertTrue(self.dw.isReady)
+    def testSetUpTearDown(self):
+        self.assertFalse(self.dw.didFail)
+        self.assertFalse(self.dw.isDone)
+        self.assertTrue(self.dw.isReady)
 
 
 if __name__ == '__main__':
