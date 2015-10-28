@@ -1,0 +1,21 @@
+set amp=LL readout=fast window=full bin=2,1
+expose bias
+date-obs=2015-10-27T17:30:58.573098 #TAI time at the start of the exposure
+filpos=1 #filter position
+filter=empty #filter name
+begx=1 #beginning column of CCD window
+begy=1 #beginning row of CCD window
+binx=2 #column bin factor
+biny=1 #row bin factor
+imagetyp=Bias #exposure type
+exptime=0.0 #estimated exposure time (sec)
+readamps=LL #readout amplifier(s)
+readrate=Fast #readout rate
+ccdbin1=2 #column bin factor
+ccdbin2=1 #row bin factor
+amplist=11 #amplifiers read <x><y> e.g. 12=LR
+csec11=[1:4096,1:4096] #data section of CCD (unbinned)
+dsec11=[3:2050,1:4096] #data section of image (binned)
+bsec11=[2053:2100,1:4096] #bias section of image (binned)
+gtgain11=1.98 #predicted gain (e-/ADU)
+gtron11=6.0 #predicted read noise (e-)

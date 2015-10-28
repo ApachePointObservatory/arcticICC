@@ -45,6 +45,81 @@ ReadoutAmpsNameEnumDict = collections.OrderedDict((
 ))
 ReadoutAmpsEnumNameDict = collections.OrderedDict((enum, name) for (name, enum) in ReadoutAmpsNameEnumDict.iteritems())
 
+ReadoutRateDict = {
+    arctic.LL: {
+        arctic.Fast: (1.98, 6.0), # (gain, rate)
+        arctic.Medium: (1.99, 3.8),
+        arctic.Slow: (1.43, 3.4),
+    },
+    arctic.LR: {
+        arctic.Fast: (1.97, 6.4),
+        arctic.Medium: (1.97, 4.3),
+        arctic.Slow: (1.42, 3.7),
+    },
+    arctic.UL: {
+        arctic.Fast: (2.01, 6.4),
+        arctic.Medium: (2.03, 4.6),
+        arctic.Slow: (1.43, 3.8),
+    },
+    arctic.UR: {
+        arctic.Fast: (1.99, 6.5),
+        arctic.Medium: (1.98, 4.4),
+        arctic.Slow: (1.41, 3.7),
+    }
+}
+
+class AmplifierData(object):
+    def __init__(self, amp):
+        """! Construct an AmplifierData Obj
+        @param[in] amp: one of arctic.LL, arctic.LR, arctic.UR, arctic.UL or arctic.Quad
+        """
+        assert amp in [ReadoutAmpsNameEnumDict.values()]
+        self.amp = amp
+
+    @property
+    def xIndex(self):
+        if self.amp in [arctic.LL, arctic.UL]:
+            return 0
+        else:
+            return 1
+
+    @property
+    def yIndex(self):
+        if self.amp in [arctic.LL, arctic.LR]:
+            return 0
+        else:
+            return 1
+
+    @property
+    def xyName(self):
+        return "%i%i"%(self.xIndex+1, self.yIndex+1)
+
+    @property
+    def letteredName(self):
+        return ReadoutAmpsEnumNameDict[self.amp]
+
+    def getGain(self, readRate):
+        """! Return gain for this amp for a specified readRate
+
+        @param[in] readRate one of arctic.Slow, arctic.Medium, arctic.Fast
+        """
+        return ReadoutRateDict[self.amp][readRate][0]
+
+    def getReadNoise(self, readRate):
+        """! Return readnoise for this amp for a specified readRate
+
+        @param[in] readRate one of arctic.Slow, arctic.Medium, arctic.Fast
+        """
+        return ReadoutRateDict[self.amp][readRate][1]
+
+
+AmpDataMap = collections.OrderedDict(
+    (arctic.LL, AmplifierData(arctic.LL)),
+    (arctic.LR, AmplifierData(arctic.LR)),
+    (arctic.UL, AmplifierData(arctic.UL)),
+    (arctic.UR, AmplifierData(arctic.UR)),
+)
+
 ReadoutRateNameEnumDict = collections.OrderedDict((
     ("slow", arctic.Slow),
     ("medium", arctic.Medium),
@@ -140,6 +215,8 @@ class ArcticActor(Actor):
         self.comment = None
         self.expStartTime = None
         self.expStartTimeHeader = None
+        self.expType = None
+        self.expTime = None
         Actor.__init__(self,
             userPort = userPort,
             maxUsers = 1,
@@ -352,6 +429,8 @@ class ArcticActor(Actor):
         self.expName = expName
         self.comment = comment
         self.expStartTimeHeader = datetime.datetime.now().isoformat()
+        self.expType = expType
+        self.expTime = expTime
         self.readingFlag = False
         self.camera.startExposure(expTime, expTypeEnum, expName)
         self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
@@ -374,27 +453,6 @@ class ArcticActor(Actor):
             self.camera.saveImage() # saveImage sets camera exp state to idle
             # clean up
             log.info("exposure %s complete"%self.expName)
-            # note comment header is written by hub, so we don't
-            # do it here
-            # exposure is done, add filter headers
-            filterPos = self.filterWheelDev.filterPos
-            try:
-                filterPos = int(filterPos)
-            except:
-                filterPos = "unknown"
-            self.writeHeader("date-obs", self.expStartTimeHeader, "TAI time at the start of the exposure")
-            self.writeHeader("filpos", filterPos)
-            self.writeHeader("filter", self.filterWheelDev.filterName)
-            # explicitly add in BINX BINY BEGX BEGY for WCS computation made by hub
-            config = self.camera.getConfig()
-            binx = config.binFacCol
-            biny = config.binFacRow
-            begx = config.winStartCol*binx + 1
-            begy = config.winStartRow*biny + 1
-            self.writeHeader("begx", begx, "starting column of ccdWindow used for WCS computation")
-            self.writeHeader("begy", begy, "starting row of ccdWindow used for WCS computation")
-            self.writeHeader("binx", binx, "binning factor column used for WCS computation")
-            self.writeHeader("biny", biny, "binning factor row used for WCS computation")
             self.exposeCleanup()
         elif expState.state == arctic.Idle:
             log.warn("pollCamera() called but exposure state is idle.  Should be harmless, but why did it happen?")
@@ -402,6 +460,134 @@ class ArcticActor(Actor):
         else:
             # if the camera is not idle continue polling
             self.pollTimer.start(0.05, self.pollCamera)
+
+    def writeHeaders(self):
+        config = self.camera.getConfig()
+        # note comment header is written by hub, so we don't
+        # do it here
+        # http://astropy.readthedocs.org/en/latest/io/fits/
+        hdulist = fits.open(self.expName, mode='update')
+        prihdr = hdulist[0].header
+        # timestamp
+        prihdr["date-obs"] = (self.expStartTimeHeader, "TAI time at the start of the exposure")
+        # filter info
+        try:
+            filterPos = int(self.filterWheelDev.filterPos)
+        except:
+            filterPos = "unknown"
+        prihdr["filpos"] = (filterPos, "filter position")
+        prihdr["filter"] = (self.filterWheelDev.filterName, "filter name")
+        # explicitly add in BINX BINY BEGX BEGY for WCS computation made by hub
+        prihdr["begx"] = (config.winStartCol + 1, "beginning column of CCD window")
+        prihdr["begy"] = (config.winStartRow + 1, "beginning row of CCD window")
+        prihdr["binx"] = (config.binFacCol, "column bin factor")
+        prihdr["biny"] = (config.binFacRow, "row bin factor")
+        prihdr["ccdbin1"] = (config.binFacCol, "column bin factor") #duplicate of binx
+        prihdr["ccdbin2"] = (config.binFacRow, "row bin factor") #duplicate of biny
+        prihdr["imagtyp"] = (self.expType, "exposure type")
+        expTimeComment = "exposure time (sec)"
+        if self.expTime > 0:
+            expTimeComment = "estimated " + expTimeComment
+        prihdr["exptime"] = (self.expTime, expTimeComment)
+        prihdr["readamps"] = (ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)")
+        prihdr["readrate"] = (ReadoutRateEnumNameDict[config.readoutRate], "readout rate")
+
+        # DATASEC and BIASSEC
+        # for the bias region: use all overscan except the first two columns (closest to the data)
+        # amp names are <x><y> e.g. 11, 12, 21, 22
+        prescanWidth = 3 if config.binFacCol == 3 else 2
+        prescanHeight = 1 if config.binFacRow == 3 else 0
+        if config.readoutAmps == arctic.Quad:
+            # all 4 amps are being read out
+            ampDataList = AmpDataMap.values()
+            ampXYList = " ".join([ampData.xyName for ampData in ampDataList])
+            prihdr["amplist"] = (ampXYList, "amplifiers read <x><y> e.g. 12=LR")
+            overscanWidth  = config.getBinnedWidth()  - ((2 * prescanWidth) + config.winWidth) # total, not per amp
+            overscanHeight = config.getBinnedHeight() - ((2 * prescanHeight) + config.winHeight) # total, not per amp
+            for ampData in ampDataList:
+                isTopHalf = ampData.xIndex == 1 # are these flipped?!? copied from C code
+                isRightHalf = ampData.yIndex == 1
+
+                # CSEC is the section of the CCD covered by the data (unbinned)
+                csecWidth  = config.winWidth  * config.binFacCol / 2
+                csecHeight = config.winHeight * config.binFacRow / 2
+                csecStartCol = 1 + csecWidth if isRightHalf else 1
+                csecStartRow = 1 + csecHeight if isTopHalf else 1
+                csecEndCol = csecStartCol + csecWidth  - 1
+                csecEndRow = csecStartRow + csecHeight - 1
+                csecKey = "csec" + ampData.xyName
+                csecValue = "[%i:%i,%i:%i]"%(csecStartCol, csecEndCol, csecStartRow, csecEndRow)
+                prihdr[csecKey] = (csecValue, "data section of CCD (unbinned)")
+
+                # DSEC is the section of the image that is data (binned)
+                dsecStartCol = 1 + prescanWidth
+                if isRightHalf:
+                    dsecStartCol += (config.winWidth / 2) + overscanWidth
+                dsecStartRow = 1 + prescanHeight
+                if isTopHalf:
+                    dsecStartRow += (config.winHeight / 2) + overscanHeight
+                dsecEndCol = dsecStartCol + config.winWidth  - 1
+                dsecEndRow = dsecStartRow + config.winHeight - 1
+                dsecKey = "dsec" + ampData.xyName
+                dsecValue = "[%i:%i,%i:%i]"%(dsecStartCol, dsecEndCol, dsecStartRow, dsecEndRow)
+                prihdr[dsecKey] = (dsecValue, "data section of image (binned)")
+
+                biasWidth = (overscanWidth / 2) - 2 # "- 2" to skip first two columns of overscan
+                colBiasEnd = config.getBinnedWidth() / 2
+                if isRightHalf:
+                    colBiasEnd += biasWidth
+                colBiasStart = 1 + colBiasEnd - biasWidth
+                bsecKey = "bsec" + ampData.xyName
+                bsecValue = "[%i:%i,%i:%i]"%(colBiasStart,colBiasEnd,dsecStartRow, dsecEndRow)
+                prihdr[dsecKey] = (bsecValue, "bias section of image (binned)")
+                prihdr["gtgain"+ampData.xyName] = (ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)")
+                prihdr["gtron"+ampData.xyName] = (ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)")
+
+        else:
+            # single amplifier readout
+            ampData = AmpDataMap[config.readoutAmps]
+            prihdr["amplist"] = (ampData.xyName, "amplifiers read <x><y> e.g. 12=LR")
+
+            overscanWidth  = config.getBinnedWidth()  - (prescanWidth + config.winWidth)
+            overscanHeight = config.getBinnedHeight() - (prescanHeight + config.winHeight)
+
+            csecWidth  = config.winWidth  * config.binFacCol
+            csecHeight = config.winHeight * config.binFacRow
+            csecStartCol = 1 + (config.winStartCol * config.binFacCol)
+            csecStartRow = 1 + (config.winStartRow * config.binFacRow)
+            csecEndCol = csecStartCol + csecWidth  - 1
+            csecEndRow = csecStartRow + csecHeight - 1
+            csecKey = "csec" + ampData.xyName
+            csecValue = "[%i:%i,%i:%i]"%(csecStartCol, csecEndCol, csecStartRow, csecEndRow)
+            prihdr[csecKey] = (csecValue, "section in CCD of DSEC (unbinned)") #?
+
+            dsecStartCol = 1 + config.winStartCol + prescanWidth
+            dsecStartRow = 1 + config.winStartRow + prescanHeight
+            dsecEndCol = dsecStartCol + config.winWidth  - 1
+            dsecEndRow = dsecStartRow + config.winHeight - 1
+            dsecKey = "dsec" + ampData.xyName
+            dsecValue = "[%i:%i,%i:%i]"%(dsecStartCol, dsecEndCol, dsecStartRow, dsecEndRow)
+            prihdr[dsecKey] = (dsecValue, "data section (binned)")
+
+            biasWidth = overscanWidth - 2 # "- 2" to skip first two columns of overscan
+            colBiasEnd = config.getBinnedWidth()
+            colBiasStart = 1 + colBiasEnd - biasWidth
+            bsecKey = "bsec" + ampData.xyName
+            bsecValue = "[%i:%i,%i:%i]"%(colBiasStart, colBiasEnd, dsecStartRow, dsecEndRow)
+            prihdr[bsecKey] = (bsecValue, "bias section (binned)")
+            prihdr["gtgain"+ampData.xyName] = (ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)")
+            prihdr["gtron"+ampData.xyName] = (ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)")
+
+        hdulist.close()
+
+
+
+    # def writeHeader(self, keyword, value, comment=None):
+    #     if comment is None:
+    #         prihdr[keyword] = value
+    #     else:
+    #         prihdr[keyword] = (value, comment)
+    #     hdulist.close()
 
     def exposeCleanup(self):
         self.pollTimer.cancel() # just incase
@@ -413,17 +599,9 @@ class ArcticActor(Actor):
         self.comment = None
         self.expStartTime = None
         self.expStartTimeHeader = None
+        self.expType = None
+        self.expTime = None
         self.readingFlag = False
-
-    def writeHeader(self, keyword, value, comment=None):
-        # http://astropy.readthedocs.org/en/latest/io/fits/
-        hdulist = fits.open(self.expName, mode='update')
-        prihdr = hdulist[0].header
-        if comment is None:
-            prihdr[keyword] = value
-        else:
-            prihdr[keyword] = (value, comment)
-        hdulist.close()
 
     def maxCoord(self, binFac=(1,1)):
         """Returns the maximum binned CCD coordinate, given a bin factor.
