@@ -73,7 +73,7 @@ class AmplifierData(object):
         """! Construct an AmplifierData Obj
         @param[in] amp: one of arctic.LL, arctic.LR, arctic.UR, arctic.UL or arctic.Quad
         """
-        assert amp in [ReadoutAmpsNameEnumDict.values()]
+        assert amp in ReadoutAmpsNameEnumDict.values(), "%s not in %s"%(amp, ReadoutAmpsNameEnumDict.values())
         self.amp = amp
 
     @property
@@ -113,12 +113,12 @@ class AmplifierData(object):
         return ReadoutRateDict[self.amp][readRate][1]
 
 
-AmpDataMap = collections.OrderedDict(
+AmpDataMap = collections.OrderedDict((
     (arctic.LL, AmplifierData(arctic.LL)),
-    (arctic.LR, AmplifierData(arctic.LR)),
     (arctic.UL, AmplifierData(arctic.UL)),
+    (arctic.LR, AmplifierData(arctic.LR)),
     (arctic.UR, AmplifierData(arctic.UR)),
-)
+))
 
 ReadoutRateNameEnumDict = collections.OrderedDict((
     ("slow", arctic.Slow),
@@ -429,7 +429,7 @@ class ArcticActor(Actor):
         self.expName = expName
         self.comment = comment
         self.expStartTimeHeader = datetime.datetime.now().isoformat()
-        self.expType = expType
+        self.expType = expType[0].upper() + expType[1:].lower() # force capital first letter lowercase following
         self.expTime = expTime
         self.readingFlag = False
         self.camera.startExposure(expTime, expTypeEnum, expName)
@@ -451,6 +451,8 @@ class ArcticActor(Actor):
         if expState.state == arctic.ImageRead:
             log.info("saving image: exposure %s"%self.expName)
             self.camera.saveImage() # saveImage sets camera exp state to idle
+            # write headers
+            self.writeHeaders()
             # clean up
             log.info("exposure %s complete"%self.expName)
             self.exposeCleanup()
@@ -484,13 +486,20 @@ class ArcticActor(Actor):
         prihdr["biny"] = (config.binFacRow, "row bin factor")
         prihdr["ccdbin1"] = (config.binFacCol, "column bin factor") #duplicate of binx
         prihdr["ccdbin2"] = (config.binFacRow, "row bin factor") #duplicate of biny
-        prihdr["imagtyp"] = (self.expType, "exposure type")
+        prihdr["imagetyp"] = (self.expType, "exposure type")
         expTimeComment = "exposure time (sec)"
         if self.expTime > 0:
             expTimeComment = "estimated " + expTimeComment
         prihdr["exptime"] = (self.expTime, expTimeComment)
-        prihdr["readamps"] = (ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)")
-        prihdr["readrate"] = (ReadoutRateEnumNameDict[config.readoutRate], "readout rate")
+        # format readoutAmps string
+        if config.readoutAmps == arctic.Quad:
+            readoutAmpsStr = "Quad"
+        else:
+            readoutAmpsStr = ReadoutAmpsEnumNameDict[config.readoutAmps].upper()
+        prihdr["readamps"] = (readoutAmpsStr, "readout amplifier(s)")
+        readRateStr = ReadoutRateEnumNameDict[config.readoutRate]
+        readRateStr = readRateStr[0].upper() + readRateStr[1:].lower()
+        prihdr["readrate"] = (readRateStr, "readout rate")
 
         # DATASEC and BIASSEC
         # for the bias region: use all overscan except the first two columns (closest to the data)
@@ -539,7 +548,7 @@ class ArcticActor(Actor):
                 colBiasStart = 1 + colBiasEnd - biasWidth
                 bsecKey = "bsec" + ampData.xyName
                 bsecValue = "[%i:%i,%i:%i]"%(colBiasStart,colBiasEnd,dsecStartRow, dsecEndRow)
-                prihdr[dsecKey] = (bsecValue, "bias section of image (binned)")
+                prihdr[bsecKey] = (bsecValue, "bias section of image (binned)")
                 prihdr["gtgain"+ampData.xyName] = (ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)")
                 prihdr["gtron"+ampData.xyName] = (ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)")
 
@@ -559,7 +568,7 @@ class ArcticActor(Actor):
             csecEndRow = csecStartRow + csecHeight - 1
             csecKey = "csec" + ampData.xyName
             csecValue = "[%i:%i,%i:%i]"%(csecStartCol, csecEndCol, csecStartRow, csecEndRow)
-            prihdr[csecKey] = (csecValue, "section in CCD of DSEC (unbinned)") #?
+            prihdr[csecKey] = (csecValue, "data section of CCD (unbinned)") #?
 
             dsecStartCol = 1 + config.winStartCol + prescanWidth
             dsecStartRow = 1 + config.winStartRow + prescanHeight
@@ -567,14 +576,14 @@ class ArcticActor(Actor):
             dsecEndRow = dsecStartRow + config.winHeight - 1
             dsecKey = "dsec" + ampData.xyName
             dsecValue = "[%i:%i,%i:%i]"%(dsecStartCol, dsecEndCol, dsecStartRow, dsecEndRow)
-            prihdr[dsecKey] = (dsecValue, "data section (binned)")
+            prihdr[dsecKey] = (dsecValue, "data section of image (binned)")
 
             biasWidth = overscanWidth - 2 # "- 2" to skip first two columns of overscan
             colBiasEnd = config.getBinnedWidth()
             colBiasStart = 1 + colBiasEnd - biasWidth
             bsecKey = "bsec" + ampData.xyName
             bsecValue = "[%i:%i,%i:%i]"%(colBiasStart, colBiasEnd, dsecStartRow, dsecEndRow)
-            prihdr[bsecKey] = (bsecValue, "bias section (binned)")
+            prihdr[bsecKey] = (bsecValue, "bias section of image (binned)")
             prihdr["gtgain"+ampData.xyName] = (ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)")
             prihdr["gtron"+ampData.xyName] = (ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)")
 
