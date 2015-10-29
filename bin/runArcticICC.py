@@ -3,7 +3,7 @@ from __future__ import division, absolute_import
 """Run the Arctic ICC actor
 """
 from twisted.internet import reactor
-from twistedActor import startFileLogging
+from twistedActor import startSystemLogging
 
 import arcticICC
 
@@ -13,14 +13,14 @@ from arcticICC.dev import FilterWheelDevice, ShutterDevice, FakeShutter
 
 
 try:
-    startFileLogging("./arcticICC")
+    startSystemLogging(ArcticActor.Facility)
 except KeyError:
    # don't start logging
    pass
 
 # ports to match bin/runFakeDevs
 fwPort = 37000
-fwAddress = "10.50.1.245" # "localhost"
+fwAddress = "arctic-controller" # "localhost"
 fsPort = 55555
 
 
@@ -37,18 +37,13 @@ def startDevs(fs):
             port = fsPort
             )
 
-        # startSystemLogging(ArcticActor.Facility)
-
         arcticActor = ArcticActor(
             filterWheelDev = filterWheelDevice,
             shutterDev = shutterDevice
             )
-fs = FakeShutter("fakeShutter", fsPort)
-fs.addStateCallback(startDevs)
-reactor.run()
 
 
-# if __name__ == "__main__":
-#     print("arcticICC running on port %i"%UserPort)
-#     arcticICCWrapper = ArcticActorWrapper(name="arcticICC", userPort=UserPort)
-#     reactor.run()
+if __name__ == "__main__":
+    fs = FakeShutter("fakeShutter", fsPort)
+    fs.addStateCallback(startDevs)
+    reactor.run()
