@@ -106,56 +106,6 @@ namespace arcticICC {
     };
 
     /**
-    Amplifier electronic parameters, especially those affected by readout rate
-    */
-    // class AmplifierElectronicParameters {
-    // public:
-    //     double gain;        /// predicted gain (e-/DN)
-    //     double readNoise;   /// predicted readout noise (e-)
-    // };
-
-    // class AmplifierData {
-    // public:
-    //     int xIndex;
-    //     int yIndex;
-    //     std::map<ReadoutRate, AmplifierElectronicParameters> electronicParamMap;
-
-        /**
-        Get amplifier name as <xIndex+1><yIndex+1>
-        */
-    //     std::string getXYName() const {
-    //         std::ostringstream os;
-    //         os << xIndex + 1 << yIndex + 1;
-    //         return os.str();
-    //     }
-    // };
-
-    // #ifndef SWIG
-    // const std::map<ReadoutAmps, AmplifierData> AmplifierDataMap = {
-    //     {ReadoutAmps::LL, {0, 0, {
-    //         {ReadoutRate::Fast,     {1.98, 6.0}},
-    //         {ReadoutRate::Medium,   {1.99, 3.8}},
-    //         {ReadoutRate::Slow,     {1.43, 3.4}}
-    //     }}},
-    //     {ReadoutAmps::LR, {1, 0, {
-    //         {ReadoutRate::Fast,     {1.97, 6.4}},
-    //         {ReadoutRate::Medium,   {1.97, 4.3}},
-    //         {ReadoutRate::Slow,     {1.42, 3.7}}
-    //     }}},
-    //     {ReadoutAmps::UL, {0, 1, {
-    //         {ReadoutRate::Fast,     {2.01, 6.4}},
-    //         {ReadoutRate::Medium,   {2.03, 4.6}},
-    //         {ReadoutRate::Slow,     {1.43, 3.8}}
-    //     }}},
-    //     {ReadoutAmps::UR, {1, 1, {
-    //         {ReadoutRate::Fast,     {1.99, 6.5}},
-    //         {ReadoutRate::Medium,   {1.98, 4.4}},
-    //         {ReadoutRate::Slow,     {1.41, 3.7}}
-    //     }}}
-    // };
-    // #endif
-
-    /**
     ARCTIC imager CCD
 
     This is a thin wrapper around the Leach API; it adds the "Resource Acquisition Is Initialization"
