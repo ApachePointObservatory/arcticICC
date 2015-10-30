@@ -49,13 +49,13 @@ arcticCommandSet = CommandSet(
                     ),
                 KeywordValue(
                     keyword="amps",
-                    value=UniqueMatch(["ll", "ul", "ur", "lr", "quad", "auto"], helpStr="unique match"),
+                    value=UniqueMatch(["LL", "UL", "UR", "LR", "Quad", "Auto"], helpStr="unique match"),
                     isMandatory=False,
                     helpStr="amps help"
                     ),
                 KeywordValue(
                     keyword="readoutRate",
-                    value=UniqueMatch(["slow", "medium", "fast"], helpStr="unique match"),
+                    value=UniqueMatch(["Slow", "Medium", "Fast"], helpStr="unique match"),
                     isMandatory=False,
                     helpStr="readoutRate help"
                     ),
@@ -78,22 +78,22 @@ arcticCommandSet = CommandSet(
             commandName = "expose",
             subCommandList = [
                 Command(
-                    commandName="object",
+                    commandName="Object",
                     floatingArguments = timeArg + optionalExposeArgs,
                     helpStr="object subcommand help"
                 ),
                 Command(
-                    commandName="flat",
+                    commandName="Flat",
                     floatingArguments = timeArg + optionalExposeArgs,
                     helpStr="flat subcommand help"
                 ),
                 Command(
-                    commandName="dark",
+                    commandName="Dark",
                     floatingArguments = timeArg + optionalExposeArgs,
                     helpStr="dark subcommand help"
                 ),
                 Command(
-                    commandName="bias",
+                    commandName="Bias",
                     floatingArguments = optionalExposeArgs,
                     helpStr="bias subcommand help"
                 ),
