@@ -2,7 +2,7 @@
 """
 from __future__ import division, absolute_import
 
-from .parse import Command, CommandSet, KeywordValue, Float, String, Int, UniqueMatch, RestOfLineString
+from twistedActor.parse import Command, CommandSet, KeywordValue, Float, String, Int, UniqueMatch, RestOfLineString
 
 __all__ = ["arcticCommandSet"]
 
