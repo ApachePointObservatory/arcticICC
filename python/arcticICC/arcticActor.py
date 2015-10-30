@@ -479,31 +479,30 @@ class ArcticActor(Actor):
         # do it here
         # http://astropy.readthedocs.org/en/latest/io/fits/
         with fits.open(self.expName, mode='update') as hdulist:
-            # hdulist = fits.open(self.expName, mode='update')
             prihdr = hdulist[0].header
             # timestamp
-            prihdr["date-obs"] = (self.expStartTime.isoformat(), "TAI time at the start of the exposure")
+            prihdr["date-obs"] = self.expStartTime.isoformat(), "TAI time at the start of the exposure"
             # filter info
             try:
                 filterPos = int(self.filterWheelDev.filterPos)
             except:
                 filterPos = "unknown"
-            prihdr["filpos"] = (filterPos, "filter position")
-            prihdr["filter"] = (self.filterWheelDev.filterName, "filter name")
+            prihdr["filpos"] = filterPos, "filter position"
+            prihdr["filter"] = self.filterWheelDev.filterName, "filter name"
             # explicitly add in BINX BINY BEGX BEGY for WCS computation made by hub
-            prihdr["begx"] = (config.winStartCol + 1, "beginning column of CCD window")
-            prihdr["begy"] = (config.winStartRow + 1, "beginning row of CCD window")
-            prihdr["binx"] = (config.binFacCol, "column bin factor")
-            prihdr["biny"] = (config.binFacRow, "row bin factor")
-            prihdr["ccdbin1"] = (config.binFacCol, "column bin factor") #duplicate of binx
-            prihdr["ccdbin2"] = (config.binFacRow, "row bin factor") #duplicate of biny
-            prihdr["imagetyp"] = (self.expType, "exposure type")
+            prihdr["begx"] = config.winStartCol + 1, "beginning column of CCD window"
+            prihdr["begy"] = config.winStartRow + 1, "beginning row of CCD window"
+            prihdr["binx"] = config.binFacCol, "column bin factor"
+            prihdr["biny"] = config.binFacRow, "row bin factor"
+            prihdr["ccdbin1"] = config.binFacCol, "column bin factor" #duplicate of binx
+            prihdr["ccdbin2"] = config.binFacRow, "row bin factor" #duplicate of biny
+            prihdr["imagetyp"] = self.expType, "exposure type"
             expTimeComment = "exposure time (sec)"
             if self.expTime > 0:
                 expTimeComment = "estimated " + expTimeComment
-            prihdr["exptime"] = (self.expTime, expTimeComment)
-            prihdr["readamps"] = (ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)")
-            prihdr["readrate"] = (ReadoutRateEnumNameDict[config.readoutRate], "readout rate")
+            prihdr["exptime"] = self.expTime, expTimeComment
+            prihdr["readamps"] = ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)"
+            prihdr["readrate"] = ReadoutRateEnumNameDict[config.readoutRate], "readout rate"
 
             # DATASEC and BIASSEC
             # for the bias region: use all overscan except the first two columns (closest to the data)
@@ -530,7 +529,7 @@ class ArcticActor(Actor):
                     csecEndRow = csecStartRow + csecHeight - 1
                     csecKey = "csec" + ampData.xyName
                     csecValue = "[%i:%i,%i:%i]"%(csecStartCol, csecEndCol, csecStartRow, csecEndRow)
-                    prihdr[csecKey] = (csecValue, "data section of CCD (unbinned)")
+                    prihdr[csecKey] = csecValue, "data section of CCD (unbinned)"
 
                     # DSEC is the section of the image that is data (binned)
                     dsecStartCol = 1 + prescanWidth
@@ -543,7 +542,7 @@ class ArcticActor(Actor):
                     dsecEndRow = dsecStartRow + config.winHeight - 1
                     dsecKey = "dsec" + ampData.xyName
                     dsecValue = "[%i:%i,%i:%i]"%(dsecStartCol, dsecEndCol, dsecStartRow, dsecEndRow)
-                    prihdr[dsecKey] = (dsecValue, "data section of image (binned)")
+                    prihdr[dsecKey] = dsecValue, "data section of image (binned)"
 
                     biasWidth = (overscanWidth / 2) - 2 # "- 2" to skip first two columns of overscan
                     colBiasEnd = config.getBinnedWidth() / 2
@@ -552,14 +551,14 @@ class ArcticActor(Actor):
                     colBiasStart = 1 + colBiasEnd - biasWidth
                     bsecKey = "bsec" + ampData.xyName
                     bsecValue = "[%i:%i,%i:%i]"%(colBiasStart,colBiasEnd,dsecStartRow, dsecEndRow)
-                    prihdr[bsecKey] = (bsecValue, "bias section of image (binned)")
-                    prihdr["gtgain"+ampData.xyName] = (ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)")
-                    prihdr["gtron"+ampData.xyName] = (ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)")
+                    prihdr[bsecKey] = bsecValue, "bias section of image (binned)"
+                    prihdr["gtgain"+ampData.xyName] = ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)"
+                    prihdr["gtron"+ampData.xyName] = ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)"
 
             else:
                 # single amplifier readout
                 ampData = AmpDataMap[config.readoutAmps]
-                prihdr["amplist"] = (ampData.xyName, "amplifiers read <x><y> e.g. 12=LR")
+                prihdr["amplist"] = ampData.xyName, "amplifiers read <x><y> e.g. 12=LR"
 
                 overscanWidth  = config.getBinnedWidth()  - (prescanWidth + config.winWidth)
                 overscanHeight = config.getBinnedHeight() - (prescanHeight + config.winHeight)
@@ -572,7 +571,7 @@ class ArcticActor(Actor):
                 csecEndRow = csecStartRow + csecHeight - 1
                 csecKey = "csec" + ampData.xyName
                 csecValue = "[%i:%i,%i:%i]"%(csecStartCol, csecEndCol, csecStartRow, csecEndRow)
-                prihdr[csecKey] = (csecValue, "data section of CCD (unbinned)") #?
+                prihdr[csecKey] = csecValue, "data section of CCD (unbinned)" #?
 
                 dsecStartCol = 1 + config.winStartCol + prescanWidth
                 dsecStartRow = 1 + config.winStartRow + prescanHeight
@@ -580,18 +579,16 @@ class ArcticActor(Actor):
                 dsecEndRow = dsecStartRow + config.winHeight - 1
                 dsecKey = "dsec" + ampData.xyName
                 dsecValue = "[%i:%i,%i:%i]"%(dsecStartCol, dsecEndCol, dsecStartRow, dsecEndRow)
-                prihdr[dsecKey] = (dsecValue, "data section of image (binned)")
+                prihdr[dsecKey] = dsecValue, "data section of image (binned)"
 
                 biasWidth = overscanWidth - 2 # "- 2" to skip first two columns of overscan
                 colBiasEnd = config.getBinnedWidth()
                 colBiasStart = 1 + colBiasEnd - biasWidth
                 bsecKey = "bsec" + ampData.xyName
                 bsecValue = "[%i:%i,%i:%i]"%(colBiasStart, colBiasEnd, dsecStartRow, dsecEndRow)
-                prihdr[bsecKey] = (bsecValue, "bias section of image (binned)")
-                prihdr["gtgain"+ampData.xyName] = (ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)")
-                prihdr["gtron"+ampData.xyName] = (ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)")
-
-        # hdulist.close()
+                prihdr[bsecKey] = bsecValue, "bias section of image (binned)"
+                prihdr["gtgain"+ampData.xyName] = ampData.getGain(config.readoutRate), "predicted gain (e-/ADU)"
+                prihdr["gtron"+ampData.xyName] = ampData.getReadNoise(config.readoutRate), "predicted read noise (e-)"
 
 
     def exposeCleanup(self):
