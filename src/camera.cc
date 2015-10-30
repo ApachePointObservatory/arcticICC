@@ -419,8 +419,8 @@ namespace arcticICC {
         _config = config;
     }
 
-    void Camera::saveImage(double expTime) {
-        std::cout << "saveImage(" << expTime << ")\n";
+    void Camera::saveImage() {
+        std::cout << "saveImage()\n";
         if (getExposureState().state != StateEnum::ImageRead) {
             throw std::runtime_error("no image available to be read");
         }
@@ -436,9 +436,6 @@ namespace arcticICC {
             arc::fits::CArcFitsFile cFits(_expName.c_str(), _config.getBinnedHeight(), _config.getBinnedWidth());
 
             cFits.Write(_device.CommonBufferVA());
-            if (expTime < 0) {
-                expTime = _cmdExpSec;
-            }
 
             std::cout << "saved image as \"" << _expName << "\"\n";
         } catch(...) {

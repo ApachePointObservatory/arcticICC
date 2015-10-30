@@ -203,7 +203,7 @@ namespace arcticICC {
 
         @throw std::runtime_error if no image is available to be saved
         */
-        void saveImage(double expTime=-1);
+        void saveImage();
 
         /**
         Open the shutter
