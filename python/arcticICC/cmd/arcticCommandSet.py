@@ -132,6 +132,14 @@ arcticCommandSet = CommandSet(
                     helpStr = "subcommand init help"
                 ),
                 Command(
+                    commandName = "connect",
+                    helpStr = "subcommand connect help"
+                ),
+                Command(
+                    commandName = "disconnect",
+                    helpStr = "subcommand disconnect help"
+                ),
+                Command(
                     commandName = "home",
                     helpStr = "subcommand home help"
                 ),

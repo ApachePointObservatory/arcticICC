@@ -352,13 +352,21 @@ class ArcticActor(Actor):
         """
         subCmd = userCmd.parsedCommand.subCommand
         userCmd = expandUserCmd(userCmd)
-        if subCmd.cmdName == "talk":
+        if subCmd.cmdName == "init":
+            self.filterWheelDev.init(userCmd)
+        elif subCmd.cmdName == "connect":
+            self.filterWheelDev.connect(userCmd)
+        elif subCmd.cmdName == "disconnect":
+            self.filterWheelDev.disconnect(userCmd)
+        elif subCmd.cmdName == "status":
+            self.filterWheelDev.startCmd("status", userCmd=userCmd)
+        elif subCmd.cmdName == "home":
+            self.filterWheelDev.startCmd("home", userCmd=userCmd)
+        elif subCmd.cmdName == "talk":
             talkTxt = subCmd.parsedPositionalArgs[0]
             self.filterWheelDev.startCmd(talkTxt, userCmd=userCmd)
         else:
-            # just pass along the command
-            assert subCmd.cmdName in ["status", "init", "home"]
-            self.filterWheelDev.startCmd(subCmd.cmdName, userCmd=userCmd)
+            userCmd.setState(userCmd.Failed, "unhandled sub command: %s. bug"%(subCmd.cmdName,))
         return True
 
     def cmd_init(self, userCmd):
