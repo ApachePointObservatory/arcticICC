@@ -22,7 +22,7 @@ import arcticICC.camera as arctic
 
 from arcticICC.fakeCamera import Camera as FakeCamera
 
-from arcticICC.cmd.parse import ParseError
+from twistedActor.parse import ParseError
 
 UserPort = 35000
 
@@ -239,6 +239,7 @@ class ArcticActor(Actor):
             version = __version__,
             doConnect = True,
             doDevNameCmds = False,
+            doDebugMsgs = test == True,
             )
 
     def init(self, userCmd=None, getStatus=True, timeLim=DefaultTimeLim):

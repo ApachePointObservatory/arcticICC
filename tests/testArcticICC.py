@@ -85,6 +85,7 @@ class TestArcticICC(TestCase):
     def testSet0(self):
         self.fakeHome()
         d = self.commandActor(cmdStr="set bin=2 window=full amps=ll readoutRate=slow filter=1 temp=20")
+        returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==2)
@@ -98,12 +99,17 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
-        d.addCallback(checkSet)
-        return d
+            returnD.callback(None)
+        def getStatus(cb):
+            d2 = self.commandActor(cmdStr="status")
+            d2.addCallback(checkSet)
+        d.addCallback(getStatus)
+        return returnD
 
     def testSet1(self):
         self.fakeHome()
         d = self.commandActor(cmdStr="set bin=[2,2] window=[20,40,60,70] amps=auto readout=med filter=1 temp=20")
+        returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==2)
@@ -116,12 +122,17 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
-        d.addCallback(checkSet)
-        return d
+            returnD.callback(None)
+        def getStatus(cb):
+            d2 = self.commandActor(cmdStr="status")
+            d2.addCallback(checkSet)
+        d.addCallback(getStatus)
+        return returnD
 
     def testSet2(self):
         self.fakeHome()
         d = self.commandActor(cmdStr="set bin=(4,2)  window=[40,20,70,90] amps=auto readoutRate=fast filter=2 temp=40.6")
+        returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==4)
@@ -134,12 +145,17 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 40.6)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 2)
-        d.addCallback(checkSet)
-        return d
+            returnD.callback(None)
+        def getStatus(cb):
+            d2 = self.commandActor(cmdStr="status")
+            d2.addCallback(checkSet)
+        d.addCallback(getStatus)
+        return returnD
 
     def testSet3(self):
         self.fakeHome()
         d = self.commandActor(cmdStr="set bin=1,4 readoutRate=slow window=20,40,60,70 amps=ll filter=1 temp=20")
+        returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==1)
@@ -152,12 +168,17 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.readoutAmps == camera.LL)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
-        d.addCallback(checkSet)
-        return d
+            returnD.callback(None)
+        def getStatus(cb):
+            d2 = self.commandActor(cmdStr="status")
+            d2.addCallback(checkSet)
+        d.addCallback(getStatus)
+        return returnD
 
     def testSet4(self):
         self.fakeHome()
         d = self.commandActor(cmdStr="set wind=full amps=quad bin=1,4 readoutRate=slow filter=1 temp=20")
+        returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
             self.assertTrue(config.binFacCol==1)
@@ -170,8 +191,12 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.readoutAmps == camera.Quad)
             self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
-        d.addCallback(checkSet)
-        return d
+            returnD.callback(None)
+        def getStatus(cb):
+            d2 = self.commandActor(cmdStr="status")
+            d2.addCallback(checkSet)
+        d.addCallback(getStatus)
+        return returnD
 
     def testFilter0(self):
         self.fakeHome()

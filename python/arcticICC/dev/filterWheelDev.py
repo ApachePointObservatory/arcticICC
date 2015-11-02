@@ -239,11 +239,6 @@ class FilterWheelDevice(ActorDevice):
     def outputFilterState(self, value, isCurrent, keyVar):
         msgCode = "i"
         state = self.filterState
-        # if state == self.lastFilterState:
-        #     # state unchanged, don't output
-        #     print "state", state
-        #     return
-        # self.lastFilterState = state
         if state in ["Homing", "NotHomed"]:
             msgCode = "w"
         self.writeToUsers(msgCode=msgCode, msgStr="filterState=%s, 0, 0"%(state,))
