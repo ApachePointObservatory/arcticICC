@@ -241,6 +241,25 @@ class ArcticActor(Actor):
             doDevNameCmds = False,
             )
 
+    def init(self, userCmd=None, getStatus=True, timeLim=DefaultTimeLim):
+        """! Initialize all devices, and get status if wanted
+        @param[in]  userCmd  a UserCmd or None
+        @param[in]  getStatus if true, query all devices for status
+        @param[in]  timeLim
+        """
+        userCmd = expandUserCmd(userCmd)
+        log.info("%s.init(userCmd=%s, timeLim=%s, getStatus=%s)" % (self, userCmd, timeLim, getStatus))
+        # initialize camera
+        self.setCamera()
+        subCmdList = []
+        # initialize devices
+        for dev in [self.filterWheelDev, self.shutterDev]:
+            subCmdList.append(dev.init())
+        if getStatus:
+            subCmdList.append(self.getStatus())
+        LinkCommands(mainCmd=userCmd, subCmdList=subCmdList)
+        return userCmd
+
     def setCamera(self):
         self.camera = None
         if self.test:
@@ -273,9 +292,6 @@ class ArcticActor(Actor):
             fullTime = arcticExpState.fullTime
         return "exposureState=%s, %.4f"%(expStateStr, fullTime)
 
-        # timeStampNow = datetime.datetime.now().strftime("%Y-%M-%dT%H:%M:%S.%f")
-        # return "exposureState=%s,%s,%.4f,%.4f"%(expStateStr, timeStampNow, arcticExpState.fullTime, arcticExpState.remTime)
-
     def getReadTime(self):
         """Determine the read time for the current camera configuration
         """
@@ -295,24 +311,6 @@ class ArcticActor(Actor):
         """
         self._tempSetpoint = float(tempSetpoint)
 
-    def init(self, userCmd=None, getStatus=True, timeLim=DefaultTimeLim):
-        """! Initialize all devices, and get status if wanted
-        @param[in]  userCmd  a UserCmd or None
-        @param[in]  getStatus if true, query all devices for status
-        @param[in]  timeLim
-        """
-        userCmd = expandUserCmd(userCmd)
-        log.info("%s.init(userCmd=%s, timeLim=%s, getStatus=%s)" % (self, userCmd, timeLim, getStatus))
-        # initialize camera
-        self.setCamera()
-        subCmdList = []
-        # initialize devices
-        for dev in [self.filterWheelDev, self.shutterDev]:
-            subCmdList.append(dev.init())
-        if getStatus:
-            subCmdList.append(self.getStatus())
-        LinkCommands(mainCmd=userCmd, subCmdList=subCmdList)
-        return userCmd
 
     def parseAndDispatchCmd(self, cmd):
         """Dispatch the user command, parse the cmd string and append the result as a parsedCommand attribute
@@ -767,28 +765,31 @@ class ArcticActor(Actor):
             else:
                 config.readoutAmps = ReadoutAmpsNameEnumDict[amps]
 
-        # set camera configuration
-        self.camera.setConfig(config)
+        # set camera configuration if a configuration change was requested
+        if True in [x is not None for x in [readoutRate, ccdBin, window, amps]]:
+            # camera config was changed set it and output new camera status
+            self.camera.setConfig(config)
+            self.getStatus(doCamera=True, doFilter=False, doShutter=False)
 
         if temp is not None:
             self.setTemp(argDict["temp"][0])
         # move wants an int, maybe some translation should happend here
         # or some mapping between integers and filter names
         if filterPos is not None:
-            def getStatusAfterMove(mvCmd):
+            # only set command done if move finishes successfully
+            def setDoneAfterMove(mvCmd):
                 if mvCmd.isDone:
                     # did the move fail? if so fail the userCmd and ask for status
                     if mvCmd.didFail:
                         userCmd.setState(userCmd.Failed, "Filter move failed: %s"%mvCmd.textMsg)
-                        self.getStatus()
                     else:
-                        self.getStatus(userCmd) # set the userCmd done
+                        userCmd.setState(userCmd.Done)
             pos = int(filterPos[0])
             # output commanded position keywords here (move to filterWheelActor eventually?)
-            self.filterWheelDev.startCmd("move %i"%(pos,), callFunc=getStatusAfterMove) # userCmd set done in callback after status
+            self.filterWheelDev.startCmd("move %i"%(pos,), callFunc=setDoneAfterMove) # userCmd set done in callback after status
         else:
             # done: output the new configuration
-            self.getStatus(userCmd) # get status will set command done
+            userCmd.setState(userCmd.Done)
         return True
 
 

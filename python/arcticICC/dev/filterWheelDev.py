@@ -274,8 +274,8 @@ class FilterWheelDevice(ActorDevice):
     def startCmd(self, cmdStr, userCmd=None, callFunc=None, timeLim=0.):
         log.info("%s.startCmd(cmdStr=%s, userCmd=%s, callFunc=%s)"%(self, cmdStr, str(userCmd), str(callFunc)))
         # print("%s.startCmd(cmdStr=%s, userCmd=%s, callFunc=%s)"%(self, cmdStr, str(userCmd), str(callFunc)))
-        if not self.isConnected:
-            userCmd.setState(userCmd.Failed, "filter wheel device not connected")
-        else:
-            return ActorDevice.startCmd(self, cmdStr=cmdStr, userCmd=userCmd, callFunc=callFunc, timeLim=timeLim)
+        # if not self.isConnected:
+        #     userCmd.setState(userCmd.Failed, "filter wheel device not connected")
+        # else:
+        return ActorDevice.startCmd(self, cmdStr=cmdStr, userCmd=userCmd, callFunc=callFunc, timeLim=timeLim)
 

@@ -159,6 +159,14 @@ arcticCommandSet = CommandSet(
             helpStr = "status help"
         ),
         Command(
+            commandName = "connDev",
+            helpStr = "connect device(s)"
+        ),
+        Command(
+            commandName = "disconnDev",
+            helpStr = "disconnect device(s)"
+        ),
+        Command(
             commandName = "ping",
             helpStr = "show alive"
         ),
