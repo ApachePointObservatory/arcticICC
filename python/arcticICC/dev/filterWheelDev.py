@@ -248,7 +248,6 @@ class FilterWheelDevice(ActorDevice):
             msgCode = "w"
         self.writeToUsers(msgCode=msgCode, msgStr="filterState=%s, 0, 0"%(state,))
 
-
     def init(self, userCmd=None, timeLim=10, getStatus=True):
         """!Initialize the device and cancel all pending commands
 
@@ -258,10 +257,6 @@ class FilterWheelDevice(ActorDevice):
         @return userCmd (a new one if the provided userCmd is None)
         """
         userCmd = expandUserCmd(userCmd)
-        # if not connected try to connect
-        # if not self.isConnected:
-        #     self.connect(userCmd) # connect calls init method on device
-        # else:
         self.startCmd(cmdStr="init", userCmd=userCmd, timeLim=timeLim)
         return userCmd
 

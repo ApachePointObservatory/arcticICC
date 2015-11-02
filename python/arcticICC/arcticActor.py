@@ -252,11 +252,26 @@ class ArcticActor(Actor):
         # initialize camera
         self.setCamera()
         subCmdList = []
-        # initialize devices
-        for dev in [self.filterWheelDev, self.shutterDev]:
-            subCmdList.append(dev.init())
+        # connect (if not connected) and initialize devices
+        filterDevCmd = expandUserCmd(None)
+        shutterDevCmd = expandUserCmd(None)
+        subCmdList.append(filterDevCmd)
+        subCmdList.append(shutterDevCmd)
+        if not self.filterWheelDev.isConnected:
+            self.filterWheelDev.connect(userCmd=filterDevCmd)
+        else:
+            self.filterWheelDev.init(userCmd=filterDevCmd)
+
+        if not self.shutterDev.isConnected:
+            self.shutterDev.connect(userCmd=shutterDevCmd)
+        else:
+            self.shutterDev.init(userCmd=shutterDevCmd)
         if getStatus:
-            subCmdList.append(self.getStatus())
+            # get status only when the conn/initialization is done
+            def getStatus(foo):
+                if userCmd.isDone:
+                    self.getStatus()
+            userCmd.addCallback(getStatus)
         LinkCommands(mainCmd=userCmd, subCmdList=subCmdList)
         return userCmd
 
@@ -351,7 +366,10 @@ class ArcticActor(Actor):
         subCmd = userCmd.parsedCommand.subCommand
         userCmd = expandUserCmd(userCmd)
         if subCmd.cmdName == "init":
-            self.filterWheelDev.init(userCmd)
+            if not self.filterWheelDev.isConnected:
+                self.filterWheelDev.connect(userCmd)
+            else:
+                self.filterWheelDev.init(userCmd)
         elif subCmd.cmdName == "connect":
             self.filterWheelDev.connect(userCmd)
         elif subCmd.cmdName == "disconnect":
