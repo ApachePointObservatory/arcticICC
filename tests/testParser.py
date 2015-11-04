@@ -3,7 +3,7 @@ from __future__ import division, absolute_import
 
 import unittest
 
-from arcticICC.cmd import arcticCommandSet
+from arcticICC import arcticCommandSet
 
 commandList = [
     "set bin=2 window=full amps=auto filter=2 temp=100.6 readoutRate=fast",
