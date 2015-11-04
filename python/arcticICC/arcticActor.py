@@ -92,18 +92,32 @@ class AmplifierData(object):
         self.amp = amp
 
     @property
-    def xIndex(self):
-        if self.amp in [arctic.LL, arctic.UL]:
-            return 0
+    def isTopHalf(self):
+        if self.amp in [arctic.UR, arctic.UL]:
+            return True
         else:
+            return False
+
+    @property
+    def isRightHalf(self):
+        if self.amp in [arctic.UR, arctic.LR]:
+            return True
+        else:
+            return False
+
+    @property
+    def xIndex(self):
+        if self.isRightHalf:
             return 1
+        else:
+            return 0
 
     @property
     def yIndex(self):
-        if self.amp in [arctic.LL, arctic.LR]:
-            return 0
-        else:
+        if self.isTopHalf:
             return 1
+        else:
+            return 0
 
     @property
     def xyName(self):
@@ -542,14 +556,11 @@ class ArcticActor(Actor):
                 overscanWidth  = config.getBinnedWidth()  - ((2 * prescanWidth) + config.winWidth) # total, not per amp
                 overscanHeight = config.getBinnedHeight() - ((2 * prescanHeight) + config.winHeight) # total, not per amp
                 for ampData in ampDataList:
-                    isTopHalf = ampData.xIndex == 1 # are these flipped?!? copied from C code
-                    isRightHalf = ampData.yIndex == 1
-
                     # CSEC is the section of the CCD covered by the data (unbinned)
                     csecWidth  = config.winWidth  * config.binFacCol / 2
                     csecHeight = config.winHeight * config.binFacRow / 2
-                    csecStartCol = 1 + csecWidth if isRightHalf else 1
-                    csecStartRow = 1 + csecHeight if isTopHalf else 1
+                    csecStartCol = 1 + csecWidth if ampData.isRightHalf else 1
+                    csecStartRow = 1 + csecHeight if ampData.isTopHalf else 1
                     csecEndCol = csecStartCol + csecWidth  - 1
                     csecEndRow = csecStartRow + csecHeight - 1
                     csecKey = "csec" + ampData.xyName
@@ -558,10 +569,10 @@ class ArcticActor(Actor):
 
                     # DSEC is the section of the image that is data (binned)
                     dsecStartCol = 1 + prescanWidth
-                    if isRightHalf:
+                    if ampData.isRightHalf:
                         dsecStartCol += (config.winWidth / 2) + overscanWidth
                     dsecStartRow = 1 + prescanHeight
-                    if isTopHalf:
+                    if ampData.isTopHalf:
                         dsecStartRow += (config.winHeight / 2) + overscanHeight
                     dsecEndCol = dsecStartCol + config.winWidth  - 1
                     dsecEndRow = dsecStartRow + config.winHeight - 1
@@ -571,7 +582,7 @@ class ArcticActor(Actor):
 
                     biasWidth = (overscanWidth / 2) - 2 # "- 2" to skip first two columns of overscan
                     colBiasEnd = config.getBinnedWidth() / 2
-                    if isRightHalf:
+                    if ampData.isRightHalf:
                         colBiasEnd += biasWidth
                     colBiasStart = 1 + colBiasEnd - biasWidth
                     bsecKey = "bsec" + ampData.xyName
