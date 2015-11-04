@@ -258,7 +258,7 @@ class FilterWheelDevice(ActorDevice):
     def handleReply(self, reply):
         """!Called each time a reply comes through the line
         """
-        print "%s.handleReply(reply=%r)" % (self, reply)
+        # print "%s.handleReply(reply=%r)" % (self, reply)
         log.info("%s read %r" % (self, reply))
 
     def startCmd(self, cmdStr, userCmd=None, callFunc=None, timeLim=0.):

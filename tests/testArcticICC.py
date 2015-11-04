@@ -84,7 +84,7 @@ class TestArcticICC(TestCase):
 
     def testSet0(self):
         self.fakeHome()
-        d = self.commandActor(cmdStr="set bin=2 window=full amps=ll readoutRate=slow filter=1 temp=20")
+        d = self.commandActor(cmdStr="set bin=2 window=full amps=ll readoutRate=slow filter=1")
         returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
@@ -97,7 +97,6 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.isFullWindow())
             self.assertTrue(config.readoutRate == camera.Slow)
             self.assertTrue(config.readoutAmps == camera.LL)
-            self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
             returnD.callback(None)
         def getStatus(cb):
@@ -108,7 +107,7 @@ class TestArcticICC(TestCase):
 
     def testSet1(self):
         self.fakeHome()
-        d = self.commandActor(cmdStr="set bin=[2,2] window=[20,40,60,70] amps=auto readout=med filter=1 temp=20")
+        d = self.commandActor(cmdStr="set bin=[2,2] window=[20,40,60,70] amps=auto readout=med filter=3")
         returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
@@ -120,8 +119,7 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.winHeight == 31)
             self.assertTrue(config.readoutRate == camera.Medium)
             self.assertTrue(config.readoutAmps == camera.LL)
-            self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
-            self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
+            self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 3)
             returnD.callback(None)
         def getStatus(cb):
             d2 = self.commandActor(cmdStr="status")
@@ -131,7 +129,7 @@ class TestArcticICC(TestCase):
 
     def testSet2(self):
         self.fakeHome()
-        d = self.commandActor(cmdStr="set bin=(4,2)  window=[40,20,70,90] amps=auto readoutRate=fast filter=2 temp=40.6")
+        d = self.commandActor(cmdStr="set bin=(4,2)  window=[40,20,70,90] amps=auto readoutRate=fast filter=2")
         returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
@@ -143,7 +141,6 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.winHeight == 71)
             self.assertTrue(config.readoutRate == camera.Fast)
             self.assertTrue(config.readoutAmps == camera.LL)
-            self.assertAlmostEqual(self.arcticActor.tempSetpoint, 40.6)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 2)
             returnD.callback(None)
         def getStatus(cb):
@@ -154,7 +151,7 @@ class TestArcticICC(TestCase):
 
     def testSet3(self):
         self.fakeHome()
-        d = self.commandActor(cmdStr="set bin=1,4 readoutRate=slow window=20,40,60,70 amps=ll filter=1 temp=20")
+        d = self.commandActor(cmdStr="set bin=1,4 readoutRate=slow window=20,40,60,70 amps=ll filter=6")
         returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
@@ -166,8 +163,7 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.winHeight == 31)
             self.assertTrue(config.readoutRate == camera.Slow)
             self.assertTrue(config.readoutAmps == camera.LL)
-            self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
-            self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
+            self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 6)
             returnD.callback(None)
         def getStatus(cb):
             d2 = self.commandActor(cmdStr="status")
@@ -177,7 +173,7 @@ class TestArcticICC(TestCase):
 
     def testSet4(self):
         self.fakeHome()
-        d = self.commandActor(cmdStr="set wind=full amps=quad bin=1,4 readoutRate=slow filter=1 temp=20")
+        d = self.commandActor(cmdStr="set wind=full amps=quad bin=1,4 readoutRate=slow filter=1")
         returnD = Deferred()
         def checkSet(cb):
             config = self.arcticActor.camera.getConfig()
@@ -189,7 +185,6 @@ class TestArcticICC(TestCase):
             self.assertTrue(config.winHeight == config.computeBinnedHeight(camera.CCDHeight))
             self.assertTrue(config.readoutRate == camera.Slow)
             self.assertTrue(config.readoutAmps == camera.Quad)
-            self.assertAlmostEqual(self.arcticActor.tempSetpoint, 20)
             self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 1)
             returnD.callback(None)
         def getStatus(cb):

@@ -369,7 +369,7 @@ class ArcticActor(Actor):
             self.getStatus(userCmd=userCmd, doCamera=True, doFilter=False, doShutter=False)
         else:
             # how to init the camera, just rebuild it?
-            assert arg == "init"
+            # assert arg == "initialize"
             self.setCamera()
             userCmd.setState(userCmd.Done)
         return True
@@ -380,7 +380,7 @@ class ArcticActor(Actor):
         """
         subCmd = userCmd.parsedCommand.subCommand
         userCmd = expandUserCmd(userCmd)
-        if subCmd.cmdName == "init":
+        if subCmd.cmdName == "initialize":
             if not self.filterWheelDev.isConnected:
                 self.filterWheelDev.connect(userCmd)
             else:
