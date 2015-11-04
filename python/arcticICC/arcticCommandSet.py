@@ -9,166 +9,163 @@ __all__ = ["arcticCommandSet"]
 optionalExposeArgs = [
     KeywordValue(
         keyword="basename",
-        value=String(helpStr="string help"),
+        value=String(),
         isMandatory=False,
-        helpStr="basename help"
+        helpStr="Specify a full path including name to where the image will be saved.  If not supplied image will be auto-named and saved in ~/images/ on arctic-icc"
     ),
     KeywordValue(
         keyword="comment",
-        value=String(helpStr="comment help"),
+        value=String(),
         isMandatory=False,
-        helpStr="comment help"
+        helpStr="IF SUPPLIED THIS ARGUMENT IS IGNORED! Comments are written via the arcticExpose actor.  This is vistigial but necessary because the arcticExpose actor passes this argument along to the arcticICC!"
     ),
 ]
 
 timeArg = [
     KeywordValue(
         keyword="time",
-        value=Float(helpStr="float help"),
-        helpStr="time help"
+        value=Float(),
+        helpStr="exposure time"
     )
 ]
 
 arcticCommandSet = CommandSet(
+    actorName = "ARCTIC",
     commandList = [
         # set command
         Command(
             commandName = "set",
+            helpStr="configure settings for the camera and/or filter wheel",
             floatingArguments = [
                 KeywordValue(
                     keyword="bin",
-                    value=Int(nElements=(1,2), helpStr="an int"),
+                    value=Int(nElements=(1,2)),
                     isMandatory=False,
-                    helpStr="bin help"
+                    helpStr="Specify 1 or 2 integers corresponding to column bin factor and row bin factor, respectively.  If only one integer is supplied both bin factors are set equal to this value."
                     ),
                 KeywordValue(
                     keyword="window",
-                    value=String(nElements=(1,4), helpStr="window list value help"), # must be string to support "full"
+                    value=String(nElements=(1,4), repString="begx, begy, width, height | full"), # must be string to support "full"
                     isMandatory=False,
-                    helpStr="window help"
+                    helpStr="Specify either 'full' or 4 comma separated integers corresponding to binned pixels defining the window: start x, start y, width, height"
                     ),
                 KeywordValue(
                     keyword="amps",
-                    value=UniqueMatch(["LL", "UL", "UR", "LR", "Quad", "Auto"], helpStr="unique match"),
+                    value=UniqueMatch(["LL", "UL", "UR", "LR", "Quad", "Auto"]),
                     isMandatory=False,
-                    helpStr="amps help"
+                    helpStr="Choose which amplifier to read from.  Quad will simultaneously read from all 4.  Note Quad readout mode is only valid for a full CCD window.  Auto will default to Quad if the CCD window is full else LL. "
                     ),
                 KeywordValue(
                     keyword="readoutRate",
-                    value=UniqueMatch(["Slow", "Medium", "Fast"], helpStr="unique match"),
+                    value=UniqueMatch(["Slow", "Medium", "Fast"]),
                     isMandatory=False,
-                    helpStr="readoutRate help"
+                    helpStr="Choose a readout rate"
                     ),
                 KeywordValue(
                     keyword="filter",
-                    value=String(helpStr="a name or number"),
+                    value=Int(),
                     isMandatory=False,
-                    helpStr="filter help"
-                    ),
-                KeywordValue(
-                    keyword="temp",
-                    value=Float(helpStr="temp set point"),
-                    isMandatory=False,
-                    helpStr="temp help"
+                    helpStr="Set the filter wheel position. Specify an integer, 1-6 are valid."
                     ),
             ],
-            helpStr="set command help"
         ),
         Command(
             commandName = "expose",
+            help = "Take and exposure.",
             subCommandList = [
                 Command(
                     commandName="Object",
                     floatingArguments = timeArg + optionalExposeArgs,
-                    helpStr="object subcommand help"
+                    helpStr="Take an Object exposure."
                 ),
                 Command(
                     commandName="Flat",
                     floatingArguments = timeArg + optionalExposeArgs,
-                    helpStr="flat subcommand help"
+                    helpStr="Take a Flat exposure"
                 ),
                 Command(
                     commandName="Dark",
                     floatingArguments = timeArg + optionalExposeArgs,
-                    helpStr="dark subcommand help"
+                    helpStr="Take a Dark"
                 ),
                 Command(
                     commandName="Bias",
                     floatingArguments = optionalExposeArgs,
-                    helpStr="bias subcommand help"
+                    helpStr="Take a Bias."
                 ),
                 Command(
                     commandName="pause",
-                    helpStr="pause subcommand help"
+                    helpStr="Pause the currently active exposure"
                 ),
                 Command(
                     commandName="resume",
-                    helpStr="resume subcommand help"
+                    helpStr="Resume a paused exposure"
                 ),
                 Command(
                     commandName="stop",
-                    helpStr="stop subcommand help"
+                    helpStr="Stop a currently active exposure.  Readout the data and save it."
                 ),
                 Command(
                     commandName="abort",
-                    helpStr="abort subcommand help"
+                    helpStr="Abort a currently active exposure. WARNING: Data is discarded."
                 ),
             ]
         ),
         Command(
             commandName = "camera",
-            positionalArguments = [UniqueMatch(["status", "init"], helpStr="unique match help")],
-            helpStr = "camera help"
+            helpStr = "Initialize the camera, or ask for status",
+            positionalArguments = [UniqueMatch(["status", "initialize"], helpStr="Pick either status or initialize")],
         ),
         Command(
             commandName = "filter",
+            helpStr = "Send various filter wheel related commands.",
             subCommandList = [
                 Command(
                     commandName = "status",
-                    helpStr = "subcommand status help"
+                    helpStr = "Query filter wheel for status.",
                 ),
                 Command(
-                    commandName = "init",
-                    helpStr = "subcommand init help"
+                    commandName = "initialize",
+                    helpStr = "Initialize the filter wheel.  Automatically try to connect first if disconnected.",
                 ),
                 Command(
                     commandName = "connect",
-                    helpStr = "subcommand connect help"
+                    helpStr = "Connect to the filter wheel device.",
                 ),
                 Command(
                     commandName = "disconnect",
-                    helpStr = "subcommand disconnect help"
+                    helpStr = "Disconnect from the filter wheel device.",
                 ),
                 Command(
                     commandName = "home",
-                    helpStr = "subcommand home help"
+                    helpStr = "Home the filter wheel.",
                 ),
                 Command(
                     commandName = "talk",
                     positionalArguments = [RestOfLineString(helpStr="text to send to filter")],
-                    helpStr = "subcommand talk help"
+                    helpStr = "Send raw text to the filter wheel device.",
                 ),
             ]
         ),
         Command(
-            commandName = "init",
-            helpStr = "init help"
+            commandName = "initialize",
+            helpStr = "Initialize camera and filter wheel device.  Attempt to connect first if disconnected.",
         ),
         Command(
             commandName = "status",
-            helpStr = "status help"
+            helpStr = "Query camera and filter wheel device for status.",
         ),
         Command(
             commandName = "connDev",
-            helpStr = "connect device(s)"
+            helpStr = "connect all device(s)",
         ),
         Command(
             commandName = "disconnDev",
-            helpStr = "disconnect device(s)"
+            helpStr = "disconnect all device(s)",
         ),
         Command(
             commandName = "ping",
-            helpStr = "show alive"
+            helpStr = "show alive",
         ),
     ]
 )
