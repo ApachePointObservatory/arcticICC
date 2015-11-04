@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>ARCTIC Commands</title>
+</head>
+<body>
+<h1>ARCTIC Commands</h1>
+<ul>
+<li><a href='#set'>SET</a>
+<li><a href='#expose'>EXPOSE</a>
+<li><a href='#camera'>CAMERA</a>
+<li><a href='#filter'>FILTER</a>
+<li><a href='#initialize'>INITIALIZE</a>
+<li><a href='#status'>STATUS</a>
+<li><a href='#connDev'>CONNDEV</a>
+<li><a href='#disconnDev'>DISCONNDEV</a>
+<li><a href='#ping'>PING</a>
+<li><a href='#help'>HELP</a>
+</ul>
+<h3><a name=set></a>SET  [bin=Int [,Int]] [window=begx, begy, width, height | full] [amps=LL | UL | UR | LR | Quad | Auto] [readoutRate=Slow | Medium | Fast] [filter=Int]</h3>
+<blockquote>
+Configure settings for the camera and/or filter wheel.<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>bin</b></td><td>::</td><td>Specify 1 or 2 integers corresponding to column bin factor and row bin factor, respectively.  If only one integer is supplied both bin factors are set equal to this value.</td>
+</tr><tr><td><b>window</b></td><td>::</td><td>Specify either 'full' or 4 comma separated integers corresponding to binned pixels defining the window: start x, start y, width, height.</td>
+</tr><tr><td><b>amps</b></td><td>::</td><td>Choose which amplifier to read from.  Quad will simultaneously read from all 4.  Note Quad readout mode is only valid for a full CCD window.  Auto will default to Quad if the CCD window is full else LL. </td>
+</tr><tr><td><b>readoutRate</b></td><td>::</td><td>Choose a readout rate.</td>
+</tr><tr><td><b>filter</b></td><td>::</td><td>Set the filter wheel position. Specify an integer, 1-6 are valid.</td>
+</tr></table></blockquote>
+</blockquote>
+
+<h3><a name=expose></a>EXPOSE **subcommand**</h3>
+<blockquote>
+<h4><a name=Object></a>OBJECT  time=Float [basename=String] [comment=String]</h4>
+<blockquote>
+Take an Object exposure.<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>time</b></td><td>::</td><td>Exposure time.</td>
+</tr><tr><td><b>basename</b></td><td>::</td><td>Specify a full path including name to where the image will be saved.  If not supplied image will be auto-named and saved in ~/images/ on arctic-icc.</td>
+</tr><tr><td><b>comment</b></td><td>::</td><td>IF SUPPLIED THIS ARGUMENT IS IGNORED! Comments are written via the arcticExpose actor.  This is vistigial but necessary because the arcticExpose actor passes this argument along to the arcticICC!</td>
+</tr></table></blockquote>
+</blockquote>
+
+<h4><a name=Flat></a>FLAT  time=Float [basename=String] [comment=String]</h4>
+<blockquote>
+Take a Flat exposure<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>time</b></td><td>::</td><td>Exposure time.</td>
+</tr><tr><td><b>basename</b></td><td>::</td><td>Specify a full path including name to where the image will be saved.  If not supplied image will be auto-named and saved in ~/images/ on arctic-icc.</td>
+</tr><tr><td><b>comment</b></td><td>::</td><td>IF SUPPLIED THIS ARGUMENT IS IGNORED! Comments are written via the arcticExpose actor.  This is vistigial but necessary because the arcticExpose actor passes this argument along to the arcticICC!</td>
+</tr></table></blockquote>
+</blockquote>
+
+<h4><a name=Dark></a>DARK  time=Float [basename=String] [comment=String]</h4>
+<blockquote>
+Take a Dark.<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>time</b></td><td>::</td><td>Exposure time.</td>
+</tr><tr><td><b>basename</b></td><td>::</td><td>Specify a full path including name to where the image will be saved.  If not supplied image will be auto-named and saved in ~/images/ on arctic-icc.</td>
+</tr><tr><td><b>comment</b></td><td>::</td><td>IF SUPPLIED THIS ARGUMENT IS IGNORED! Comments are written via the arcticExpose actor.  This is vistigial but necessary because the arcticExpose actor passes this argument along to the arcticICC!</td>
+</tr></table></blockquote>
+</blockquote>
+
+<h4><a name=Bias></a>BIAS  [basename=String] [comment=String]</h4>
+<blockquote>
+Take a Bias.<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>basename</b></td><td>::</td><td>Specify a full path including name to where the image will be saved.  If not supplied image will be auto-named and saved in ~/images/ on arctic-icc.</td>
+</tr><tr><td><b>comment</b></td><td>::</td><td>IF SUPPLIED THIS ARGUMENT IS IGNORED! Comments are written via the arcticExpose actor.  This is vistigial but necessary because the arcticExpose actor passes this argument along to the arcticICC!</td>
+</tr></table></blockquote>
+</blockquote>
+
+<h4><a name=pause></a>PAUSE  </h4>
+<blockquote>
+Pause a currently active exposure.<br>
+</blockquote>
+
+<h4><a name=resume></a>RESUME  </h4>
+<blockquote>
+Resume a paused exposure.<br>
+</blockquote>
+
+<h4><a name=stop></a>STOP  </h4>
+<blockquote>
+Stop a currently active exposure.  Readout the data and save it.<br>
+</blockquote>
+
+<h4><a name=abort></a>ABORT  </h4>
+<blockquote>
+Abort a currently active exposure. WARNING: Data is discarded.<br>
+</blockquote>
+
+<h4><a name=help></a>HELP [Object | Flat | Dark | Bias | pause | resume | stop | abort] </h4>
+<blockquote>
+print help for a command or the whole command set<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>UniqueMatch</b></td><td>::</td><td>If desired specify a specific command for which to receive help.</td>
+</tr></table></blockquote>
+</blockquote>
+
+</body>
+</html>
+
+</blockquote>
+
+<h3><a name=camera></a>CAMERA status | initialize </h3>
+<blockquote>
+Initialize the camera, or ask for status.<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>UniqueMatch</b></td><td>::</td><td>Pick either 'status' or 'initialize'.</td>
+</tr></table></blockquote>
+</blockquote>
+
+<h3><a name=filter></a>FILTER **subcommand**</h3>
+<blockquote>
+<h4><a name=status></a>STATUS  </h4>
+<blockquote>
+Query filter wheel for status.<br>
+</blockquote>
+
+<h4><a name=initialize></a>INITIALIZE  </h4>
+<blockquote>
+Initialize the filter wheel.  Automatically try to connect first if disconnected.<br>
+</blockquote>
+
+<h4><a name=connect></a>CONNECT  </h4>
+<blockquote>
+Connect to the filter wheel device.<br>
+</blockquote>
+
+<h4><a name=disconnect></a>DISCONNECT  </h4>
+<blockquote>
+Disconnect from the filter wheel device.<br>
+</blockquote>
+
+<h4><a name=home></a>HOME  </h4>
+<blockquote>
+Home the filter wheel.<br>
+</blockquote>
+
+<h4><a name=talk></a>TALK RestOfLineString </h4>
+<blockquote>
+Send raw text to the filter wheel device.<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>RestOfLineString</b></td><td>::</td><td>text to send to filter</td>
+</tr></table></blockquote>
+</blockquote>
+
+<h4><a name=help></a>HELP [status | initialize | connect | disconnect | home | talk] </h4>
+<blockquote>
+print help for a command or the whole command set<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>UniqueMatch</b></td><td>::</td><td>If desired specify a specific command for which to receive help.</td>
+</tr></table></blockquote>
+</blockquote>
+
+</body>
+</html>
+
+</blockquote>
+
+<h3><a name=initialize></a>INITIALIZE  </h3>
+<blockquote>
+Initialize camera and filter wheel device.  Attempt to connect first if disconnected.<br>
+</blockquote>
+
+<h3><a name=status></a>STATUS  </h3>
+<blockquote>
+Query camera and filter wheel device for status.<br>
+</blockquote>
+
+<h3><a name=connDev></a>CONNDEV  </h3>
+<blockquote>
+Connect all device(s).<br>
+</blockquote>
+
+<h3><a name=disconnDev></a>DISCONNDEV  </h3>
+<blockquote>
+Disconnect all device(s).<br>
+</blockquote>
+
+<h3><a name=ping></a>PING  </h3>
+<blockquote>
+Show alive.<br>
+</blockquote>
+
+<h3><a name=help></a>HELP [set | expose | camera | filter | initialize | status | connDev | disconnDev | ping] </h3>
+<blockquote>
+print help for a command or the whole command set<br>
+</blockquote>
+<blockquote>
+Argument Detail:<br>
+<blockquote>
+<table>
+<tr><td><b>UniqueMatch</b></td><td>::</td><td>If desired specify a specific command for which to receive help.</td>
+</tr></table></blockquote>
+</blockquote>
+
+</body>
+</html>
