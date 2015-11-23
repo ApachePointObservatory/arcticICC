@@ -28,18 +28,18 @@ def startDevs(fs):
     if fs.isReady:
         filterWheelDevice = FilterWheelDevice(
             host = fwAddress,
-            port = fwPort
+            port = fwPort,
             )
 
         shutterDevice = ShutterDevice(
             name = "shutterDevice",
             host = "localhost",
-            port = fsPort
+            port = fsPort,
             )
 
         arcticActor = ArcticActor(
             filterWheelDev = filterWheelDevice,
-            shutterDev = shutterDevice
+            shutterDev = shutterDevice,
             )
 
 

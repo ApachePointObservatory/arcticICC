@@ -481,12 +481,16 @@ class ArcticActor(Actor):
         self.expType = expType
         self.expTime = expTime
         self.readingFlag = False
-        self.camera.startExposure(expTime, expTypeEnum, expName)
-        self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
-        if expType in ["object", "flat"]:
-            self.writeToUsers("i", "shutter=open") # fake shutter
-        self.expNum += 1
-        self.pollCamera()
+        try:
+            self.camera.startExposure(expTime, expTypeEnum, expName)
+            self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
+            if expType in ["object", "flat"]:
+                self.writeToUsers("i", "shutter=open") # fake shutter
+            self.expNum += 1
+            self.pollCamera()
+        except RuntimeError as e:
+            self.exposeCmd.setState(self.exposeCmd.Failed, str(e))
+            self.exposeCleanup()
 
     def pollCamera(self):
         """Begin continuously polling the camera for exposure status, write the image when ready.
