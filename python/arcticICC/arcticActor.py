@@ -288,6 +288,9 @@ class ArcticActor(Actor):
                     self.getStatus()
             userCmd.addCallback(getStatus)
         LinkCommands(mainCmd=userCmd, subCmdList=subCmdList)
+        if not self.exposeCmd.isDone:
+            self.exposeCmd.setState(self.exposeCmd.Failed, "currently running exposure killed via init")
+            self.exposeCleanup()
         return userCmd
 
     def setCamera(self):
@@ -490,6 +493,7 @@ class ArcticActor(Actor):
             self.pollCamera()
         except RuntimeError as e:
             self.exposeCmd.setState(self.exposeCmd.Failed, str(e))
+            # note, check what state the exposure kw is in after a runtime error here?
             self.exposeCleanup()
 
     def pollCamera(self):
