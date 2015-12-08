@@ -6,8 +6,10 @@
 <body>
 <h1><a href="index.html">TCC</a> Version History</h1>
 
-<h3>1.0b1 2015-11-02</h3>
+<h3>1.0b2 2015-12-08</h3>
 <ul>
+    <li> Exception handling in startExposure. Bug fix for hang.
+    <li> Init will now kill any running expose command (should allow recovery from a hang as a failsafe).
     <li> Move command parser from this package to twistedActor
     <li> implemented dis/connDev commands. Filter connect.  Init will now connect devices if they are disconnected
     <li> Move fits header writting from C++ to python
