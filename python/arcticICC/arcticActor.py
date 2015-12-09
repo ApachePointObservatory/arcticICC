@@ -253,7 +253,7 @@ class ArcticActor(Actor):
             version = __version__,
             doConnect = True,
             doDevNameCmds = False,
-            doDebugMsgs = test == True,
+            doDebugMsgs = self.test,
             )
 
     def init(self, userCmd=None, getStatus=True, timeLim=DefaultTimeLim):
@@ -735,6 +735,37 @@ class ArcticActor(Actor):
             for ind in range(len(binnedCoords))]
         return binnedCoords
 
+    def getCCDWindow(self, config, newBin=None):
+        """Return a new CCD window corresponding to a new bin factor
+        """
+        # adjust window based on new bin (if the window wasn't explicitly passed)
+        # adjust previous window for new bin factor
+        oldWindow = [
+            config.winStartCol + 1,
+            config.winStartRow + 1,
+            config.winWidth + config.winStartCol,
+            config.winHeight + config.winStartRow,
+        ]
+        if config.binFacCol==3:
+            oldWindow[2] = oldWindow[2] + 1
+        if config.binFacRow==3:
+            oldWindow[3] = oldWindow[3] + 1
+        print("oldWindow", oldWindow)
+        if newBin is None:
+            window = oldWindow
+        else:
+            # determine new window size from new bin factor
+            unbinnedWindow = self.unbin(oldWindow, [config.binFacCol, config.binFacRow])
+            print("unbinnedWindow", unbinnedWindow)
+            window = self.bin(unbinnedWindow, newBin)
+            # handle 1-off in bin factors equal to 3
+            if newBin[0] == 3:
+                window[2] = window[2] - 1
+            if newBin[1] == 3:
+                window[3] = window[3] - 1
+        print("window", window)
+        return window
+
     def cmd_set(self, userCmd):
         """! Implement the set command
         @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
@@ -755,22 +786,14 @@ class ArcticActor(Actor):
         if readoutRate is not None:
             config.readoutRate = ReadoutRateNameEnumDict[readoutRate[0]]
         if ccdBin is not None:
-            prevCCDBin = [config.binFacCol, config.binFacRow]
-            colBin = ccdBin[0]
-            config.binFacCol = colBin
-            rowBin = colBin if len(ccdBin) == 1 else ccdBin[1]
-            config.binFacRow = rowBin
+            newColBin = ccdBin[0]
+            newRowBin = newColBin if len(ccdBin) == 1 else ccdBin[1]
             if window is None:
-                # adjust window based on new bin (if the window wasn't explicitly passed)
-                # adjust previous window for new bin factor
-                prevCoords = [
-                    config.winStartCol + 1,
-                    config.winStartRow + 1,
-                    config.winWidth + config.winStartCol,
-                    config.winHeight + config.winStartRow,
-                ]
-                unbinnedCoords = self.unbin(prevCoords, prevCCDBin)
-                window = self.bin(unbinnedCoords, ccdBin)
+                # calculate the new window with the new bin factors
+                window = self.getCCDWindow(config, newBin=[newColBin, newRowBin])
+            # set new bin factors
+            config.binFacCol = newColBin
+            config.binFacRow = newRowBin
         # windowing and amps need some careful handling...
         if window is not None:
             if str(window[0]).lower() == "full":
@@ -856,12 +879,13 @@ class ArcticActor(Actor):
         keyVals.append("ccdBin=%i,%i"%(ccdBin))
         # window
         keyVals.append("shutter=%s"%("open" if self.camera.getExposureState().state == arctic.Exposing else "closed"))
-        ccdWindow = (
-            config.winStartCol + 1, # add one to adhere to tui's convention
-            config.winStartRow + 1,
-            config.winStartCol + config.winWidth,
-            config.winStartRow + config.winHeight,
-        )
+        # ccdWindow = (
+        #     config.winStartCol + 1, # add one to adhere to tui's convention
+        #     config.winStartRow + 1,
+        #     config.winStartCol + config.winWidth,
+        #     config.winStartRow + config.winHeight,
+        # )
+        ccdWindow = tuple(self.getCCDWindow(config))
         ccdUBWindow = tuple(self.unbin(ccdWindow, ccdBin))
 
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))

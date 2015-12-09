@@ -55,7 +55,6 @@ class TestArcticICC(TestCase):
         def fireDeferred(cbCmd):
             if cbCmd.isDone:
                 d.callback("done")
-                # print("fire deferred!")
         def checkCmdState(cb):
             self.assertTrue(shouldFail==cmd.didFail)
         cmd.addCallback(fireDeferred)
@@ -229,6 +228,39 @@ class TestArcticICC(TestCase):
     def testExpose3(self):
         d = self.commandActor(cmdStr="expose dark time=0")
         return d
+
+    def testExposeFailByException(self):
+        self.arcticActor.camera.failExposure = True
+        d = self.commandActor(cmdStr="expose object time=0", shouldFail=True)
+        return d
+
+    def testFailThenSucceed(self):
+        self.arcticActor.camera.failExposure = True
+        returnD = Deferred()
+        d = self.commandActor(cmdStr="expose object time=1", shouldFail=True)
+        def finishUp(cb):
+            returnD.callback(None)
+        def exposeSucceed(cb):
+            self.arcticActor.camera.failExposure = False
+            d2 = self.commandActor(cmdStr="expose object time=1", shouldFail=False)
+            d2.addCallback(finishUp)
+        d.addCallback(exposeSucceed)
+        return returnD
+
+    def testSetBin3(self):
+        self.fakeHome()
+        d = self.commandActor(cmdStr="set bin=3")
+        returnD = Deferred()
+        def checkSet(cb):
+            config = self.arcticActor.camera.getConfig()
+            self.assertTrue(config.binFacCol==3)
+            self.assertTrue(config.binFacRow==3)
+            returnD.callback(None)
+        def getStatus(cb):
+            d2 = self.commandActor(cmdStr="status")
+            d2.addCallback(checkSet)
+        d.addCallback(getStatus)
+        return returnD
 
 
 if __name__ == '__main__':
