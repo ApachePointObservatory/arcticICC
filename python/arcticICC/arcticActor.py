@@ -735,36 +735,59 @@ class ArcticActor(Actor):
             for ind in range(len(binnedCoords))]
         return binnedCoords
 
-    def getCCDWindow(self, config, newBin=None):
-        """Return a new CCD window corresponding to a new bin factor
-        """
-        # adjust window based on new bin (if the window wasn't explicitly passed)
-        # adjust previous window for new bin factor
-        oldWindow = [
+    def getCurrentBinnedCCDWindow(self, config):
+        window = [
             config.winStartCol + 1,
             config.winStartRow + 1,
             config.winWidth + config.winStartCol,
             config.winHeight + config.winStartRow,
         ]
+        # explicitly handle off by 1
+        # in bin factor = 3 situations
         if config.binFacCol==3:
-            oldWindow[2] = oldWindow[2] + 1
+            window[2] = window[2] + 1
         if config.binFacRow==3:
-            oldWindow[3] = oldWindow[3] + 1
-        print("oldWindow", oldWindow)
+            window[3] = window[3] + 1
+        return window
+
+    def getUnbinnedCCDWindow(self, config):
+        window = self.getCurrentBinnedCCDWindow(config)
+        return self.unbin(window, [config.binFacCol, config.binFacRow])
+
+    def getBinnedCCDWindow(self, config, newBin=None):
+        """Return a binned CCD window.  If newBin specified return window with
+        new bin factor, otherwise use the current bin factor.
+        """
         if newBin is None:
-            window = oldWindow
+            return self.getCurrentBinnedCCDWindow(config)
         else:
             # determine new window size from new bin factor
-            unbinnedWindow = self.unbin(oldWindow, [config.binFacCol, config.binFacRow])
-            print("unbinnedWindow", unbinnedWindow)
-            window = self.bin(unbinnedWindow, newBin)
-            # handle 1-off in bin factors equal to 3
-            if newBin[0] == 3:
-                window[2] = window[2] - 1
-            if newBin[1] == 3:
-                window[3] = window[3] - 1
-        print("window", window)
-        return window
+            unbinnedWindow = self.getUnbinnedCCDWindow(config)
+            return self.bin(unbinnedWindow, newBin)
+
+    def setCCDWindow(self, config, window):
+        """Window is a set of 4 integers, or a list of 1 element: ["full"]
+        """
+        if str(window[0]).lower() == "full":
+            config.setFullWindow()
+        else:
+            try:
+                window = [int(x) for x in window]
+                assert len(window)==4
+                # explicitly handle the off by 1 issue with 3x3 binning
+                # note this is also handled in self.getBinnedCCDWindow
+                # if now window was passed via the command string
+                if config.binFacCol == 3:
+                    window[2] = window[2] - 1
+                if config.binFacRow == 3:
+                    window[3] = window[3] - 1
+                print("windowExplicit", window)
+            except:
+                raise ParseError("window must be 'full' or a list of 4 integers")
+            config.winStartCol = window[0]-1 # leach is 0 indexed
+            config.winStartRow = window[1]-1
+            config.winWidth = window[2] - config.winStartCol
+            config.winHeight = window[3] - config.winStartRow
 
     def cmd_set(self, userCmd):
         """! Implement the set command
@@ -790,24 +813,13 @@ class ArcticActor(Actor):
             newRowBin = newColBin if len(ccdBin) == 1 else ccdBin[1]
             if window is None:
                 # calculate the new window with the new bin factors
-                window = self.getCCDWindow(config, newBin=[newColBin, newRowBin])
+                window = self.getBinnedCCDWindow(config, newBin=[newColBin, newRowBin])
             # set new bin factors
             config.binFacCol = newColBin
             config.binFacRow = newRowBin
         # windowing and amps need some careful handling...
         if window is not None:
-            if str(window[0]).lower() == "full":
-                config.setFullWindow()
-            else:
-                try:
-                    window = [int(x) for x in window]
-                    assert len(window)==4
-                except:
-                    raise ParseError("window must be 'full' or a list of 4 integers")
-                config.winStartCol = window[0]-1 # leach is 0 indexed
-                config.winStartRow = window[1]-1
-                config.winWidth = window[2] - config.winStartCol
-                config.winHeight = window[3] - config.winStartRow
+            self.setCCDWindow(config, window)
             # if amps were not specified be sure this window works
             # with the current amp configuration, else yell
             # force the amps check
@@ -885,7 +897,7 @@ class ArcticActor(Actor):
         #     config.winStartCol + config.winWidth,
         #     config.winStartRow + config.winHeight,
         # )
-        ccdWindow = tuple(self.getCCDWindow(config))
+        ccdWindow = tuple(self.getBinnedCCDWindow(config))
         ccdUBWindow = tuple(self.unbin(ccdWindow, ccdBin))
 
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))
