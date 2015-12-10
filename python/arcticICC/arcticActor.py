@@ -736,19 +736,11 @@ class ArcticActor(Actor):
         return binnedCoords
 
     def getCurrentBinnedCCDWindow(self, config):
-        window = [
-            config.winStartCol + 1,
-            config.winStartRow + 1,
-            config.winWidth + config.winStartCol,
-            config.winHeight + config.winStartRow,
-        ]
-        # explicitly handle off by 1
-        # in bin factor = 3 situations
-        if config.binFacCol==3:
-            window[2] = window[2] + 1
-        if config.binFacRow==3:
-            window[3] = window[3] + 1
-        return window
+        wind0 = config.winStartCol + 1
+        wind1 = config.winStartRow + 1
+        wind2 = config.winWidth + wind0
+        wind3 = config.winHeight + wind1
+        return [wind0, wind1, wind2, wind3]
 
     def getUnbinnedCCDWindow(self, config):
         window = self.getCurrentBinnedCCDWindow(config)
@@ -763,6 +755,7 @@ class ArcticActor(Actor):
         else:
             # determine new window size from new bin factor
             unbinnedWindow = self.getUnbinnedCCDWindow(config)
+            print("max coord", self.maxCoord(binFac=newBin))
             return self.bin(unbinnedWindow, newBin)
 
     def setCCDWindow(self, config, window):
@@ -777,17 +770,19 @@ class ArcticActor(Actor):
                 # explicitly handle the off by 1 issue with 3x3 binning
                 # note this is also handled in self.getBinnedCCDWindow
                 # if now window was passed via the command string
-                if config.binFacCol == 3:
-                    window[2] = window[2] - 1
-                if config.binFacRow == 3:
-                    window[3] = window[3] - 1
+                # if config.binFacCol == 3:
+                #     window[2] = window[2] - 1
+                # if config.binFacRow == 3:
+                #     window[3] = window[3] - 1
                 print("windowExplicit", window)
             except:
                 raise ParseError("window must be 'full' or a list of 4 integers")
             config.winStartCol = window[0]-1 # leach is 0 indexed
             config.winStartRow = window[1]-1
-            config.winWidth = window[2] - config.winStartCol
-            config.winHeight = window[3] - config.winStartRow
+            config.winWidth = window[2] - window[0]
+            config.winHeight = window[3] - window[1]
+            # config.winWidth = window[2] - config.winStartCol
+            # config.winHeight = window[3] - config.winStartRow
 
     def cmd_set(self, userCmd):
         """! Implement the set command
