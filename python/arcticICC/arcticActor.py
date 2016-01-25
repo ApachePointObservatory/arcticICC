@@ -906,7 +906,10 @@ class ArcticActor(Actor):
         # temerature stuff, where to get it?
         # keyVals.append("ampNames=%s"%(",".join([key.upper() for key in ReadoutAmpsNameEnumDict])))
         # only show Quad, and LL in TUI rather than all options
-        keyVals.append("ampNames=%s, %s"%(LL, Quad))
+        if config.isFullWindow():
+            keyVals.append("ampNames=%s, %s"%(LL,Quad))
+        else:
+            keyVals.append("ampNames=%s"%(LL,))
         keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
         keyVals.append("readoutRateNames="+", ".join([x for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
