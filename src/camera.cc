@@ -111,7 +111,7 @@ namespace {
 
 namespace arcticICC {
     CameraConfig::CameraConfig() :
-        readoutAmps(ReadoutAmps::LL),
+        readoutAmps(ReadoutAmps::Quad),
         readoutRate(ReadoutRate::Medium),
         binFacCol(2),
         binFacRow(2),

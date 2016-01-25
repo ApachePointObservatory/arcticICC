@@ -338,11 +338,11 @@ class ArcticActor(Actor):
             readAmps = Single
         return dcOff[readAmps] + rowMult[readAmps] * height + pixMult[readAmps][readRate] * totalPix
 
-    def setTemp(self, tempSetpoint):
-        """Set the temperature setpoint
-        @param[in] tempSetpoint: float, the desired temperature setpoint
-        """
-        self._tempSetpoint = float(tempSetpoint)
+    # def setTemp(self, tempSetpoint):
+    #     """Set the temperature setpoint
+    #     @param[in] tempSetpoint: float, the desired temperature setpoint
+    #     """
+    #     self._tempSetpoint = float(tempSetpoint)
 
 
     def parseAndDispatchCmd(self, cmd):
@@ -652,7 +652,11 @@ class ArcticActor(Actor):
         """Returns the maximum binned CCD coordinate, given a bin factor.
         """
         assert len(binFac) == 2, "binFac must have 2 elements; binFac = %r" % binFac
-        return [(4096, 4096)[ind] // int(binFac[ind]) for ind in range(2)]
+        # The value is even for both amplifiers, even if only using single readout,
+        # just to keep the system more predictable. The result is that the full image size
+        # is the same for 3x3 binning regardless of whether you read one amp or four,
+        # and as a result you lose one row and one column when you read one amp.
+        return [(4096, 4096)[ind] // int(2 * binFac[ind]) * 2 for ind in range(2)]
 
     def minCoord(self, binFac=(1,1)):
         """Returns the minimum binned CCD coordinate, given a bin factor.
@@ -738,8 +742,10 @@ class ArcticActor(Actor):
     def getCurrentBinnedCCDWindow(self, config):
         wind0 = config.winStartCol + 1
         wind1 = config.winStartRow + 1
-        wind2 = config.winWidth + wind0
-        wind3 = config.winHeight + wind1
+        # wind2 = config.winWidth + wind0
+        # wind3 = config.winHeight + wind1
+        wind2 = config.winWidth + config.winStartCol
+        wind3 = config.winHeight + config.winStartRow
         return [wind0, wind1, wind2, wind3]
 
     def getUnbinnedCCDWindow(self, config):
@@ -779,10 +785,8 @@ class ArcticActor(Actor):
                 raise ParseError("window must be 'full' or a list of 4 integers")
             config.winStartCol = window[0]-1 # leach is 0 indexed
             config.winStartRow = window[1]-1
-            config.winWidth = window[2] - window[0]
-            config.winHeight = window[3] - window[1]
-            # config.winWidth = window[2] - config.winStartCol
-            # config.winHeight = window[3] - config.winStartRow
+            config.winWidth = window[2] - config.winStartCol # window width includes start and end row!
+            config.winHeight = window[3] - config.winStartRow
 
     def cmd_set(self, userCmd):
         """! Implement the set command
@@ -897,6 +901,7 @@ class ArcticActor(Actor):
 
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(ccdUBWindow))
+        keyVals.append("isFullWindow=%s"%str(config.isFullWindow()))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
         # keyVals.append("ampNames=%s"%(",".join([key.upper() for key in ReadoutAmpsNameEnumDict])))
@@ -905,12 +910,13 @@ class ArcticActor(Actor):
         keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
         keyVals.append("readoutRateNames="+", ".join([x for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
-        keyVals.append("ccdTemp=?")
-        if self.tempSetpoint is None:
-            ts = "None"
-        else:
-            ts = "%.2f"%self.tempSetpoint
-        keyVals.append("tempSetpoint=%s"%ts)
+        # add these when they become available?
+        # keyVals.append("ccdTemp=?")
+        # if self.tempSetpoint is None:
+        #     ts = "None"
+        # else:
+        #     ts = "%.2f"%self.tempSetpoint
+        # keyVals.append("tempSetpoint=%s"%ts)
         return "; ".join(keyVals)
 
     def getStatus(self, userCmd=None, doCamera=True, doFilter=True, doShutter=True):

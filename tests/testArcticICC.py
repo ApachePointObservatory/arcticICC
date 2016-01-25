@@ -104,6 +104,28 @@ class TestArcticICC(TestCase):
         d.addCallback(getStatus)
         return returnD
 
+    def testSet0(self):
+        self.fakeHome()
+        d = self.commandActor(cmdStr="set bin=2 window=[1,1,2048,2048] amps=quad readout=med filter=3")
+        returnD = Deferred()
+        def checkSet(cb):
+            config = self.arcticActor.camera.getConfig()
+            self.assertTrue(config.binFacCol==2)
+            self.assertTrue(config.binFacRow==2)
+            self.assertTrue(config.winStartCol == 0)
+            self.assertTrue(config.winStartRow == 0)
+            self.assertTrue(config.winWidth == 2048)
+            self.assertTrue(config.winHeight == 2048)
+            self.assertTrue(config.readoutRate == camera.Medium)
+            self.assertTrue(config.readoutAmps == camera.Quad)
+            self.assertTrue(self.arcticActor.filterWheelDev.filterPos == 3)
+            returnD.callback(None)
+        def getStatus(cb):
+            d2 = self.commandActor(cmdStr="status")
+            d2.addCallback(checkSet)
+        d.addCallback(getStatus)
+        return returnD
+
     def testSet1(self):
         self.fakeHome()
         d = self.commandActor(cmdStr="set bin=[2,2] window=[20,40,60,70] amps=auto readout=med filter=3")
