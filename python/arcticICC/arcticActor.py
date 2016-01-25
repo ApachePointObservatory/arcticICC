@@ -901,7 +901,6 @@ class ArcticActor(Actor):
 
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(ccdUBWindow))
-        keyVals.append("isFullWindow=%s"%str(config.isFullWindow()))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
         # temerature stuff, where to get it?
         # keyVals.append("ampNames=%s"%(",".join([key.upper() for key in ReadoutAmpsNameEnumDict])))
