@@ -578,12 +578,12 @@ class ArcticActor(Actor):
                     # DSEC is the section of the image that is data (binned)
                     dsecStartCol = 1 + prescanWidth
                     if ampData.isRightHalf:
-                        dsecStartCol += (config.winWidth / 2) + overscanWidth
+                        dsecStartCol = dsecStartCol + (config.winWidth / 2) + overscanWidth
                     dsecStartRow = 1 + prescanHeight
                     if ampData.isTopHalf:
-                        dsecStartRow += (config.winHeight / 2) + overscanHeight
-                    dsecEndCol = dsecStartCol + config.winWidth  - 1
-                    dsecEndRow = dsecStartRow + config.winHeight - 1
+                        dsecStartRow = dsecStartRow + (config.winHeight / 2) + overscanHeight
+                    dsecEndCol = dsecStartCol + (config.winWidth / 2) - 1
+                    dsecEndRow = dsecStartRow + (config.winHeight / 2) - 1
                     dsecKey = "dsec" + ampData.xyName
                     dsecValue = "[%i:%i,%i:%i]"%(dsecStartCol, dsecEndCol, dsecStartRow, dsecEndRow)
                     prihdr[dsecKey] = dsecValue, "data section of image (binned)"
