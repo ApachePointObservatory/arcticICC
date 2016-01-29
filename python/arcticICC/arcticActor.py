@@ -487,7 +487,7 @@ class ArcticActor(Actor):
         try:
             self.camera.startExposure(expTime, expTypeEnum, expName)
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
-            if expType in ["object", "flat"]:
+            if expType.lower() in ["object", "flat"]:
                 self.writeToUsers("i", "shutter=open") # fake shutter
             self.expNum += 1
             self.pollCamera()
@@ -902,13 +902,7 @@ class ArcticActor(Actor):
         keyVals.append("ccdWindow=%i,%i,%i,%i"%(ccdWindow))
         keyVals.append("ccdUBWindow=%i,%i,%i,%i"%(ccdUBWindow))
         keyVals.append("ccdOverscan=%i,0"%arctic.XOverscan)
-        # temerature stuff, where to get it?
-        # keyVals.append("ampNames=%s"%(",".join([key.upper() for key in ReadoutAmpsNameEnumDict])))
-        # only show Quad, and LL in TUI rather than all options
-        if config.isFullWindow():
-            keyVals.append("ampNames=%s, %s"%(LL,Quad))
-        else:
-            keyVals.append("ampNames=%s"%(LL,))
+        keyVals.append("ampNames=%s,%s"%(LL,Quad))
         keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
         keyVals.append("readoutRateNames="+", ".join([x for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])

@@ -49,7 +49,8 @@ class KWForwarder(object):
         # "filterID",
         "encoderPos",
         "desiredStep",
-        "currentStep"
+        "currentStep",
+        "hall",
     ]
     def __init__(self, actor):
         """! Construct a KWForwarder.  A class for formatting and forwarding KW received the arctic filter wheel
