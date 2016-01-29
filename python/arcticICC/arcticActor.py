@@ -62,24 +62,24 @@ ReadoutAmpsEnumNameDict = collections.OrderedDict((enum, name) for (name, enum) 
 
 ReadoutRateDict = {
     arctic.LL: {
-        arctic.Fast: (1.98, 6.0), # (gain, readnoise)
-        arctic.Medium: (1.99, 3.8),
-        arctic.Slow: (1.43, 3.4),
+        arctic.Fast: (1.93, 6.5), # (gain, readnoise)
+        arctic.Medium: (1.97, 3.9),
+        arctic.Slow: (1.40, 3.3),
     },
     arctic.LR: {
-        arctic.Fast: (1.97, 6.4),
-        arctic.Medium: (1.97, 4.3),
-        arctic.Slow: (1.42, 3.7),
+        arctic.Fast: (1.90, 6.6),
+        arctic.Medium: (1.95, 3.9),
+        arctic.Slow: (1.40, 3.3),
     },
     arctic.UL: {
-        arctic.Fast: (2.01, 6.4),
-        arctic.Medium: (2.03, 4.6),
-        arctic.Slow: (1.43, 3.8),
+        arctic.Fast: (1.93, 6.7),
+        arctic.Medium: (1.95, 3.9),
+        arctic.Slow: (1.39, 3.3),
     },
     arctic.UR: {
-        arctic.Fast: (1.99, 6.5),
-        arctic.Medium: (1.98, 4.4),
-        arctic.Slow: (1.41, 3.7),
+        arctic.Fast: (1.96, 6.6),
+        arctic.Medium: (1.97, 3.8),
+        arctic.Slow: (1.39, 3.3),
     }
 }
 
