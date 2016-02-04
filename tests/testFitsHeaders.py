@@ -87,6 +87,8 @@ class TestFitsHeaders(TestCase):
             # key=value #followed by a comment
             # first get the comment
             for line in f.readlines():
+                if not line:
+                    continue
                 keyVal, comment = line.split("#", 1)
                 key, val = keyVal.split("=")
                 # strip any whitespace on comment or value

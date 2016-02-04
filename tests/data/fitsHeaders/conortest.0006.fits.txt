@@ -17,5 +17,3 @@ amplist=11 #amplifiers read <x><y> e.g. 12=LR
 csec11=[1:4096,1:4096] #data section of CCD (unbinned)
 dsec11=[3:2050,1:2048] #data section of image (binned)
 bsec11=[2053:2100,1:2048] #bias section of image (binned)
-gtgain11=1.43 #predicted gain (e-/ADU)
-gtron11=3.4 #predicted read noise (e-)

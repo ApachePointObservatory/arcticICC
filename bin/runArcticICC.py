@@ -14,10 +14,11 @@ from arcticICC.dev import FilterWheelDevice, ShutterDevice, FakeShutter
 
 try:
     startSystemLogging(ArcticActor.Facility)
-except KeyError:
+    print("started systemLogging")
+except KeyError as e:
    # don't start logging
-   pass
-
+   print("System Logging NOT!!!! Started")
+   print(str(e))
 # ports to match bin/runFakeDevs
 fwPort = 37000
 # oldIP 10.50.1.245
