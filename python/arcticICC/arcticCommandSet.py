@@ -5,6 +5,30 @@ from __future__ import division, absolute_import
 from twistedActor.parse import Command, CommandSet, KeywordValue, Float, String, Int, UniqueMatch, RestOfLineString
 
 __all__ = ["arcticCommandSet"]
+binFactor = KeywordValue(
+    keyword="bin",
+    value=Int(nElements=(1,2)),
+    isMandatory=False,
+    helpStr="Specify 1 or 2 integers corresponding to column bin factor and row bin factor, respectively.  If only one integer is supplied both bin factors are set equal to this value.",
+    )
+window = KeywordValue(
+    keyword="window",
+    value=String(nElements=(1,4), repString="begx, begy, width, height | full"), # must be string to support "full"
+    isMandatory=False,
+    helpStr="Specify either 'full' or 4 comma separated integers corresponding to binned pixels defining the window: start x, start y, width, height.",
+    )
+amps = KeywordValue(
+    keyword="amps",
+    value=UniqueMatch(["LL", "UL", "UR", "LR", "Quad", "Auto"]),
+    isMandatory=False,
+    helpStr="Choose which amplifier to read from.  Quad will simultaneously read from all 4.  Note Quad readout mode is only valid for a full CCD window.  Auto will default to Quad if the CCD window is full else LL. ",
+    )
+readoutRate = KeywordValue(
+    keyword="readoutRate",
+    value=UniqueMatch(["Slow", "Medium", "Fast"]),
+    isMandatory=False,
+    helpStr="Choose a readout rate.",
+    )
 
 optionalExposeArgs = [
     KeywordValue(
@@ -19,6 +43,10 @@ optionalExposeArgs = [
         isMandatory=False,
         helpStr="IF SUPPLIED THIS ARGUMENT IS IGNORED! Comments are written via the arcticExpose actor.  This is vistigial but necessary because the arcticExpose actor passes this argument along to the arcticICC!",
     ),
+    binFactor,
+    window,
+    amps,
+    readoutRate,
 ]
 
 timeArg = [
@@ -37,30 +65,10 @@ arcticCommandSet = CommandSet(
             commandName = "set",
             helpStr="Configure settings for the camera and/or filter wheel.",
             floatingArguments = [
-                KeywordValue(
-                    keyword="bin",
-                    value=Int(nElements=(1,2)),
-                    isMandatory=False,
-                    helpStr="Specify 1 or 2 integers corresponding to column bin factor and row bin factor, respectively.  If only one integer is supplied both bin factors are set equal to this value.",
-                    ),
-                KeywordValue(
-                    keyword="window",
-                    value=String(nElements=(1,4), repString="begx, begy, width, height | full"), # must be string to support "full"
-                    isMandatory=False,
-                    helpStr="Specify either 'full' or 4 comma separated integers corresponding to binned pixels defining the window: start x, start y, width, height.",
-                    ),
-                KeywordValue(
-                    keyword="amps",
-                    value=UniqueMatch(["LL", "UL", "UR", "LR", "Quad", "Auto"]),
-                    isMandatory=False,
-                    helpStr="Choose which amplifier to read from.  Quad will simultaneously read from all 4.  Note Quad readout mode is only valid for a full CCD window.  Auto will default to Quad if the CCD window is full else LL. ",
-                    ),
-                KeywordValue(
-                    keyword="readoutRate",
-                    value=UniqueMatch(["Slow", "Medium", "Fast"]),
-                    isMandatory=False,
-                    helpStr="Choose a readout rate.",
-                    ),
+                binFactor,
+                window,
+                amps,
+                readoutRate,
                 KeywordValue(
                     keyword="filter",
                     value=Int(),

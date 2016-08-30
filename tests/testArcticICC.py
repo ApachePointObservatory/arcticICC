@@ -104,7 +104,7 @@ class TestArcticICC(TestCase):
         d.addCallback(getStatus)
         return returnD
 
-    def testSet0(self):
+    def testSet01(self):
         self.fakeHome()
         d = self.commandActor(cmdStr="set bin=2 window=[1,1,2048,2048] amps=quad readout=med filter=3")
         returnD = Deferred()
@@ -250,6 +250,26 @@ class TestArcticICC(TestCase):
     def testExpose3(self):
         d = self.commandActor(cmdStr="expose dark time=0")
         return d
+
+    def testExpose4(self):
+        d = self.commandActor(cmdStr="expose dark time=0 bin=2")
+        return d
+
+    def testExpose5(self):
+        d = self.commandActor(cmdStr="expose dark time=0 bin=2,2")
+        return d
+
+    def testExpose6(self):
+        d = self.commandActor(cmdStr="expose dark time=0 bin=1,1 window=[20,40,60,70]")
+        returnD = Deferred()
+        def checkSet(cb):
+            config = self.arcticActor.camera.getConfig()
+            self.assertTrue(config.binFacCol==2)
+            self.assertTrue(config.binFacRow==2)
+            self.assertTrue(bool(config.isFullWindow()))
+            returnD.callback(None)
+        d.addCallback(checkSet)
+        return returnD
 
     def testExposeFailByException(self):
         self.arcticActor.camera.failExposure = True

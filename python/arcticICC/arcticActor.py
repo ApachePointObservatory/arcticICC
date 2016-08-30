@@ -26,7 +26,7 @@ from twistedActor.parse import ParseError
 
 UserPort = 35000
 
-ImageDir = os.path.join(os.getenv("HOME"), "images")
+ImageDir = "/export/images/arcticScratch"
 
 Bias = "Bias"
 Dark = "Dark"
@@ -245,6 +245,7 @@ class ArcticActor(Actor):
         self.expStartTime = None
         self.expType = None
         self.expTime = None
+        self.resetConfig = None
         Actor.__init__(self,
             userPort = userPort,
             maxUsers = 1,
@@ -427,6 +428,21 @@ class ArcticActor(Actor):
             # no current exposure, start one
             basename = subCmd.parsedFloatingArgs.get("basename", [None])[0]
             comment = subCmd.parsedFloatingArgs.get("comment", [None])[0]
+            ccdBin = subCmd.parsedFloatingArgs.get("bin", None)
+            window = subCmd.parsedFloatingArgs.get("window", None)
+            if ccdBin is not None or window is not None:
+                # if bin or window is present, use single readout mode
+                # and set evertying back once done
+                config = self.camera.getConfig()
+                prevBin = [config.binFacCol, config.binFacRow]
+                prevWindow = self.getBinnedCCDWindow(config)
+                prevAmps = ReadoutAmpsEnumNameDict[config.readoutAmps]
+                prevRead = ReadoutRateEnumNameDict[config.readoutRate]
+                print("prev config", prevBin, prevWindow, prevAmps)
+                def setConfigBack():
+                    self.setCameraConfig(ccdBin=prevBin, amps=[prevAmps], window=prevWindow)
+                self.resetConfig = setConfigBack
+                self.setCameraConfig(ccdBin=ccdBin, window=window, amps=[LL], readoutRate=[Fast])
             if subCmd.cmdName == "Bias":
                 expTime = 0
             else:
@@ -639,6 +655,11 @@ class ArcticActor(Actor):
         self.pollTimer.cancel() # just in case
         self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         self.writeToUsers("i", "shutter=closed") # fake shutter
+        # if configuration requires setting back do it now
+        if self.resetConfig is not None:
+            print("resetting config")
+            self.resetConfig()
+            self.resetConfig = None
         if not self.exposeCmd.isDone:
             self.exposeCmd.setState(self.exposeCmd.Done)
         self.expName = None
@@ -788,20 +809,14 @@ class ArcticActor(Actor):
             config.winWidth = window[2] - config.winStartCol # window width includes start and end row!
             config.winHeight = window[3] - config.winStartRow
 
-    def cmd_set(self, userCmd):
-        """! Implement the set command
-        @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
+    def setCameraConfig(self, ccdBin=None, amps=None, window=None, readoutRate=None):
+        """! Set parameters on the camera config object
+
+        ccdBin = None, or a list of 1 or 2 integers
+        amps = None, or 1 element list [LL], [UL], [UR], [LR], or [Quad]
+        window = None, ["full"], or [int, int, int, int]
+        readoutRate = None, or 1 element list: [Fast], [Medium], or [Slow]
         """
-        argDict = userCmd.parsedCommand.parsedFloatingArgs
-        if not argDict:
-            # nothing was passed?
-            raise ParseError("no arguments received for set command")
-        ccdBin = argDict.get("bin", None)
-        amps = argDict.get("amps", None)
-        window = argDict.get("window", None)
-        readoutRate = argDict.get("readoutRate", None)
-        temp = argDict.get("temp", None)
-        filterPos = argDict.get("filter", None)
         # begin replacing/and checking config values
         config = self.camera.getConfig()
 
@@ -842,6 +857,23 @@ class ArcticActor(Actor):
             # camera config was changed set it and output new camera status
             self.camera.setConfig(config)
             self.getStatus(doCamera=True, doFilter=False, doShutter=False)
+
+    def cmd_set(self, userCmd):
+        """! Implement the set command
+        @param[in]  userCmd  a twistedActor command with a parsedCommand attribute
+        """
+        argDict = userCmd.parsedCommand.parsedFloatingArgs
+        if not argDict:
+            # nothing was passed?
+            raise ParseError("no arguments received for set command")
+        ccdBin = argDict.get("bin", None)
+        amps = argDict.get("amps", None)
+        window = argDict.get("window", None)
+        readoutRate = argDict.get("readoutRate", None)
+        temp = argDict.get("temp", None)
+        filterPos = argDict.get("filter", None)
+
+        self.setCameraConfig(ccdBin=ccdBin, amps=amps, window=window, readoutRate=readoutRate)
 
         if temp is not None:
             self.setTemp(argDict["temp"][0])
