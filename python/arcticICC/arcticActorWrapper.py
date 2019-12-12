@@ -7,6 +7,9 @@ from .dev import ShutterDeviceWrapper, FilterWheelDeviceWrapper
 
 __all__ = ["ArcticActorWrapper"]
 
+# another useless comment
+# another
+
 class ArcticActorWrapper(ActorWrapper):
     """!A wrapper for the arcticICC talking to a fake camera, fake shutter, and fake filter wheel
     """

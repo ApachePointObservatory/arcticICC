@@ -24,6 +24,8 @@ from arcticICC.fakeCamera import Camera as FakeCamera
 
 from twistedActor.parse import ParseError
 
+# a useless comment
+
 UserPort = 35000
 
 ImageDir = "/export/images/arcticScratch"
