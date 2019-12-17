@@ -243,8 +243,10 @@ class ArcticActor(Actor):
         self.expName = None
         self.comment = None
         self.expStartTime = None
+        self.expStopTime = None
         self.expType = None
         self.expTime = None
+        self.expActualTime = None #added by shane 
         self.resetConfig = None
         Actor.__init__(self,
             userPort = userPort,
@@ -493,6 +495,12 @@ class ArcticActor(Actor):
             expName = "%s_%d.fits" % (expType, self.expNum)
             expName = os.path.join(self.imageDir, expName)
         # print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
+        
+        
+        #SHANE NOTES.
+        #the startTime is great we need an end time and also a pause time and to calculate total exposure based on (endTime-startTime)-pausedTime
+        #expose cleanup is ran, and maybe there the calculations can be made, then figure out where to move the writeHeaders too.
+        
         self.expStartTime = datetime.datetime.now()
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
@@ -563,7 +571,10 @@ class ArcticActor(Actor):
             expTimeComment = "exposure time (sec)"
             if self.expTime > 0:
                 expTimeComment = "estimated " + expTimeComment
-            prihdr["exptime"] = self.expTime, expTimeComment
+
+
+            #MORE SHANES NOTES. Change the calculation here to the expTotalTime which is calculated from
+            prihdr["exptime"] = self.expActualTime, expTimeComment
             prihdr["readamps"] = ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)"
             prihdr["readrate"] = ReadoutRateEnumNameDict[config.readoutRate], "readout rate"
 
@@ -665,6 +676,7 @@ class ArcticActor(Actor):
         self.expName = None
         self.comment = None
         self.expStartTime = None
+        self.expStopTime = None
         self.expType = None
         self.expTime = None
         self.readingFlag = False
