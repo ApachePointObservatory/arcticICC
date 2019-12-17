@@ -248,6 +248,7 @@ class ArcticActor(Actor):
         self.expStopTime = None
         self.expType = None
         self.expTime = None
+        #test 
         self.expActualTime = None #added by shane 
         self.resetConfig = None
         Actor.__init__(self,
