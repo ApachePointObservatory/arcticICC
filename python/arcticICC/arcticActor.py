@@ -504,7 +504,7 @@ class ArcticActor(Actor):
         #the startTime is great we need an end time and also a pause time and to calculate total exposure based on (endTime-startTime)-pausedTime
         #expose cleanup is ran, and maybe there the calculations can be made, then figure out where to move the writeHeaders too.
         
-        self.expStartTime = datetime.datetime.now()
+        self.expStartTime = time.time()
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
         self.comment = comment
@@ -534,6 +534,10 @@ class ArcticActor(Actor):
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state == arctic.ImageRead:
             log.info("saving image: exposure %s"%self.expName)
+
+            #shanes code and hack.   This doesn't take into account pausing yet.
+            self.elapsedTime = time.time()- self.expStartTime
+            self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
             self.camera.saveImage() # saveImage sets camera exp state to idle
             # write headers
             self.writeHeaders()
@@ -680,6 +684,8 @@ class ArcticActor(Actor):
         self.comment = None
         self.expStartTime = None
         self.expStopTime = None
+        self.elapsedTime = None
+        self.pausedTime = None
         self.expType = None
         self.expTime = None
         self.readingFlag = False
