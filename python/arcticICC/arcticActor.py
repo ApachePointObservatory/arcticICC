@@ -8,6 +8,7 @@ import os
 import syslog
 import collections
 import datetime
+import time
 
 from astropy.io import fits
 
@@ -461,6 +462,9 @@ class ArcticActor(Actor):
             self.camera.resumeExposure()
         elif subCmd.cmdName == "stop":
             self.camera.stopExposure()
+	    self.elapsedTime = time.time()- self.expStartTime
+            self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
+     
         else:
             assert subCmd.cmdName == "abort"
             self.camera.abortExposure()
@@ -536,8 +540,8 @@ class ArcticActor(Actor):
             log.info("saving image: exposure %s"%self.expName)
 
             #shanes code and hack.   This doesn't take into account pausing yet.
-            self.elapsedTime = time.time()- self.expStartTime
-            self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
+            #self.elapsedTime = time.time()- self.expStartTime
+            #self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
             self.camera.saveImage() # saveImage sets camera exp state to idle
             # write headers
             self.writeHeaders()
@@ -559,7 +563,7 @@ class ArcticActor(Actor):
         with fits.open(self.expName, mode='update') as hdulist:
             prihdr = hdulist[0].header
             # timestamp
-            prihdr["date-obs"] = self.expStartTime.isoformat(), "TAI time at the start of the exposure"
+            prihdr["date-obs"] = self.expStartTime, "TAI time at the start of the exposure"
             # filter info
             try:
                 filterPos = int(self.filterWheelDev.filterPos)
@@ -581,7 +585,7 @@ class ArcticActor(Actor):
 
 
             #MORE SHANES NOTES. Change the calculation here to the expTotalTime which is calculated from
-            prihdr["exptime"] = self.expActualTime, expTimeComment
+            prihdr["exptime"] = self.expTime, expTimeComment
             prihdr["readamps"] = ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)"
             prihdr["readrate"] = ReadoutRateEnumNameDict[config.readoutRate], "readout rate"
 
