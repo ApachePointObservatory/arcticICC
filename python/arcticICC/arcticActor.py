@@ -457,14 +457,19 @@ class ArcticActor(Actor):
             return True
         # there is a current exposure
         if subCmd.cmdName == "pause":
+            #should add pause code that just gets a new start time of pause
+            #then on resume adds to a running total that is then subtracted at the stop
+            self.expStartPauseTime = time.time()
             self.camera.pauseExposure()
         elif subCmd.cmdName == "resume":
+            self.expTimeTotalPause += time.time() - self.expStartPauseTime
             self.camera.resumeExposure()
         elif subCmd.cmdName == "stop":
             self.camera.stopExposure()
             self.elapsedTime = time.time()- self.expStartTime
+            self.elapsedTime = self.elapsedTime + self.expTimeTotalPause #add in the total paused time
             self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
-        
+     
         else:
             assert subCmd.cmdName == "abort"
             self.camera.abortExposure()
@@ -542,9 +547,6 @@ class ArcticActor(Actor):
             #shanes code and hack.   This doesn't take into account pausing yet.
             #self.elapsedTime = time.time()- self.expStartTime
             #self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
-            #putting above code in camera stop
-
-
 
             self.camera.saveImage() # saveImage sets camera exp state to idle
             # write headers
@@ -568,6 +570,7 @@ class ArcticActor(Actor):
             prihdr = hdulist[0].header
             # timestamp
             prihdr["date-obs"] = self.expStartTime, "TAI time at the start of the exposure" #used to say expStartTime.isoformat.  how to set this float to a date object now
+
             # filter info
             try:
                 filterPos = int(self.filterWheelDev.filterPos)
@@ -589,7 +592,7 @@ class ArcticActor(Actor):
 
 
             #MORE SHANES NOTES. Change the calculation here to the expTotalTime which is calculated from
-            prihdr["exptime"] = self.expActualTime, expTimeComment
+            prihdr["exptime"] = self.expTime, expTimeComment
             prihdr["readamps"] = ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)"
             prihdr["readrate"] = ReadoutRateEnumNameDict[config.readoutRate], "readout rate"
 
@@ -691,6 +694,8 @@ class ArcticActor(Actor):
         self.expName = None
         self.comment = None
         self.expStartTime = None
+        self.expTimeTotalPause = None
+        self.expStartPauseTime = None
         self.expStopTime = None
         self.elapsedTime = None
         self.pausedTime = None
