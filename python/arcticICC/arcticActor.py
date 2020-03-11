@@ -548,6 +548,7 @@ class ArcticActor(Actor):
             # self.startReadTime = time.time()
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state == arctic.ImageRead:
+            print("DONE EXPOSING")
             log.info("saving image: exposure %s"%self.expName)
 
             #shanes code and hack.   This doesn't take into account pausing yet.
