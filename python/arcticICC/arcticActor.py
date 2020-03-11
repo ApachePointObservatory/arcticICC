@@ -539,11 +539,13 @@ class ArcticActor(Actor):
         if expState.state == arctic.Reading and not self.readingFlag:
             self.elapsedTime = time.time()- self.expStartTime
             print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
-            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause #add in the total paused time
+            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause - self.expTimeTotalPause #Must remove paused time twice
+            #since it is constantly exposing
             print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
             self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
             self.expTimeTotalPause=0
-     
+            #math is a little funny, it is taking a total exposure time of 5 seconds with a 3 second pause.  
+            # the problem is... its really expsoure of 2 seconds.     (exposed to 2, then pause 3 then stop)####
 
             self.readingFlag = True
             self.writeToUsers("i", "shutter=closed") # fake shutter
