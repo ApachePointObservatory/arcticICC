@@ -529,6 +529,7 @@ class ArcticActor(Actor):
         try:
             self.camera.startExposure(expTime, expTypeEnum, expName)
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
+            print("DONE XPOSING IN DOEXPOSE")
             if expType.lower() in ["object", "flat"]:
                 self.writeToUsers("i", "shutter=open") # fake shutter
             self.expNum += 1
@@ -543,12 +544,16 @@ class ArcticActor(Actor):
         """
         expState = self.camera.getExposureState()
         if expState.state == arctic.Reading and not self.readingFlag:
+            print("DONE EXPOSING")
             self.readingFlag = True
             self.writeToUsers("i", "shutter=closed") # fake shutter
             # self.startReadTime = time.time()
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state == arctic.ImageRead:
-            print("DONE EXPOSING")
+            print("DONE READING")
+
+
+
             log.info("saving image: exposure %s"%self.expName)
 
             #shanes code and hack.   This doesn't take into account pausing yet.
