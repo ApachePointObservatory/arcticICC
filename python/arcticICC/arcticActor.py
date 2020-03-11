@@ -247,7 +247,7 @@ class ArcticActor(Actor):
         self.comment = None
         self.expStartTime = None
         self.expStopTime = None
-        self.expTimeTotalPause = None
+        self.expTimeTotalPause = 0
         self.expStartPauseTime = None
         self.expType = None
         self.expTime = None
