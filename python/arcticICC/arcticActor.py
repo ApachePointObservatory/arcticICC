@@ -465,12 +465,13 @@ class ArcticActor(Actor):
             self.camera.pauseExposure()
         elif subCmd.cmdName == "resume":
             self.expTimeTotalPause += time.time() - self.expStartPauseTime
+            print str(self.expTimeTotalPause) + " total pause time"
             self.camera.resumeExposure()
         elif subCmd.cmdName == "stop":
             self.camera.stopExposure()
             self.elapsedTime = time.time()- self.expStartTime
             print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
-            self.elapsedTime = self.elapsedTime + self.expTimeTotalPause #add in the total paused time
+            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause #add in the total paused time
             print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
             self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
      
