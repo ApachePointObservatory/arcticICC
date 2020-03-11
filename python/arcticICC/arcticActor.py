@@ -539,7 +539,7 @@ class ArcticActor(Actor):
         if expState.state == arctic.Reading and not self.readingFlag:
             self.elapsedTime = time.time()- self.expStartTime
             print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
-            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause - self.expTimeTotalPause #Must remove paused time twice
+            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause #Must remove paused time twice
             #since it is constantly exposing
             print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
             self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
