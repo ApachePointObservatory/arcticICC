@@ -469,13 +469,7 @@ class ArcticActor(Actor):
             self.camera.resumeExposure()
         elif subCmd.cmdName == "stop":
             self.camera.stopExposure()
-            self.elapsedTime = time.time()- self.expStartTime
-            print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
-            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause #add in the total paused time
-            print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
-            self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
-            self.expTimeTotalPause=0
-     
+         
         else:
             assert subCmd.cmdName == "abort"
             self.camera.abortExposure()
@@ -529,7 +523,6 @@ class ArcticActor(Actor):
         try:
             self.camera.startExposure(expTime, expTypeEnum, expName)
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
-            print("DONE XPOSING IN DOEXPOSE")
             if expType.lower() in ["object", "flat"]:
                 self.writeToUsers("i", "shutter=open") # fake shutter
             self.expNum += 1
@@ -544,7 +537,14 @@ class ArcticActor(Actor):
         """
         expState = self.camera.getExposureState()
         if expState.state == arctic.Reading and not self.readingFlag:
-            print("DONE EXPOSING")
+            self.elapsedTime = time.time()- self.expStartTime
+            print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
+            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause #add in the total paused time
+            print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
+            self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
+            self.expTimeTotalPause=0
+     
+
             self.readingFlag = True
             self.writeToUsers("i", "shutter=closed") # fake shutter
             # self.startReadTime = time.time()
