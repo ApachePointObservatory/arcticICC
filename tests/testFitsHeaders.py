@@ -147,15 +147,13 @@ class TestFitsHeaders(TestCase):
         prihdr = hdulist[0].header
         for key, (val, comment) in fitsDict.iteritems():
             self.assertTrue(key in prihdr, "Couldn't find key %s in image header"%key)
-	    if key=="exptime":
-		continue #this is becuse the exposure time was fixed but the comment appending was not updated, will ask bill or russet if that is an important feature and will go form there
             self.assertTrue(prihdr.comments[key] == comment, "Comment doesn't match %s, %s"%(prihdr.comments[key], comment))
             # ignore a few values that won't match
-            if key in ["filter", "filpos", "date-obs", "begx", "begy", "exptime" ]:
+            if key in ["filter", "filpos", "date-obs", "begx", "begy"]:
                 # begx/y have changed
                 continue
-            #elif key == "exptime":
-            #    self.assertTrue(float(prihdr[key]) == float(val), "Value doesn't match %s, %s for key: %s"%(prihdr[key], val, key))
+            elif key == "exptime":
+                self.assertTrue(float(prihdr[key]) == float(val), "Value doesn't match %s, %s for key: %s"%(prihdr[key], val, key))
             else:
                 self.assertTrue(str(prihdr[key]).strip() == val.strip(), "Values doesn't match %s, %s for key: %s"%(prihdr[key], val, key))
         returnDeferred.callback(None)

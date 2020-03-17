@@ -8,7 +8,6 @@ import os
 import syslog
 import collections
 import datetime
-import time
 
 from astropy.io import fits
 
@@ -24,8 +23,6 @@ import arcticICC.camera as arctic
 from arcticICC.fakeCamera import Camera as FakeCamera
 
 from twistedActor.parse import ParseError
-
-# a useless comment
 
 UserPort = 35000
 
@@ -246,13 +243,8 @@ class ArcticActor(Actor):
         self.expName = None
         self.comment = None
         self.expStartTime = None
-        self.expStopTime = None
-        self.expTimeTotalPause = 0
-        self.expStartPauseTime = None
         self.expType = None
         self.expTime = None
-        #test 
-        self.expActualTime = None #added by shane 
         self.resetConfig = None
         Actor.__init__(self,
             userPort = userPort,
@@ -459,17 +451,11 @@ class ArcticActor(Actor):
             return True
         # there is a current exposure
         if subCmd.cmdName == "pause":
-            #should add pause code that just gets a new start time of pause
-            #then on resume adds to a running total that is then subtracted at the stop
-            self.expStartPauseTime = time.time()
             self.camera.pauseExposure()
         elif subCmd.cmdName == "resume":
-            self.expTimeTotalPause += time.time() - self.expStartPauseTime
-            print str(self.expTimeTotalPause) + " total pause time"
             self.camera.resumeExposure()
         elif subCmd.cmdName == "stop":
             self.camera.stopExposure()
-         
         else:
             assert subCmd.cmdName == "abort"
             self.camera.abortExposure()
@@ -507,13 +493,7 @@ class ArcticActor(Actor):
             expName = "%s_%d.fits" % (expType, self.expNum)
             expName = os.path.join(self.imageDir, expName)
         # print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
-        
-        
-        #SHANE NOTES.
-        #the startTime is great we need an end time and also a pause time and to calculate total exposure based on (endTime-startTime)-pausedTime
-        #expose cleanup is ran, and maybe there the calculations can be made, then figure out where to move the writeHeaders too.
-        
-        self.expStartTime = time.time()
+        self.expStartTime = datetime.datetime.now()
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
         self.comment = comment
@@ -537,31 +517,12 @@ class ArcticActor(Actor):
         """
         expState = self.camera.getExposureState()
         if expState.state == arctic.Reading and not self.readingFlag:
-            self.elapsedTime = time.time()- self.expStartTime
-            print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
-            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause #Must remove paused time twice
-            #since it is constantly exposing
-            print str(self.elapsedTime) + " start time: " + str(self.expStartTime)
-            self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
-            self.expTimeTotalPause=0
-            #math is a little funny, it is taking a total exposure time of 5 seconds with a 3 second pause.  
-            # the problem is... its really expsoure of 2 seconds.     (exposed to 2, then pause 3 then stop)####
-
             self.readingFlag = True
             self.writeToUsers("i", "shutter=closed") # fake shutter
             # self.startReadTime = time.time()
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
         if expState.state == arctic.ImageRead:
-            print("DONE READING")
-
-
-
             log.info("saving image: exposure %s"%self.expName)
-
-            #shanes code and hack.   This doesn't take into account pausing yet.
-            #self.elapsedTime = time.time()- self.expStartTime
-            #self.expTime = self.elapsedTime  #this is replacing the 'requested' exposure time, not sure if want to save that or not.
-
             self.camera.saveImage() # saveImage sets camera exp state to idle
             # write headers
             self.writeHeaders()
@@ -583,8 +544,7 @@ class ArcticActor(Actor):
         with fits.open(self.expName, mode='update') as hdulist:
             prihdr = hdulist[0].header
             # timestamp
-            prihdr["date-obs"] = self.expStartTime, "TAI time at the start of the exposure" #used to say expStartTime.isoformat.  how to set this float to a date object now
-
+            prihdr["date-obs"] = self.expStartTime.isoformat(), "TAI time at the start of the exposure"
             # filter info
             try:
                 filterPos = int(self.filterWheelDev.filterPos)
@@ -603,9 +563,6 @@ class ArcticActor(Actor):
             expTimeComment = "exposure time (sec)"
             if self.expTime > 0:
                 expTimeComment = "estimated " + expTimeComment
-
-
-            #MORE SHANES NOTES. Change the calculation here to the expTotalTime which is calculated from
             prihdr["exptime"] = self.expTime, expTimeComment
             prihdr["readamps"] = ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)"
             prihdr["readrate"] = ReadoutRateEnumNameDict[config.readoutRate], "readout rate"
@@ -708,9 +665,6 @@ class ArcticActor(Actor):
         self.expName = None
         self.comment = None
         self.expStartTime = None
-        self.expStopTime = None
-        self.elapsedTime = None
-        self.pausedTime = None
         self.expType = None
         self.expTime = None
         self.readingFlag = False
