@@ -47,7 +47,7 @@ class TestArcticICC(TestCase):
         return self.aw.actor
 
     def fakeHome(self):
-        self.aw.deviceWrapperList[1].controller.status.isHomed = 1
+        self.aw.deviceWrapperList[0].controller.status.isHomed = 1
 
     def commandActor(self, cmdStr, shouldFail=False):
         d = Deferred()

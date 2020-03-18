@@ -70,6 +70,18 @@ arcticCommandSet = CommandSet(
                 amps,
                 readoutRate,
                 KeywordValue(
+                    keyword="diffuser",
+                    value=UniqueMatch(["In","Out"]),
+                    isMandatory=False,
+                    helpStr="Move the diffuser in or out of the beam."
+                    ),
+                KeywordValue(
+                    keyword="rotateDiffuser",
+                    value=UniqueMatch(["On","Off"]),
+                    isMandatory=False,
+                    helpStr="Select whether or not to rotate the diffuser during an exposure (only if diffuser is in beam)."
+                    ),
+                KeywordValue(
                     keyword="filter",
                     value=Int(),
                     isMandatory=False,

@@ -51,6 +51,8 @@ class KWForwarder(object):
         "desiredStep",
         "currentStep",
         "hall",
+        "diffuInBeam",
+        "diffuRotating",
     ]
     def __init__(self, actor):
         """! Construct a KWForwarder.  A class for formatting and forwarding KW received the arctic filter wheel
@@ -70,6 +72,7 @@ class KWForwarder(object):
         self.model.filterID.addValueCallback(self.actor.outputCurrFilter, callNow = True)
         self.model.cmdFilterID.addValueCallback(self.actor.outputCmdFilter, callNow = True)
         self.model.state.addValueCallback(self.actor.outputFilterState, callNow = True)
+        self.model.diffuInBeam.addValueCallback(self.actor.outputDiffuserState, callNow = True)
         # for kw in ["isMoving", "isHomed", "isHoming"]:
         #     # all these keywords output the state keyword
         #     getattr(self.model, kw).addValueCallback(self.actor.outputFilterState, callNow = True)
@@ -124,6 +127,14 @@ class FilterWheelDevice(ActorDevice):
         )
         # self.kwForwarder = KWForwarder(self.dispatcher.model, self.writeToUsers)
         self.kwForwarder = KWForwarder(self)
+
+    @property
+    def diffuInBeam(self):
+        return self.model.diffuInBeam.valueList[0] == 1
+
+    @property
+    def diffuRotating(self):
+        return self.model.diffuRotating.valueList[0] == 1
 
     @property
     def model(self):
@@ -236,6 +247,11 @@ class FilterWheelDevice(ActorDevice):
             filterID = "NaN"
         filterName = RO.StringUtil.quoteStr(self.cmdFilterName)
         self.writeToUsers(msgCode="i", msgStr="cmdFilter=%s, %s"%(filterID, filterName))
+
+    def outputDiffuserState(self, value, isCurrent, keyVar):
+        msgCode = "i"
+        state = "In" if self.diffuInBeam else "Out"
+        self.writeToUsers(msgCode=msgCode, msgStr="diffuserPosition=%s"%(state,))
 
     def outputFilterState(self, value, isCurrent, keyVar):
         msgCode = "i"

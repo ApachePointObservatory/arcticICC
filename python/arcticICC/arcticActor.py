@@ -8,6 +8,8 @@ import os
 import syslog
 import collections
 import datetime
+import telnetlib
+import traceback
 
 from astropy.io import fits
 
@@ -24,7 +26,31 @@ from arcticICC.fakeCamera import Camera as FakeCamera
 
 from twistedActor.parse import ParseError
 
-UserPort = 35000
+TempPort = 50002
+TempHost = "hub35m"
+tempServer = telnetlib.Telnet()
+
+def getCCDTemps():
+    """Return temps
+    Coldhead (K), CCD(K), power(percent)
+    or Nones if some issue
+
+    example output:
+    '2016-08-31T05:32:34Z    165.2   133.6    88.5\n'
+    """
+    try:
+        tempServer.open(TempHost, TempPort, timeout=1)
+        tempStr = tempServer.read_all()
+        tempServer.close()
+        date, coldhead, ccd, power = tempStr.strip().split()
+        temps = [float(coldhead), float(ccd), float(power)]
+    except:
+        # return Nones if some problem
+        temps = [None, None, None]
+    finally:
+        # try an close no matter what
+        tempServer.close()
+    return temps
 
 ImageDir = "/export/images/arcticScratch"
 
@@ -217,39 +243,38 @@ class ArcticActor(Actor):
     DefaultTimeLim = 5 # default time limit, in seconds
     def __init__(self,
         filterWheelDev,
-        shutterDev,
+        userPort,
         name="arcticICC",
-        userPort = UserPort,
         test=False,
     ):
         """!Construct an ArcticActor
 
         @param[in] filterWheelDev  a FilterWheelDevice instance
-        @param[in] shutterDev  a ShutterDevice instance
-        @param[in] name  actor name; used for logging
         @param[in] userPort port on which this service runs
+        @param[in] name  actor name; used for logging
         @param[in] test bool. If true, use a fake camera.
         """
         self.imageDir = ImageDir
         self.test = test
         self.setCamera()
         self.filterWheelDev = filterWheelDev
-        self.shutterDev = shutterDev
         self._tempSetpoint = None
         self.expNum = 0
         self.exposeCmd = UserCmd()
         self.exposeCmd.setState(UserCmd.Done)
         self.pollTimer = Timer()
+        self.resetConfigTimer = Timer()
         self.expName = None
         self.comment = None
         self.expStartTime = None
         self.expType = None
         self.expTime = None
         self.resetConfig = None
+        self.doDiffuserRotation = False
         Actor.__init__(self,
             userPort = userPort,
             maxUsers = 1,
-            devs = (filterWheelDev, shutterDev),
+            devs = [filterWheelDev],
             name = name,
             version = __version__,
             doConnect = True,
@@ -270,18 +295,11 @@ class ArcticActor(Actor):
         subCmdList = []
         # connect (if not connected) and initialize devices
         filterDevCmd = expandUserCmd(None)
-        shutterDevCmd = expandUserCmd(None)
         subCmdList.append(filterDevCmd)
-        subCmdList.append(shutterDevCmd)
         if not self.filterWheelDev.isConnected:
             self.filterWheelDev.connect(userCmd=filterDevCmd)
         else:
             self.filterWheelDev.init(userCmd=filterDevCmd)
-
-        if not self.shutterDev.isConnected:
-            self.shutterDev.connect(userCmd=shutterDevCmd)
-        else:
-            self.shutterDev.init(userCmd=shutterDevCmd)
         if getStatus:
             # get status only when the conn/initialization is done
             def getStatus(foo):
@@ -370,7 +388,7 @@ class ArcticActor(Actor):
         """
         arg = userCmd.parsedCommand.parsedPositionalArgs[0]
         if arg == "status":
-            self.getStatus(userCmd=userCmd, doCamera=True, doFilter=False, doShutter=False)
+            self.getStatus(userCmd=userCmd, doCamera=True, doFilter=False)
         else:
             # how to init the camera, just rebuild it?
             # assert arg == "initialize"
@@ -433,6 +451,8 @@ class ArcticActor(Actor):
             if ccdBin is not None or window is not None:
                 # if bin or window is present, use single readout mode
                 # and set evertying back once done
+                # only focus scripts specify bin or window with the
+                # expose commands
                 config = self.camera.getConfig()
                 prevBin = [config.binFacCol, config.binFacRow]
                 prevWindow = self.getBinnedCCDWindow(config)
@@ -440,9 +460,33 @@ class ArcticActor(Actor):
                 prevRead = ReadoutRateEnumNameDict[config.readoutRate]
                 print("prev config", prevBin, prevWindow, prevAmps)
                 def setConfigBack():
-                    self.setCameraConfig(ccdBin=prevBin, amps=[prevAmps], window=prevWindow)
+                    try:
+                        print("reset config: ", prevBin, prevAmps, prevWindow, prevRead)
+                        self.setCameraConfig(ccdBin=prevBin, amps=[prevAmps], window=prevWindow, readoutRate=[prevRead])
+                    except RuntimeError:
+                        log.info("RuntimeError setting config to previous state after exposure:")
+                        for line in traceback.format_exc().splitlines():
+                            log.warn(line)
+                            print(line)
+                        self.writeToUsers("w", "Failed to return camera configuation into previous state")
+                    print("set config back finished")
+                    # finally:
+                    #     if not self.exposeCmd.isDone:
+                    #         self.exposeCmd.setState(self.exposeCmd.Done)
+                    #     self.resetConfig = None
+                    #     return
                 self.resetConfig = setConfigBack
-                self.setCameraConfig(ccdBin=ccdBin, window=window, amps=[LL], readoutRate=[Fast])
+                # there is some timeout issues when setting conifg
+                # if config set fails, fail the exposure command
+                try:
+                    self.setCameraConfig(ccdBin=ccdBin, window=window, amps=[LL], readoutRate=[Fast])
+                except RuntimeError:
+                    log.info("RuntimeError Setting config before exposure:")
+                    for line in traceback.format_exc().splitlines():
+                        log.warn(line)
+                        print(line)
+                    userCmd.setState(userCmd.Failed, "Failed setting camera config before exposure.")
+                    return
             if subCmd.cmdName == "Bias":
                 expTime = 0
             else:
@@ -500,6 +544,22 @@ class ArcticActor(Actor):
         self.expType = expType
         self.expTime = expTime
         self.readingFlag = False
+        # check if diffuser is in beam, if so, begin it rotating
+        if self.filterWheelDev.diffuInBeam:
+            if expType.lower() == "flat":
+                self.writeToUsers("w", "text='Flat exposure commanded with diffuser in the beam.'")
+            if self.doDiffuserRotation:
+                diffuCmd = self.filterWheelDev.startCmd("startDiffuRot")
+                # print a warning if some error with diffuser
+                def checkFail(aDiffuCmd):
+                    if aDiffuCmd.isDone:
+                        if aDiffuCmd.didFail:
+                            self.writeToUsers("w", "text='Diffuser failed to rotate'", userCmd)
+                        else:
+                            self.writeToUsers("i", "text='Diffuser roatating'", userCmd)
+                diffuCmd.addCallback(checkFail)
+            else:
+                self.writeToUsers("w", "text='Diffuser in beam, but rotation set to off'", userCmd)
         try:
             self.camera.startExposure(expTime, expTypeEnum, expName)
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
@@ -566,7 +626,25 @@ class ArcticActor(Actor):
             prihdr["exptime"] = self.expTime, expTimeComment
             prihdr["readamps"] = ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)"
             prihdr["readrate"] = ReadoutRateEnumNameDict[config.readoutRate], "readout rate"
-
+            coldheadTemp, ccdTemp, heatPower = getCCDTemps()
+            if coldheadTemp is None:
+                prihdr["CCDHEAD"] = "NaN", "Unable to retrieve CCD cold head temperature."
+            else:
+                prihdr["CCDHEAD"] = coldheadTemp, "CCD cold head temperature (K)"
+            if ccdTemp is None:
+                prihdr["CCDTEMP"] = "NaN", "Unable to retrieve CCD temperature"
+            else:
+                prihdr["CCDTEMP"] = ccdTemp, "CCD temperature (K)"
+            if ccdTemp is None:
+                prihdr["CCDHEAT"] = "NaN", "Unable to retrieve CCD heater power"
+            else:
+                prihdr["CCDHEAT"] = heatPower, "CCD heater level (percent)"
+            diffuserPos = "IN" if self.filterWheelDev.diffuInBeam else "OUT"
+            prihdr["DIFFUPOS"] = diffuserPos, "Diffuser positon, in or out of the beam."
+            diffuserRotation = "OFF"
+            if self.filterWheelDev.diffuInBeam and self.doDiffuserRotation:
+                diffuserRotation = "ON"
+            prihdr["DIFFUROT"] = diffuserRotation, "Diffuser rotating."
             # DATASEC and BIASSEC
             # for the bias region: use all overscan except the first two columns (closest to the data)
             # amp names are <x><y> e.g. 11, 12, 21, 22
@@ -658,8 +736,11 @@ class ArcticActor(Actor):
         # if configuration requires setting back do it now
         if self.resetConfig is not None:
             print("resetting config")
+            # call reset config on a timer
+            # in hopes that the timeout won't happen
             self.resetConfig()
             self.resetConfig = None
+            # self.resetConfigTimer.start(0.1, self.resetConfig)
         if not self.exposeCmd.isDone:
             self.exposeCmd.setState(self.exposeCmd.Done)
         self.expName = None
@@ -668,9 +749,12 @@ class ArcticActor(Actor):
         self.expType = None
         self.expTime = None
         self.readingFlag = False
+        # if the diffuser is in the beam stop its rotating
+        if self.filterWheelDev.diffuInBeam:
+            self.filterWheelDev.startCmd("stopDiffuRot")
 
     def maxCoord(self, binFac=(1,1)):
-        """Returns the maximum binned CCD coordinate, given a bin factor.
+        """Return the maximum binned CCD coordinate, given a bin factor.
         """
         assert len(binFac) == 2, "binFac must have 2 elements; binFac = %r" % binFac
         # The value is even for both amplifiers, even if only using single readout,
@@ -680,7 +764,7 @@ class ArcticActor(Actor):
         return [(4096, 4096)[ind] // int(2 * binFac[ind]) * 2 for ind in range(2)]
 
     def minCoord(self, binFac=(1,1)):
-        """Returns the minimum binned CCD coordinate, given a bin factor.
+        """Return the minimum binned CCD coordinate, given a bin factor.
         """
         assert len(binFac) == 2, "binFac must have 2 elements; binFac = %r" % binFac
         return (1, 1)
@@ -855,8 +939,16 @@ class ArcticActor(Actor):
         # set camera configuration if a configuration change was requested
         if True in [x is not None for x in [readoutRate, ccdBin, window, amps]]:
             # camera config was changed set it and output new camera status
-            self.camera.setConfig(config)
-            self.getStatus(doCamera=True, doFilter=False, doShutter=False)
+            try:
+                self.camera.setConfig(config)
+            except RuntimeError:
+                print("faild setting config, trying once again")
+                for line in traceback.format_exc().splitlines():
+                    log.warn(line)
+                    print(line)
+                self.camera.setConfig(config)
+                print("config succeeded 2nd time")
+            self.getStatus(doCamera=True, doFilter=False)
 
     def cmd_set(self, userCmd):
         """! Implement the set command
@@ -870,27 +962,31 @@ class ArcticActor(Actor):
         amps = argDict.get("amps", None)
         window = argDict.get("window", None)
         readoutRate = argDict.get("readoutRate", None)
-        temp = argDict.get("temp", None)
         filterPos = argDict.get("filter", None)
-
+        diffuserPos = argDict.get("diffuser", None)
+        rotateDiffuser = argDict.get("rotateDiffuser", None)
+        if rotateDiffuser is not None:
+            self.doDiffuserRotation = rotateDiffuser[0].lower() == "on"
+            self.writeToUsers("i", "rotateDiffuserChoice=%s"%str("On" if self.doDiffuserRotation else "Off"), userCmd)
         self.setCameraConfig(ccdBin=ccdBin, amps=amps, window=window, readoutRate=readoutRate)
-
-        if temp is not None:
-            self.setTemp(argDict["temp"][0])
+        subCommandList = []
         # move wants an int, maybe some translation should happend here
         # or some mapping between integers and filter names
         if filterPos is not None:
             # only set command done if move finishes successfully
-            def setDoneAfterMove(mvCmd):
-                if mvCmd.isDone:
-                    # did the move fail? if so fail the userCmd and ask for status
-                    if mvCmd.didFail:
-                        userCmd.setState(userCmd.Failed, "Filter move failed: %s"%mvCmd.textMsg)
-                    else:
-                        userCmd.setState(userCmd.Done)
             pos = int(filterPos[0])
             # output commanded position keywords here (move to filterWheelActor eventually?)
-            self.filterWheelDev.startCmd("move %i"%(pos,), callFunc=setDoneAfterMove) # userCmd set done in callback after status
+            subCommandList.append(self.filterWheelDev.startCmd("move %i"%(pos,)))
+        if diffuserPos is not None:
+            diffuserPos = diffuserPos[0].lower()
+            if diffuserPos == "in":
+                subCommandList.append(self.filterWheelDev.startCmd("diffuIn"))
+            elif diffuserPos == "out":
+                subCommandList.append(self.filterWheelDev.startCmd("diffuOut"))
+            else:
+                self.writeToUsers("w", "unknown diffuser position: %s"%diffuserPos, userCmd)
+        if subCommandList:
+            LinkCommands(userCmd, subCommandList)
         else:
             # done: output the new configuration
             userCmd.setState(userCmd.Done)
@@ -938,8 +1034,16 @@ class ArcticActor(Actor):
         keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
         keyVals.append("readoutRateNames="+", ".join([x for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
+        keyVals.append("diffuserPositions=In, Out") #!!!!!!!!!! hardcoded
+        keyVals.append("rotateDiffuserChoices=On, Off") #!!!!!! more hardcoded!
+        keyVals.append("rotateDiffuserChoice=%s"%str("On" if self.doDiffuserRotation else "Off"))
+        coldheadTemp, ccdTemp, heatPower = getCCDTemps()
+        # @todo: output ccdTemp keyword???
         # add these when they become available?
-        # keyVals.append("ccdTemp=?")
+        if ccdTemp is None:
+            keyVals.append("ccdTemp=?")
+        else:
+            keyVals.append("ccdTemp=%.2f"%ccdTemp)
         # if self.tempSetpoint is None:
         #     ts = "None"
         # else:
@@ -947,25 +1051,20 @@ class ArcticActor(Actor):
         # keyVals.append("tempSetpoint=%s"%ts)
         return "; ".join(keyVals)
 
-    def getStatus(self, userCmd=None, doCamera=True, doFilter=True, doShutter=True):
+    def getStatus(self, userCmd=None, doCamera=True, doFilter=True):
         """! A generic status command, arguments specify which statuses are wanted
         @param[in] userCmd a twistedActor UserCmd or none
         @param[in] doCamera: bool, if true get camera status
         @param[in] doFilter: bool, if true get filter wheel status
-        @param[in] doShutter: bool, if true get shutter status
         """
-        assert True in [doFilter, doShutter, doCamera]
+        assert True in [doFilter, doCamera]
         userCmd = expandUserCmd(userCmd)
         if doCamera:
             statusStr = self.getCameraStatus()
             self.writeToUsers("i", statusStr, cmd=userCmd)
-        subCmdList = []
-        if doShutter:
-            subCmdList.append(self.shutterDev.getStatus())
         if doFilter:
-            subCmdList.append(self.filterWheelDev.startCmd("status"))
-        if subCmdList:
-            LinkCommands(userCmd, subCmdList)
+            fwStatusCmd = self.filterWheelDev.startCmd("status")
+            LinkCommands(userCmd, [fwStatusCmd]) # set userCmd done when status is done
         else:
             userCmd.setState(userCmd.Done)
         return userCmd
