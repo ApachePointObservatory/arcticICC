@@ -264,6 +264,7 @@ class ArcticActor(Actor):
         self.exposeCmd.setState(UserCmd.Done)
         self.pollTimer = Timer()
         self.resetConfigTimer = Timer()
+        self.diffuserTimer = Timer()
         self.expName = None
         self.comment = None
         self.expStartTime = None
@@ -546,6 +547,8 @@ class ArcticActor(Actor):
         self.readingFlag = False
         # check if diffuser is in beam, if so, begin it rotating
         if self.filterWheelDev.diffuInBeam:
+            # cancel any pending timer
+            self.diffuserTimer.cancel()
             if expType.lower() == "flat":
                 self.writeToUsers("w", "text='Flat exposure commanded with diffuser in the beam.'")
             if self.doDiffuserRotation:
@@ -749,9 +752,14 @@ class ArcticActor(Actor):
         self.expType = None
         self.expTime = None
         self.readingFlag = False
-        # if the diffuser is in the beam stop its rotating
+        # if the diffuser is in the beam stop its rotating in one second!
+        # allow a 1 second buffer so that if this is a sequence
+        # the diffuser will remain rotating
         if self.filterWheelDev.diffuInBeam:
-            self.filterWheelDev.startCmd("stopDiffuRot")
+            self.diffuserTimer.start(1, self.stopDiffuser)
+
+    def stopDiffuser(self):
+        self.filterWheelDev.startCmd("stopDiffuRot")
 
     def maxCoord(self, binFac=(1,1)):
         """Return the maximum binned CCD coordinate, given a bin factor.
