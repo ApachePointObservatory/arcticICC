@@ -8,6 +8,7 @@ import os
 import syslog
 import collections
 import datetime
+import time
 import telnetlib
 import traceback
 
@@ -268,6 +269,9 @@ class ArcticActor(Actor):
         self.expName = None
         self.comment = None
         self.expStartTime = None
+        self.expStopTime = None
+        self.expTimeTotalPause = 0
+        self.expStartPauseTime = None
         self.expType = None
         self.expTime = None
         self.resetConfig = None
@@ -496,8 +500,10 @@ class ArcticActor(Actor):
             return True
         # there is a current exposure
         if subCmd.cmdName == "pause":
+            self.expStartPauseTime = time.time()
             self.camera.pauseExposure()
         elif subCmd.cmdName == "resume":
+            self.expTimeTotalPause += time.time() - self.expStartPauseTime
             self.camera.resumeExposure()
         elif subCmd.cmdName == "stop":
             self.camera.stopExposure()
@@ -538,7 +544,7 @@ class ArcticActor(Actor):
             expName = "%s_%d.fits" % (expType, self.expNum)
             expName = os.path.join(self.imageDir, expName)
         # print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
-        self.expStartTime = datetime.datetime.now()
+        self.expStartTime = time.time() #datetime.datetime.now()
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
         self.comment = comment
@@ -580,6 +586,11 @@ class ArcticActor(Actor):
         """
         expState = self.camera.getExposureState()
         if expState.state == arctic.Reading and not self.readingFlag:
+
+            self.elapsedTime = time.time() - self.expStartTime
+            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause
+            self.expTime = self.elapsedTime
+            self.expTimeTotalPause = 0
             self.readingFlag = True
             self.writeToUsers("i", "shutter=closed") # fake shutter
             # self.startReadTime = time.time()
@@ -607,7 +618,7 @@ class ArcticActor(Actor):
         with fits.open(self.expName, mode='update') as hdulist:
             prihdr = hdulist[0].header
             # timestamp
-            prihdr["date-obs"] = self.expStartTime.isoformat(), "TAI time at the start of the exposure"
+            prihdr["date-obs"] = self.expStartTime, "TAI time at the start of exposure" #self.expStartTime.isoformat(), "TAI time at the start of the exposure"
             # filter info
             try:
                 filterPos = int(self.filterWheelDev.filterPos)
@@ -747,8 +758,11 @@ class ArcticActor(Actor):
         if not self.exposeCmd.isDone:
             self.exposeCmd.setState(self.exposeCmd.Done)
         self.expName = None
-        self.comment = None
+        self.comment = None        
         self.expStartTime = None
+        self.expStopTime = None
+        self.elapsedTime = None
+        self.pausedTime = None
         self.expType = None
         self.expTime = None
         self.readingFlag = False
