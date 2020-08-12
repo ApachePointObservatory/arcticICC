@@ -9,7 +9,7 @@ from twisted.python import failure
 moveTime = 0.5 # seconds per filter
 replyTimeDelay = 0.1 # delay before the ok is sent
 
-__all__ = ["FakeFilterWheel", "FakeShutter"]
+__all__ = ["FakeFilterWheel"]
 
 class FakeDev(TCPServer):
     """!A server that emulates an echoing device for testing
@@ -101,56 +101,6 @@ class FakeFilterWheel(FakeDev):
             print("Fake filter wheel controller %s running on port %s" % (self.name, self.port))
         elif self.didFail and not self.readyDeferred.called:
             errMsg = "Fake filter wheel controller %s failed to start on port %s" % (self.name, self.port)
-            print(errMsg)
-            # self.readyDeferred.errback(failure.Failure(RuntimeError(errMsg)))
-
-
-class FakeShutter(FakeDev):
-    """!A server that emulates a shutter
-    """
-    def __init__(self, name, port):
-        """!Construct a fake shutter controller
-
-        @param[in] name  name of shutter controller
-        @param[in] port  port on which to command shutter controller
-        """
-        self.isOpen = False
-        self.expTime = -1
-
-        FakeDev.__init__(self,
-            name = name,
-            port=port,
-        )
-
-    def parseCmdStr(self, cmdStr):
-        if "status" in cmdStr.lower():
-            self.sendStatusAndOK()
-            return
-        elif "open" in cmdStr:
-            assert not self.isOpen
-            self.expTime = time.time()
-            self.isOpen = True
-        elif "close" in cmdStr:
-            assert self.isOpen
-            self.expTime = time.time() - self.expTime
-            self.isOpen = False
-        elif "init" in cmdStr.lower():
-            pass
-        else:
-            # unknown command?
-            raise RuntimeError("Unknown Command: %s"%cmdStr)
-        self.replyTimer.start(replyTimeDelay, self.sendOK)
-
-    def sendStatusAndOK(self):
-        statusStr = "open=%s expTime=%.4f OK"%(str(self.isOpen), self.expTime)
-        self.userSock.writeLine(statusStr)
-
-    def stateCallback(self, server=None):
-        if self.isReady:
-            # self.readyDeferred.callback(None)
-            print("Fake shutter controller %s running on port %s" % (self.name, self.port))
-        elif self.didFail and not self.readyDeferred.called:
-            errMsg = "Fake shutter controller %s failed to start on port %s" % (self.name, self.port)
             print(errMsg)
             # self.readyDeferred.errback(failure.Failure(RuntimeError(errMsg)))
 

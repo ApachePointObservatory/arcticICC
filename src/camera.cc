@@ -495,6 +495,7 @@ namespace arcticICC {
             << ", 0x" << arg3
             << "): " << descr << std::dec << std::endl;
         int retVal = _device.Command(boardID, cmd, arg1, arg2, arg3);
+        std::cout << " dev command retVal=" << retVal << std::endl;
         if (retVal != DON) {
             std::ostringstream os;
             os << descr << " failed with retVal=" << retVal;

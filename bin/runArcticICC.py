@@ -5,11 +5,8 @@ from __future__ import division, absolute_import
 from twisted.internet import reactor
 from twistedActor import startSystemLogging
 
-import arcticICC
-
-UserPort = arcticICC.UserPort
 from arcticICC import ArcticActor
-from arcticICC.dev import FilterWheelDevice, ShutterDevice, FakeShutter
+from arcticICC.dev import FilterWheelDevice
 
 
 try:
@@ -20,32 +17,19 @@ except KeyError as e:
    print("System Logging NOT!!!! Started")
    print(str(e))
 # ports to match bin/runFakeDevs
+UserPort = 35000
 fwPort = 37000
-# oldIP 10.50.1.245
-fwAddress = "arctic-controller.apo.nmsu.edu" # "localhost"
-fsPort = 55555
+fwAddress = "arctic-controller.apo.nmsu.edu"
 
 
-def startDevs(fs):
-    if fs.isReady:
-        filterWheelDevice = FilterWheelDevice(
-            host = fwAddress,
-            port = fwPort,
-            )
-
-        shutterDevice = ShutterDevice(
-            name = "shutterDevice",
-            host = "localhost",
-            port = fsPort,
-            )
-
-        arcticActor = ArcticActor(
-            filterWheelDev = filterWheelDevice,
-            shutterDev = shutterDevice,
-            )
 
 
 if __name__ == "__main__":
-    fs = FakeShutter("fakeShutter", fsPort)
-    fs.addStateCallback(startDevs)
+    arcticActor = ArcticActor(
+        filterWheelDev = FilterWheelDevice(
+            host = fwAddress,
+            port = fwPort,
+            ),
+        userPort = UserPort,
+        )
     reactor.run()

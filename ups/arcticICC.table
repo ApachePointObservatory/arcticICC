@@ -1,10 +1,19 @@
 #setupRequired("numpy") # assume numpy is installed in python
-setupRequired("RO")
-setupRequired("twistedActor")
-setupRequired("opscore")
-setupRequired("arcticFilterWheel")
-setupRequired("swig")
-
+if (type == exact) {
+   setupRequired(RO              -j 3.6.5)
+   setupRequired(twistedActor    -j 1.2.1+1)
+   setupRequired(opscore         -j initialVersion)
+   setupRequired(external        -j initialVersion)
+   setupRequired(actorkeys       -j 1.0)
+   setupRequired(arcticFilterWheel -j 1.0)
+   setupRequired(swig            -j master-gccf66d07ee)
+} else {
+   setupRequired(RO 3.6.5 [>= 3.6.5])
+   setupRequired(twistedActor 1.2.1+1 [>= 1.2.1+1])
+   setupRequired(opscore initialVersion [>= initialVersion])
+   setupRequired(arcticFilterWheel 1.0 [>= 1.0])
+   setupRequired(swig master-gccf66d07ee [>= master-gccf66d07ee])
+}
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envAppend(PYTHONPATH, ${PRODUCT_DIR}/python)

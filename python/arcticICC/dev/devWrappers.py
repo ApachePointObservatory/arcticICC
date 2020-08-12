@@ -3,13 +3,12 @@ from __future__ import division, absolute_import
 """
 from twistedActor import DeviceWrapper
 
-from .fakeDev import FakeShutter, FakeFilterWheel
+from .fakeDev import FakeFilterWheel
 from .filterWheelDev import FilterWheelDevice
-from .shutterDev import ShutterDevice
 
 from arcticFilterWheel import ArcticFWActorWrapper
 
-__all__ = ["ShutterDeviceWrapper", "FilterWheelDeviceWrapper"]
+__all__ = ["FilterWheelDeviceWrapper"]
 
 class ArcticDeviceWrapper(DeviceWrapper):
     """A wrapper for arctic devices and their faked controllers
@@ -61,14 +60,6 @@ class ArcticDeviceWrapper(DeviceWrapper):
             host="localhost",
             port=port,
         )
-
-class ShutterDeviceWrapper(ArcticDeviceWrapper):
-    def __init__(self,
-        name = "shutterDevice",
-        devClass = ShutterDevice,
-        fakeControllerClass = FakeShutter,
-        ):
-        ArcticDeviceWrapper.__init__(self, devClass, fakeControllerClass, name)
 
 class FilterWheelDeviceWrapperOld(ArcticDeviceWrapper):
     def __init__(self,
