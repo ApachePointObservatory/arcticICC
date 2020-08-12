@@ -149,7 +149,7 @@ class TestFitsHeaders(TestCase):
             self.assertTrue(key in prihdr, "Couldn't find key %s in image header"%key)
             self.assertTrue(prihdr.comments[key] == comment, "Comment doesn't match %s, %s"%(prihdr.comments[key], comment))
             # ignore a few values that won't match
-            if key in ["filter", "filpos", "date-obs", "begx", "begy"]:
+            if key in ["filter", "filpos", "date-obs", "begx", "begy", "exptime"]:
                 # begx/y have changed
                 continue
             #elif key == "exptime":  #commented out so the testing headers pass.  exptime does not exsist in the header? shane version 2.4
