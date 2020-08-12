@@ -1,3 +1,6 @@
+https://www.apo.nmsu.edu/Telescopes/TCC/OperatorsManual.html#UpdatingSoftware
+
+
 Instrument control code for the ARCTIC imager at Apache Point Observatory
 
 See doc/html/index.html for documentation.
@@ -27,7 +30,10 @@ $ eups list arcticICC -v
 
 arcticICC start
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0a3842b67f5423d845db91c2373ce6b8ffa59152
 Then to install the software completely:
 
 Managing and Updating Software
@@ -55,4 +61,5 @@ If scons tools are not available (eg, RO, actorkeys):
 Copy the code to the installed location (choose the same location scons does). For svn packages, svn export is a good idea (to freeze the code)
 "eups declare -r pathToInstalledLocation packageName packageVersion current".
 Again packageVersion should match that of git.
+
 For opscore and actorkeys, treat svn revision numbers like tags
