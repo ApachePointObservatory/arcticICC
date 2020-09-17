@@ -618,7 +618,8 @@ class ArcticActor(Actor):
         with fits.open(self.expName, mode='update') as hdulist:
             prihdr = hdulist[0].header
             # timestamp
-            prihdr["date-obs"] = self.expStartTime, "TAI time at the start of exposure" #self.expStartTime.isoformat(), "TAI time at the start of the exposure"
+            #prihdr["date-obs"] = self.expStartTime, "TAI time at the start of exposure" 
+            prihdr["date-obs"] = datetime.datetime.fromtimestamp(self.expStartTime).isoformat(), "TAI time at the start of the exposure"
             # filter info
             try:
                 filterPos = int(self.filterWheelDev.filterPos)
