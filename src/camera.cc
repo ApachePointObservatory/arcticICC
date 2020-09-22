@@ -11,6 +11,10 @@
 
 #include "arcticICC/camera.h"
 
+
+///I think I can create a data structure that holds the times from the data here.  Then return it back up the chain to the python wrapper  - Shane
+
+
 namespace {
     int const XBinnedPrescanPerAmp = 2;     // width of x prescan region, in binned pixels (if it can be fixed)
                                         // this is the remaining prescan after removing what we can

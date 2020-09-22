@@ -25,7 +25,7 @@ import arcticICC.camera as arctic
 
 from arcticICC.fakeCamera import Camera as FakeCamera
 
-from twistedActor.parse import ParseError
+from twistedActor.parse import ParseError 
 
 TempPort = 50002
 TempHost = "hub35m"
@@ -39,11 +39,12 @@ def getCCDTemps():
     example output:
     '2016-08-31T05:32:34Z    165.2   133.6    88.5\n'
     """
+    #PR FIX
     try:
         tempServer.open(TempHost, TempPort, timeout=1)
         tempStr = tempServer.read_all()
         tempServer.close()
-        date, coldhead, ccd, power = tempStr.strip().split()
+        date, coldhead, ccd, power, junkData = tempStr.strip().split()  #I think this is a fix for 1692, added by ST 9/18/2020
         temps = [float(coldhead), float(ccd), float(power)]
     except:
         # return Nones if some problem
@@ -272,10 +273,15 @@ class ArcticActor(Actor):
         self.expStopTime = None
         self.expTimeTotalPause = 0
         self.expStartPauseTime = None
+        self.darkTimeStart = None
+        self.darkTimeStop = None
         self.expType = None
-        self.expTime = None
+        self.expTime = None        
+        self.requestedExpTime = None
         self.resetConfig = None
         self.doDiffuserRotation = False
+        self.wasStoppedAborted = False
+        self.wasPaused=False
         Actor.__init__(self,
             userPort = userPort,
             maxUsers = 1,
@@ -496,20 +502,24 @@ class ArcticActor(Actor):
                 expTime = 0
             else:
                 expTime = subCmd.parsedFloatingArgs["time"][0]
+                self.requestedExpTime = expTime
             self.doExpose(userCmd, expType=subCmd.cmdName, expTime=expTime, basename=basename, comment=comment)
             return True
         # there is a current exposure
         if subCmd.cmdName == "pause":
             self.expStartPauseTime = time.time()
             self.camera.pauseExposure()
+            self.wasPaused=True
         elif subCmd.cmdName == "resume":
             self.expTimeTotalPause += time.time() - self.expStartPauseTime
             self.camera.resumeExposure()
         elif subCmd.cmdName == "stop":
             self.camera.stopExposure()
+            self.wasStoppedAborted=True
         else:
-            assert subCmd.cmdName == "abort"
+            assert subCmd.cmdName == "abort"            
             self.camera.abortExposure()
+            self.wasStoppedAborted=True
             # explicilty write abort exposure state
             self.writeToUsers("i", "exposureState=aborted,0")
             self.exposeCleanup()
@@ -543,8 +553,8 @@ class ArcticActor(Actor):
             expName = os.path.abspath("%s_%d.fits" % (expType, self.expNum))
             expName = "%s_%d.fits" % (expType, self.expNum)
             expName = os.path.join(self.imageDir, expName)
+
         # print "startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName)
-        self.expStartTime = time.time() #datetime.datetime.now()
         log.info("startExposure(%r, %r, %r)" % (expTime, expTypeEnum, expName))
         self.expName = expName
         self.comment = comment
@@ -571,6 +581,9 @@ class ArcticActor(Actor):
                 self.writeToUsers("w", "text='Diffuser in beam, but rotation set to off'", userCmd)
         try:
             self.camera.startExposure(expTime, expTypeEnum, expName)
+            self.expStartTime = time.time()
+            #a check that asks if the exposure was normal then let the 30 seconds go into the header
+            #paused or aborted...
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
             if expType.lower() in ["object", "flat"]:
                 self.writeToUsers("i", "shutter=open") # fake shutter
@@ -588,8 +601,21 @@ class ArcticActor(Actor):
         if expState.state == arctic.Reading and not self.readingFlag:
 
             self.elapsedTime = time.time() - self.expStartTime
-            self.elapsedTime = self.elapsedTime - self.expTimeTotalPause
-            self.expTime = self.elapsedTime
+
+
+            #PR 1911 fix, handling special exceptions to exposure
+            if self.wasPaused:
+                self.elapsedTime = self.elapsedTime - self.expTimeTotalPause
+            #let use see what kind of exposure this was.  
+            #if it is a bias, then this expTime is really darktime. and expTime is 0
+            #if it is a dark then dark time should be the full exposure time
+            #            HANDLE DARK AND BIAS TIMES
+            if self.wasStoppedAborted: #if the user aborts the exposure or stops it, then we want to get what the real exposure time was.
+                self.expTime = self.elapsedTime #over write the requested expTime with this time
+
+            self.darkTime = self.elapsedTime #according to russets emails it seems like dark time is really j ust full exposure time as I calculated it.
+
+
             self.expTimeTotalPause = 0
             self.readingFlag = True
             self.writeToUsers("i", "shutter=closed") # fake shutter
@@ -634,11 +660,12 @@ class ArcticActor(Actor):
             prihdr["biny"] = config.binFacRow, "row bin factor"
             prihdr["ccdbin1"] = config.binFacCol, "column bin factor" #duplicate of binx
             prihdr["ccdbin2"] = config.binFacRow, "row bin factor" #duplicate of biny
-            prihdr["imagetyp"] = self.expType, "exposure type"
+            prihdr["imagetyp"] = self.expType, "exposure type"            
             expTimeComment = "exposure time (sec)"
             if self.expTime > 0:
                 expTimeComment = "estimated " + expTimeComment
             prihdr["exptime"] = self.expTime, expTimeComment
+            prihdr["darktime"] = self.darkTime, ""
             prihdr["readamps"] = ReadoutAmpsEnumNameDict[config.readoutAmps], "readout amplifier(s)"
             prihdr["readrate"] = ReadoutRateEnumNameDict[config.readoutRate], "readout rate"
             coldheadTemp, ccdTemp, heatPower = getCCDTemps()
