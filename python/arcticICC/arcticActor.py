@@ -603,6 +603,9 @@ class ArcticActor(Actor):
 
             self.elapsedTime = time.time() - self.expStartTime
 
+            
+            #moved dark time here... elapsed time for dark time matters and should not care about pausing (calculated below)
+            self.darkTime = self.elapsedTime #according to russets emails it seems like dark time is really j ust full exposure time as I calculated it.
 
             #PR 1911 fix, handling special exceptions to exposure
             if self.wasPaused:
@@ -611,11 +614,12 @@ class ArcticActor(Actor):
             #if it is a bias, then this expTime is really darktime. and expTime is 0
             #if it is a dark then dark time should be the full exposure time
             #            HANDLE DARK AND BIAS TIMES
+
+           
             if self.wasStoppedAborted: #if the user aborts the exposure or stops it, then we want to get what the real exposure time was.
                 self.expTime = self.elapsedTime #over write the requested expTime with this time
 
-            self.darkTime = self.elapsedTime #according to russets emails it seems like dark time is really j ust full exposure time as I calculated it.
-
+             
 
             self.expTimeTotalPause = 0
             self.readingFlag = True
