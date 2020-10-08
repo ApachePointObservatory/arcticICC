@@ -43,8 +43,9 @@ def getCCDTemps():
     try:
         tempServer.open(TempHost, TempPort, timeout=1)
         tempStr = tempServer.read_all()
-        tempServer.close()
-        date, coldhead, ccd, power, junkData = tempStr.strip().split()  #I think this is a fix for 1692, added by ST 9/18/2020
+        tempServer.close() 
+        #swapped was coldhead, ccd, swapped to fix issue seen in this 2.6 version
+        date, ccd, coldhead, power, junkData = tempStr.strip().split()  #I think this is a fix for 1692, added by ST 9/18/2020
         temps = [float(coldhead), float(ccd), float(power)]
     except:
         # return Nones if some problem
