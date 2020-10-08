@@ -621,6 +621,7 @@ class ArcticActor(Actor):
             self.writeToUsers("i", "shutter=closed") # fake shutter
             # self.startReadTime = time.time()
             self.writeToUsers("i", self.exposureStateKW, self.exposeCmd)
+                    
         if expState.state == arctic.ImageRead:
             log.info("saving image: exposure %s"%self.expName)
             self.camera.saveImage() # saveImage sets camera exp state to idle
@@ -794,6 +795,8 @@ class ArcticActor(Actor):
         self.expType = None
         self.expTime = None
         self.readingFlag = False
+        self.wasStoppedAborted=False
+        self.wasPaused=False
         # if the diffuser is in the beam stop its rotating in one second!
         # allow a 1 second buffer so that if this is a sequence
         # the diffuser will remain rotating
