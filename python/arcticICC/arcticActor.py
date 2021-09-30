@@ -281,6 +281,7 @@ class ArcticActor(Actor):
         self.requestedExpTime = None
         self.resetConfig = None
         self.doDiffuserRotation = False
+	self.diffuserPosition = False
         self.wasStoppedAborted = False
         self.wasPaused=False
         Actor.__init__(self,
@@ -317,6 +318,7 @@ class ArcticActor(Actor):
             def getStatus(foo):
                 if userCmd.isDone:
                     self.getStatus()
+
             userCmd.addCallback(getStatus)
         LinkCommands(mainCmd=userCmd, subCmdList=subCmdList)
         if not self.exposeCmd.isDone:
@@ -808,7 +810,7 @@ class ArcticActor(Actor):
         if self.filterWheelDev.diffuInBeam:
             self.diffuserTimer.start(1, self.stopDiffuser)
 
-    def stopDiffuser(self):
+    def stopDiffuser(self): #st looks like it stops the diffuser rotation after every exposure? do we want that?  9/3/2021
         self.filterWheelDev.startCmd("stopDiffuRot")
 
     def maxCoord(self, binFac=(1,1)):
@@ -1023,11 +1025,21 @@ class ArcticActor(Actor):
         filterPos = argDict.get("filter", None)
         diffuserPos = argDict.get("diffuser", None)
         rotateDiffuser = argDict.get("rotateDiffuser", None)
+
+	subCommandList = []
         if rotateDiffuser is not None:
-            self.doDiffuserRotation = rotateDiffuser[0].lower() == "on"
+            self.doDiffuserRotation = rotateDiffuser[0].lower() == "on" #never seent his in python, but sets the self.doDiffuserRotation to a boolean of True or False
             self.writeToUsers("i", "rotateDiffuserChoice=%s"%str("On" if self.doDiffuserRotation else "Off"), userCmd)
+	    #added by shane to set new diffuser to rotate
+            if self.doDiffuserRotation == True:
+		subCommandList.append(self.filterWheelDev.startCmd("startDiffuRot"))
+	    elif self.doDiffuserRotation == False:
+		subCommandList.append(self.filterWheelDev.startCmd("stopDiffuRot"))
+	    else:
+		self.writeToUsers("w", "unknown rotation command: %s"%self.doDiffuserRotation, userCmd)
+
         self.setCameraConfig(ccdBin=ccdBin, amps=amps, window=window, readoutRate=readoutRate)
-        subCommandList = []
+        #subCommandList = []
         # move wants an int, maybe some translation should happend here
         # or some mapping between integers and filter names
         if filterPos is not None:
@@ -1036,13 +1048,13 @@ class ArcticActor(Actor):
             # output commanded position keywords here (move to filterWheelActor eventually?)
             subCommandList.append(self.filterWheelDev.startCmd("move %i"%(pos,)))
         if diffuserPos is not None:
-            diffuserPos = diffuserPos[0].lower()
-            if diffuserPos == "in":
+            self.diffuserPosition= diffuserPos[0].lower() == "in"
+            if self.diffuserPosition == True:
                 subCommandList.append(self.filterWheelDev.startCmd("diffuIn"))
-            elif diffuserPos == "out":
+            elif self.diffuserPosition == False:
                 subCommandList.append(self.filterWheelDev.startCmd("diffuOut"))
             else:
-                self.writeToUsers("w", "unknown diffuser position: %s"%diffuserPos, userCmd)
+                self.writeToUsers("w", "unknown diffuser position: %s"%self.diffuserPosition, userCmd)
         if subCommandList:
             LinkCommands(userCmd, subCommandList)
         else:
@@ -1092,9 +1104,15 @@ class ArcticActor(Actor):
         keyVals.append("ampName="+ReadoutAmpsEnumNameDict[config.readoutAmps])
         keyVals.append("readoutRateNames="+", ".join([x for x in ReadoutRateEnumNameDict.values()]))
         keyVals.append("readoutRateName=%s"%ReadoutRateEnumNameDict[config.readoutRate])
-        keyVals.append("diffuserPositions=In, Out") #!!!!!!!!!! hardcoded
+        keyVals.append("diffuserPositions=In, Out") #!!!!!!!!!! hardcoded 
+	keyVals.append("diffuserPosition=%s"%str("In" if self.diffuserPosition else "Out"))
         keyVals.append("rotateDiffuserChoices=On, Off") #!!!!!! more hardcoded!
-        keyVals.append("rotateDiffuserChoice=%s"%str("On" if self.doDiffuserRotation else "Off"))
+       	keyVals.append("rotateDiffuserChoice=%s"%str("On" if self.doDiffuserRotation else "Off"))
+	keyVals.append("coverState=On, Off") #!!! hard coded, will change when have time.  I believe we can set this as a variable by querying filterWheelDev.py
+	keyVals.append("diffuserRPMGood=Yes, No") #see above
+	#keyVals.append("diffuserRot=Yes, No")  #see above
+	#keyVals.append("diffuserPosition=In, Out") not sure if I need this compared to the one that is pluralized above...so commented out for now
+
         coldheadTemp, ccdTemp, heatPower = getCCDTemps()
         # @todo: output ccdTemp keyword???
         # add these when they become available?
@@ -1115,6 +1133,7 @@ class ArcticActor(Actor):
         @param[in] doCamera: bool, if true get camera status
         @param[in] doFilter: bool, if true get filter wheel status
         """
+
         assert True in [doFilter, doCamera]
         userCmd = expandUserCmd(userCmd)
         if doCamera:

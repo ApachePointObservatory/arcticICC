@@ -6,7 +6,7 @@ from twistedActor import DeviceWrapper
 from .fakeDev import FakeFilterWheel
 from .filterWheelDev import FilterWheelDevice
 
-from arcticFilterWheel import ArcticFWActorWrapper
+from arcticFilterWheel.arcticFWActorWrapper import ArcticFWActorWrapper
 
 __all__ = ["FilterWheelDeviceWrapper"]
 
