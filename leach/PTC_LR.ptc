@@ -1,0 +1,24 @@
+**** NOTE: All labels and data values MUST be separated by a single tab. ****
+[ Plot Title ]:	Wyoming  Med LR
+[ File Dir] :	/Users/robertleach/Images/Wyoming
+[ Start Time ]:	100
+[ End Time ]:	2200
+[ Number Of Points ]:	8
+[ Dark File ]:	PTCDark
+[ Dark Columns ]:	5000
+[ Dark Rows ]:	2000
+[ Dark Start Row ]:	200
+[ Dark End Row ]:	800
+[ Dark Start Column ]:	2550
+[ Dark End Column ]:	2900
+[ Flat File ]:	PTCFlat
+[ Flat Columns ]:	4200
+[ Flat Rows ]:	4010
+[ Flat Start Row ]:	1200
+[ Flat End Row ]:	2000
+[ Flat Start Column ]:	2150
+[ Flat End Column ]:	2900
+[ Delete Files ]:	false
+[ Dark Only ]:	false
+[ Use Disk Files ]:	true
+[ Deinterlace Index ]:	3

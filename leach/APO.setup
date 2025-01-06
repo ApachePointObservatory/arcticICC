@@ -1,0 +1,17 @@
+**** NOTE: All labels and data values MUST be separated by a single tab. ****
+Reset Controller:	true
+Hardware Test:	true
+PCI(e) Hardware Test:	true
+Timing Hardware Test:	true
+Utility Hardware Test:	false
+Timing Download:	true
+Utility Download:	false
+Power On:	true
+Image Dimensions:	true
+Number Of PCI(e) Tests:	235
+Number Of Timing Tests:	232
+Number Of Utility Tests:	
+Timing Filename:	/home/arctic/leach/tim.lod
+Utility Filename:	
+Image Rows:	4104
+Image Cols:	4200

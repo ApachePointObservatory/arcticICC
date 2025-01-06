@@ -1,0 +1,28 @@
+#
+# This is a script for generating DSP code from the utilboot.asm and 
+#   utilappl.asm files for the utility board
+# 
+
+export DOWNLOAD=HOST   
+
+wine /opt/CLAS560/BIN/ASM56000.EXE -b -lutilboot.ls utilboot.asm
+wine /opt/CLAS560/BIN/ASM56000.EXE -b -lutilappl.ls -d DOWNLOAD $DOWNLOAD utilappl.asm 
+wine /opt/CLAS563/BIN/DSPLNK.EXE -butil.cld -v utilboot.cln utilappl.cln
+rm util.lod
+wine /opt/CLAS563/BIN/CLDLOD.EXE util.cld > util.lod
+rm utilboot.cln ; rm utilappl.cln ; rm util.cld
+
+if [ "$DOWNLOAD" = "HOST" ] ; then
+	echo ""
+	echo "Created file 'util.lod' for downloading over optical fiber"
+	echo ""
+fi
+
+if [ "$DOWNLOAD" = "ROM" ] ; then
+	echo ""
+	echo "Files named util.p0, util.p1 and util.p2 were generated"
+	echo "   in Motorola S-record format for burning EEPROMs."
+	echo ""
+	wine /opt/CLAS560/BIN/SREC.EXE -mw util.lod
+fi
+exit 0

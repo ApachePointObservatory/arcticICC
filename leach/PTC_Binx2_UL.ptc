@@ -1,0 +1,24 @@
+**** NOTE: All labels and data values MUST be separated by a single tab. ****
+[ Plot Title ]:	APO SLOW Binx2 UL
+[ File Dir] :	/Users/robertleach/Images/Apache_Point
+[ Start Time ]:	100
+[ End Time ]:	2200
+[ Number Of Points ]:	6
+[ Dark File ]:	PTCDark
+[ Dark Columns ]:	2500
+[ Dark Rows ]:	2000
+[ Dark Start Row ]:	1200
+[ Dark End Row ]:	1800
+[ Dark Start Column ]:	1050
+[ Dark End Column ]:	1240
+[ Flat File ]:	PTCFlat
+[ Flat Columns ]:	2100
+[ Flat Rows ]:	2048
+[ Flat Start Row ]:	1050
+[ Flat End Row ]:	1400
+[ Flat Start Column ]:	600
+[ Flat End Column ]:	1000
+[ Delete Files ]:	false
+[ Dark Only ]:	false
+[ Use Disk Files ]:	true
+[ Deinterlace Index ]:	3

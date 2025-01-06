@@ -1,0 +1,32 @@
+	echo ""
+	echo "Assembling DSP code for the UNAM 4240 2k CCD sensor"
+	echo ""
+#
+# DOWNLOAD selects application code to be loaded from EEPROM or 
+#   downloaded from the host over the fiber optic link
+#
+# DOWNLOAD = HOST or ROM
+
+DOWNLOAD=HOST
+WAVEFORM_FILE=CCD42.waveforms
+DST_FILE=tim
+
+wine /opt/clas563/bin/asm56300 -b -ltim.ls -d DOWNLOAD $DOWNLOAD -d WAVEFORM_FILE "$WAVEFORM_FILE" tim.asm
+wine /opt/clas563/bin/dsplnk -btim.cld -v tim.cln 
+rm -f "$DST_FILE".lod
+wine /opt/clas563/bin/cldlod tim.cld > "$DST_FILE".lod
+rm tim.cln ; rm tim.cld
+
+if [ "$DOWNLOAD" = "HOST" ] ; then
+	echo ""
+	echo "Created file 'tim.lod' for downloading over optical fiber"
+	echo ""
+fi
+
+if [ "$DOWNLOAD" = "ROM" ] ; then
+	echo ""
+	echo "Created Motorola S-record file 'tim.s' for EEPROM burning"
+	echo ""
+	srec -bs tim.lod
+	rm tim.lod 
+fi
